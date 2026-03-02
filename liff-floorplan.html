@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>平面圖定位</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { margin: 0; padding: 0; text-align: center; background: #f0f0f0; font-family: sans-serif; }
+        .header { background: #007bff; color: white; padding: 10px; font-size: 18px; font-weight: bold; }
+        .hint { padding: 10px; font-size: 14px; color: #333; }
+        #canvas-container { position: relative; display: inline-block; margin-top: 5px; max-width: 100%; overflow: auto;}
+        canvas { border: 2px solid #ccc; max-width: 100%; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: #fff;}
+        #sendBtn { 
+            display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; 
+            background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; 
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header" id="pageTitle">載入中...</div>
+    <div class="hint">請在下方平面圖「點擊」發生缺失的位置</div>
+    <div id="canvas-container">
+        <canvas id="floorPlan"></canvas>
+    </div>
+    <button id="sendBtn" onclick="sendCoordinate()">送出標記座標</button>
+
+    <script>
+        // ==========================================
+        // 1. 建立「圖庫對應表」(請替換成你真實的圖片網址)
+        // ==========================================
+        const floorPlanDB = {
+            "98工地": {
+                "1F": "https://i.imgur.com/example_98_1F.jpg", // 替換為真實網址
+                "2F": "https://i.imgur.com/example_98_2F.jpg",
+                "B1F": "https://i.imgur.com/example_98_B1F.jpg"
+            },
+            "內湖江南": {
+                "1F": "https://i.imgur.com/example_neihu_1F.jpg",
+                "2F": "https://i.imgur.com/example_neihu_2F.jpg"
+            }
+            // 繼續往下新增其他工地與樓層...
+        };
+
+        // ==========================================
+        // 2. 解析網址參數 (?site=xxx&floor=xxx)
+        // ==========================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const site = urlParams.get('site');
+        const floor = urlParams.get('floor');
+
+        // 更新網頁標題
+        if (site && floor) {
+            document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
+        } else {
+            document.getElementById('pageTitle').innerText = "未指定案場與樓層";
+        }
+
+        // ==========================================
+        // 3. 尋找圖片並載入 Canvas
+        // ==========================================
+        const canvas = document.getElementById('floorPlan');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        // 處理跨域問題 (重要：必須加這行)
+        img.crossOrigin = "Anonymous";
+
+        let selectedX = 0, selectedY = 0;
+        let isSelected = false;
+
+        // 判斷是否有對應的圖片，沒有就給一張「找不到圖片」的預設圖
+        let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
+        if (site && floor && floorPlanDB[site] && floorPlanDB[site][floor]) {
+            targetImgUrl = floorPlanDB[site][floor];
+        }
+        
+        img.src = targetImgUrl;
+
+        img.onload = () => {
+            // 讓圖片適應手機寬度
+            const maxWidth = window.innerWidth * 0.95;
+            const scale = maxWidth / img.width;
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+
+        // ==========================================
+        // 4. 點擊圖片畫圖與回傳 LINE
+        // ==========================================
+        canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            selectedX = e.clientX - rect.left;
+            selectedY = e.clientY - rect.top;
+            
+            // 重新繪製底圖以清除舊標記
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // 畫紅點大頭針
+            ctx.beginPath();
+            ctx.arc(selectedX, selectedY, 10, 0, 2 * Math.PI);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+
+            isSelected = true;
+            document.getElementById('sendBtn').style.display = 'block';
+        });
+
+        // 初始化 LIFF (請填入你的 LIFF ID)
+        liff.init({ liffId: "你的_LIFF_ID_填這裡" }).catch(err => console.error(err));
+
+        function sendCoordinate() {
+            if (!isSelected) return;
+            
+            // 計算百分比座標
+            const percentX = Math.round((selectedX / canvas.width) * 100);
+            const percentY = Math.round((selectedY / canvas.height) * 100);
+            const coordText = `[座標] X:${percentX}%, Y:${percentY}%`;
+
+            if (liff.isInClient()) {
+                liff.sendMessages([{ 'type': 'text', 'text': coordText }])
+                .then(() => liff.closeWindow())
+                .catch(err => alert('發送失敗: ' + err));
+            } else {
+                // 如果用電腦瀏覽器測試，會走這裡
+                alert(`非 LINE 環境測試：準備送出 ${coordText}`);
+            }
+        }
+    </script>
+</body>
+</html>
