@@ -4,47 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>平面圖定位</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { margin: 0; padding: 0; text-align: center; background: #f0f0f0; font-family: sans-serif; }
-        .header { background: #007bff; color: white; padding: 10px; font-size: 18px; font-weight: bold; }
-        .hint { padding: 10px; font-size: 14px; color: #333; }
-        #canvas-container { position: relative; display: inline-block; margin-top: 5px; max-width: 100%; overflow: auto;}
-        canvas { border: 2px solid #ccc; max-width: 100%; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: #fff;}
+        .header { background: #007bff; color: white; padding: 12px; font-size: 18px; font-weight: bold; }
+        .hint { padding: 10px; font-size: 14px; color: #555; }
+        #canvas-container { position: relative; display: inline-block; margin-top: 5px; max-width: 100%; overflow: auto; }
+        canvas { border: 2px solid #ccc; max-width: 100%; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: #fff; touch-action: none; }
         #sendBtn { 
-            display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; 
+            display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold;
             background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; 
-            cursor: pointer;
+            cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
+        #sendBtn:active { background: #179038; }
     </style>
 </head>
 <body>
-    <div class="header" id="pageTitle">載入中...</div>
+    <div class="header" id="pageTitle">平面圖載入中...</div>
     <div class="hint">請在下方平面圖「點擊」發生缺失的位置</div>
+    
     <div id="canvas-container">
         <canvas id="floorPlan"></canvas>
     </div>
-    <button id="sendBtn" onclick="sendCoordinate()">送出標記座標</button>
+    
+    <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
 
     <script>
         // ==========================================
-        // 1. 建立「圖庫對應表」(請替換成你真實的圖片網址)
+        // 1. 建立「圖庫對應表」(使用你的 GitHub Pages 網址)
         // ==========================================
+        const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; // 你的 GitHub Pages 根目錄
+        
         const floorPlanDB = {
             "98工地": {
-                "1F": "https://i.imgur.com/example_98_1F.jpg", // 替換為真實網址
-                "2F": "https://i.imgur.com/example_98_2F.jpg",
-                "B1F": "https://i.imgur.com/example_98_B1F.jpg"
+                // 這裡對應你上傳的檔名 98_1F.jpg
+                "1F": githubPagesUrl + "98_1F.jpg", 
+                // 未來如果有其他樓層，就在這裡繼續加：
+                // "2F": githubPagesUrl + "98_2F.jpg",
             },
-            "內湖江南": {
-                "1F": "https://i.imgur.com/example_neihu_1F.jpg",
-                "2F": "https://i.imgur.com/example_neihu_2F.jpg"
-            }
-            // 繼續往下新增其他工地與樓層...
+            // 未來如果有其他工地，也是同樣邏輯：
+            // "內湖江南": {
+            //     "1F": githubPagesUrl + "jiangnan_1F.jpg"
+            // }
         };
 
         // ==========================================
-        // 2. 解析網址參數 (?site=xxx&floor=xxx)
+        // 2. 解析網址參數 (?site=98工地&floor=1F)
         // ==========================================
         const urlParams = new URLSearchParams(window.location.search);
         const site = urlParams.get('site');
@@ -54,7 +59,7 @@
         if (site && floor) {
             document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
         } else {
-            document.getElementById('pageTitle').innerText = "未指定案場與樓層";
+            document.getElementById('pageTitle').innerText = "未指定案場與樓層，載入預設圖";
         }
 
         // ==========================================
@@ -64,7 +69,7 @@
         const ctx = canvas.getContext('2d');
         const img = new Image();
         
-        // 處理跨域問題 (重要：必須加這行)
+        // 處理跨域問題 (重要：必須加這行，否則 Canvas 無法讀取 GitHub 的圖片)
         img.crossOrigin = "Anonymous";
 
         let selectedX = 0, selectedY = 0;
@@ -87,21 +92,29 @@
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
 
+        img.onerror = () => {
+            alert("圖片載入失敗，請檢查 GitHub 儲存庫是否已設為 Public，且檔案名稱大小寫是否完全正確。");
+        };
+
         // ==========================================
         // 4. 點擊圖片畫圖與回傳 LINE
         // ==========================================
         canvas.addEventListener('click', function(e) {
             const rect = canvas.getBoundingClientRect();
-            selectedX = e.clientX - rect.left;
-            selectedY = e.clientY - rect.top;
+            // 支援手機觸控或滑鼠點擊
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            selectedX = clientX - rect.left;
+            selectedY = clientY - rect.top;
             
             // 重新繪製底圖以清除舊標記
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
-            // 畫紅點大頭針
+            // 畫紅色大頭針/標記
             ctx.beginPath();
-            ctx.arc(selectedX, selectedY, 10, 0, 2 * Math.PI);
+            ctx.arc(selectedX, selectedY, Math.max(canvas.width * 0.02, 6), 0, 2 * Math.PI); // 根據螢幕大小自適應圓點
             ctx.fillStyle = 'red';
             ctx.fill();
             ctx.lineWidth = 3;
@@ -112,24 +125,33 @@
             document.getElementById('sendBtn').style.display = 'block';
         });
 
-        // 初始化 LIFF (請填入你的 LIFF ID)
-        liff.init({ liffId: "你的_LIFF_ID_填這裡" }).catch(err => console.error(err));
+        // ==========================================
+        // 5. 初始化 LIFF
+        // ==========================================
+        // ⚠️ 請務必將這裡替換成你在 LINE Developers 後台建立的真實 LIFF ID
+        const myLiffId = "你的_LIFF_ID_填這裡"; 
+        
+        liff.init({ liffId: myLiffId }).catch(err => {
+            console.error(err);
+            document.getElementById('pageTitle').innerText = "LIFF 初始化失敗";
+        });
 
         function sendCoordinate() {
             if (!isSelected) return;
             
-            // 計算百分比座標
+            // 計算百分比座標 (X: 45%, Y: 60%)
             const percentX = Math.round((selectedX / canvas.width) * 100);
             const percentY = Math.round((selectedY / canvas.height) * 100);
             const coordText = `[座標] X:${percentX}%, Y:${percentY}%`;
 
             if (liff.isInClient()) {
+                // 在 LINE 裡面：發送訊息並關閉視窗
                 liff.sendMessages([{ 'type': 'text', 'text': coordText }])
                 .then(() => liff.closeWindow())
                 .catch(err => alert('發送失敗: ' + err));
             } else {
-                // 如果用電腦瀏覽器測試，會走這裡
-                alert(`非 LINE 環境測試：準備送出 ${coordText}`);
+                // 在一般電腦瀏覽器測試時：跳出提示
+                alert(`非 LINE 環境測試成功！\n系統準備傳送文字：${coordText}`);
             }
         }
     </script>
