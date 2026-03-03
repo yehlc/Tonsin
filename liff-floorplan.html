@@ -2,15 +2,30 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>平面圖定位</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { margin: 0; padding: 0; text-align: center; background: #f0f0f0; font-family: sans-serif; }
         .header { background: #007bff; color: white; padding: 12px; font-size: 18px; font-weight: bold; }
         .hint { padding: 10px; font-size: 14px; color: #555; }
-        #canvas-container { position: relative; display: inline-block; margin-top: 5px; max-width: 100%; overflow: auto; }
-        canvas { border: 2px solid #ccc; max-width: 100%; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: #fff; touch-action: none; }
+        
+        /* ★ 修改 2：優化外框與畫布，讓高解析度圖片適應螢幕，但不失真 */
+        #canvas-container { 
+            position: relative; 
+            width: 100%; 
+            display: flex;
+            justify-content: center;
+        }
+        canvas { 
+            border: 2px solid #ccc; 
+            width: 95%; /* CSS 視覺寬度縮放至螢幕寬度 */
+            height: auto; /* 保持比例 */
+            background: #fff; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            /* ★ 拿掉 touch-action: none; 讓雙指縮放能順利作用在畫布上 */
+        }
+        
         #sendBtn { 
             display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold;
             background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; 
@@ -21,7 +36,7 @@
 </head>
 <body>
     <div class="header" id="pageTitle">平面圖載入中...</div>
-    <div class="hint" id="hintText">請在下方平面圖「點擊」發生缺失的位置</div>
+    <div class="hint" id="hintText">請在下方平面圖「雙指放大」並「點擊」位置</div>
     
     <div id="canvas-container">
         <canvas id="floorPlan"></canvas>
@@ -32,7 +47,6 @@
     <script>
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
         
-        // 1. 取得網址參數 (請確保這些都在 script 標籤內)
         const urlParams = new URLSearchParams(window.location.search);
         const site = decodeURIComponent(urlParams.get('site') || "").toLowerCase();
         const floor = decodeURIComponent(urlParams.get('floor') || "").toUpperCase();
@@ -40,14 +54,12 @@
         const viewY = urlParams.get('y');
         const mode = urlParams.get('mode');
 
-        // 更新網頁標題
         if (site && floor) {
             document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
         } else {
             document.getElementById('pageTitle').innerText = "未指定案場與樓層";
         }
 
-        // 2. 決定圖片網址
         let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
         if (site.indexOf("98") > -1) {
             if (floor === "1F") {
@@ -67,11 +79,10 @@
         
         img.src = targetImgUrl;
 
+        // ★ 修改 3：維持圖片真實的高解析度像素，不物理壓縮
         img.onload = () => {
-            const maxWidth = window.innerWidth * 0.95;
-            const scale = maxWidth / img.width;
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
+            canvas.width = img.width;   // 物理像素：維持例如 2000px
+            canvas.height = img.height; // 物理像素：維持例如 1500px
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             // 如果是唯讀模式 (有 x, y 參數)，一載入就畫上紅點
@@ -80,42 +91,47 @@
                 const py = (parseInt(viewY) / 100) * canvas.height;
                 
                 ctx.beginPath();
-                ctx.arc(px, py, Math.max(canvas.width * 0.02, 6), 0, 2 * Math.PI);
+                // 依據原始高解析度調整圓點大小
+                ctx.arc(px, py, Math.max(canvas.width * 0.015, 12), 0, 2 * Math.PI);
                 ctx.fillStyle = 'red';
                 ctx.fill();
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 5;
                 ctx.strokeStyle = '#fff';
                 ctx.stroke();
                 
-                document.getElementById('hintText').innerText = "📍 缺失發生位置 (僅供檢視)";
+                document.getElementById('hintText').innerText = "📍 缺失發生位置 (可雙指放大查看細節)";
             }
         };
 
         img.onerror = () => {
-            // 防呆：如果圖片找不到，畫布上顯示錯誤字樣，避免一片空白
             ctx.font = "20px Arial";
             ctx.fillText("找不到平面圖檔", 50, 50);
         };
 
-        // 點擊事件
+        // ★ 修改 4：精準修正點擊座標的換算比例
         canvas.addEventListener('click', function(e) {
-            if (mode === 'view') return; // 如果是查看模式，不允許點擊畫圖
+            if (mode === 'view') return; 
             
             const rect = canvas.getBoundingClientRect();
+            // 算出 CSS 顯示尺寸與 Canvas 真實像素的縮放比例
+            const scaleX = canvas.width / rect.width;    
+            const scaleY = canvas.height / rect.height;  
+
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             
-            selectedX = clientX - rect.left;
-            selectedY = clientY - rect.top;
+            // 乘上比例，精準打在高解析度畫布的對應位置
+            selectedX = (clientX - rect.left) * scaleX;
+            selectedY = (clientY - rect.top) * scaleY;
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
             ctx.beginPath();
-            ctx.arc(selectedX, selectedY, Math.max(canvas.width * 0.02, 6), 0, 2 * Math.PI);
+            ctx.arc(selectedX, selectedY, Math.max(canvas.width * 0.015, 12), 0, 2 * Math.PI);
             ctx.fillStyle = 'red';
             ctx.fill();
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 5;
             ctx.strokeStyle = '#fff';
             ctx.stroke();
 
