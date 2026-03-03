@@ -28,70 +28,59 @@
     </div>
     
     <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
+        <script>
+        const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
+        
+        // 1. 取得網址參數
         const urlParams = new URLSearchParams(window.location.search);
-        const site = urlParams.get('site');
-        const floor = urlParams.get('floor');
-        // 新增讀取唯讀參數
+        // ★ 強制轉小寫並解碼，減少比對出錯的機率
+        const site = decodeURIComponent(urlParams.get('site') || "").toLowerCase();
+        const floor = decodeURIComponent(urlParams.get('floor') || "").toUpperCase();
+        
         const viewX = urlParams.get('x');
         const viewY = urlParams.get('y');
         const mode = urlParams.get('mode');
 
-    <script>
-        // ==========================================
-        // 1. 建立「圖庫對應表」
-        // ==========================================
-        const floorPlanDB = {
-            "98工地": {
-                // ★ 必須改成 yehlc.github.io 的網址，手機版 LINE 才能完美載入
-                "1F": "https://yehlc.github.io/Tonsin/98_1F.jpg", 
-                "全區配置圖": "https://yehlc.github.io/Tonsin/98_siteplan.jpg"
+        // 更新網頁標題
+        if (site && floor) {
+            document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
+        } else {
+            document.getElementById('pageTitle').innerText = "未指定案場與樓層，載入預設圖";
+        }
+
+        // 2. ★ 改用 if/else 來決定圖片網址 (避開 JavaScript 物件 Key 的中文編碼問題)
+        let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
+        
+        if (site.indexOf("98") > -1) {
+            if (floor === "1F") {
+                targetImgUrl = githubPagesUrl + "98_1F.jpg";
+            } else if (floor === "全區配置圖") {
+                targetImgUrl = githubPagesUrl + "98_siteplan.jpg";
             }
-        };
+        } 
+        // 未來如果有其他工地，就這樣加：
+        // else if (site.indexOf("內湖") > -1) {
+        //     if (floor === "1F") targetImgUrl = githubPagesUrl + "neihu_1F.jpg";
+        // }
 
-        // ==========================================
-        // 2. 解析網址參數 (?site=98工地&floor=1F)
-        // ==========================================
-        const urlParams = new URLSearchParams(window.location.search);
-        const site = urlParams.get('site');
-        const floor = urlParams.get('floor');
+        const canvas = document.getElementById('floorPlan');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.crossOrigin = "Anonymous";
+        let selectedX = 0, selectedY = 0;
+        let isSelected = false;
+        
+        img.src = targetImgUrl;
 
-        // 更新網頁標題
-        if (site && floor) {
-            document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
-        } else {
-            document.getElementById('pageTitle').innerText = "未指定案場與樓層，載入預設圖";
-        }
+        img.onload = () => {
+            const maxWidth = window.innerWidth * 0.95;
+            const scale = maxWidth / img.width;
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // ==========================================
-        // 3. 尋找圖片並載入 Canvas
-        // ==========================================
-        const canvas = document.getElementById('floorPlan');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-        
-        // 處理跨域問題 (重要：必須加這行，否則 Canvas 無法讀取 GitHub 的圖片)
-        img.crossOrigin = "Anonymous";
-
-        let selectedX = 0, selectedY = 0;
-        let isSelected = false;
-
-        // 判斷是否有對應的圖片，沒有就給一張「找不到圖片」的預設圖
-        let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
-        if (site && floor && floorPlanDB[site] && floorPlanDB[site][floor]) {
-            targetImgUrl = floorPlanDB[site][floor];
-        }
-        
-        img.src = targetImgUrl;
-
-        img.onload = () => {
-            // 讓圖片適應手機寬度
-            const maxWidth = window.innerWidth * 0.95;
-            const scale = maxWidth / img.width;
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                // [新增] 如果是唯讀模式，一載入就畫上紅點
+            // 如果是唯讀模式，一載入就畫上紅點
             if (mode === 'view' && viewX && viewY) {
                 const px = (parseInt(viewX) / 100) * canvas.width;
                 const py = (parseInt(viewY) / 100) * canvas.height;
@@ -106,71 +95,60 @@
                 
                 document.querySelector('.hint').innerText = "📍 缺失發生位置";
             }
-        };
+        };
 
-        img.onerror = () => {
-            alert("圖片載入失敗，請檢查 GitHub 儲存庫是否已設為 Public，且檔案名稱大小寫是否完全正確。");
-        };
+        img.onerror = () => {
+            alert(`圖片載入失敗。\n目前嘗試載入的網址是:\n${targetImgUrl}`);
+        };
 
-        // ==========================================
-        // 4. 點擊圖片畫圖與回傳 LINE
-        // ==========================================
-        canvas.addEventListener('click', function(e) {
-                if (mode === 'view') return; // 防呆
-            const rect = canvas.getBoundingClientRect();
-            // 支援手機觸控或滑鼠點擊
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            selectedX = clientX - rect.left;
-            selectedY = clientY - rect.top;
-            
-            // 重新繪製底圖以清除舊標記
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // 畫紅色大頭針/標記
-            ctx.beginPath();
-            ctx.arc(selectedX, selectedY, Math.max(canvas.width * 0.02, 6), 0, 2 * Math.PI); // 根據螢幕大小自適應圓點
-            ctx.fillStyle = 'red';
-            ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#fff';
-            ctx.stroke();
+        // 點擊事件：如果是唯讀模式，就禁止點擊畫圖
+        canvas.addEventListener('click', function(e) {
+            if (mode === 'view') return; // 防呆
+            
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            selectedX = clientX - rect.left;
+            selectedY = clientY - rect.top;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            ctx.beginPath();
+            ctx.arc(selectedX, selectedY, Math.max(canvas.width * 0.02, 6), 0, 2 * Math.PI);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
 
-            isSelected = true;
-            document.getElementById('sendBtn').style.display = 'block';
-        });
+            isSelected = true;
+            document.getElementById('sendBtn').style.display = 'block';
+        });
 
-        // ==========================================
-        // 5. 初始化 LIFF
-        // ==========================================
-        // ⚠️ 請務必將這裡替換成你在 LINE Developers 後台建立的真實 LIFF ID
-        const myLiffId = "2009287087-4LSCRAq4"; 
-        
-        liff.init({ liffId: myLiffId }).catch(err => {
-            console.error(err);
-            document.getElementById('pageTitle').innerText = "LIFF 初始化失敗";
-        });
+        // 初始化 LIFF
+        const myLiffId = "2009287087-4LSCRAq4"; 
+        liff.init({ liffId: myLiffId }).catch(err => {
+            console.error(err);
+            document.getElementById('pageTitle').innerText = "LIFF 初始化失敗";
+        });
 
-        function sendCoordinate() {
-            if (!isSelected) return;
-            
-            // 計算百分比座標 (X: 45%, Y: 60%)
-            const percentX = Math.round((selectedX / canvas.width) * 100);
-            const percentY = Math.round((selectedY / canvas.height) * 100);
-            const coordText = `[座標] X:${percentX}%, Y:${percentY}%`;
+        function sendCoordinate() {
+            if (!isSelected) return;
+            
+            const percentX = Math.round((selectedX / canvas.width) * 100);
+            const percentY = Math.round((selectedY / canvas.height) * 100);
+            const coordText = `[座標] X:${percentX}%, Y:${percentY}%`;
 
-            if (liff.isInClient()) {
-                // 在 LINE 裡面：發送訊息並關閉視窗
-                liff.sendMessages([{ 'type': 'text', 'text': coordText }])
-                .then(() => liff.closeWindow())
-                .catch(err => alert('發送失敗: ' + err));
-            } else {
-                // 在一般電腦瀏覽器測試時：跳出提示
-                alert(`非 LINE 環境測試成功！\n系統準備傳送文字：${coordText}`);
-            }
-        }
-    </script>
+            if (liff.isInClient()) {
+                liff.sendMessages([{ 'type': 'text', 'text': coordText }])
+                .then(() => liff.closeWindow())
+                .catch(err => alert('發送失敗: ' + err));
+            } else {
+                alert(`非 LINE 環境測試成功！\n系統準備傳送文字：${coordText}`);
+            }
+        }
+    </script>
 </body>
 </html> 
