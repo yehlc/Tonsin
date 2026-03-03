@@ -28,6 +28,13 @@
     </div>
     
     <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
+        const urlParams = new URLSearchParams(window.location.search);
+        const site = urlParams.get('site');
+        const floor = urlParams.get('floor');
+        // 新增讀取唯讀參數
+        const viewX = urlParams.get('x');
+        const viewY = urlParams.get('y');
+        const mode = urlParams.get('mode');
 
     <script>
         // ==========================================
@@ -83,6 +90,22 @@
             canvas.width = img.width * scale;
             canvas.height = img.height * scale;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                // [新增] 如果是唯讀模式，一載入就畫上紅點
+            if (mode === 'view' && viewX && viewY) {
+                const px = (parseInt(viewX) / 100) * canvas.width;
+                const py = (parseInt(viewY) / 100) * canvas.height;
+                
+                ctx.beginPath();
+                ctx.arc(px, py, Math.max(canvas.width * 0.02, 6), 0, 2 * Math.PI);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+                
+                document.querySelector('.hint').innerText = "📍 缺失發生位置";
+            }
         };
 
         img.onerror = () => {
@@ -93,6 +116,7 @@
         // 4. 點擊圖片畫圖與回傳 LINE
         // ==========================================
         canvas.addEventListener('click', function(e) {
+                if (mode === 'view') return; // 防呆
             const rect = canvas.getBoundingClientRect();
             // 支援手機觸控或滑鼠點擊
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
