@@ -43,17 +43,18 @@
         };
 
         // ==========================================
-        // 2. 解析網址參數 
+        // 2. 解析網址參數 (?site=98工地&floor=1F)
         // ==========================================
         const urlParams = new URLSearchParams(window.location.search);
-        const site = urlParams.get('site');
-        const floor = urlParams.get('floor');
+        
+        // 【關鍵修改】加入 decodeURIComponent 強制解碼，並處理可能的 null
+        let rawSite = urlParams.get('site');
+        let rawFloor = urlParams.get('floor');
+        
+        const site = rawSite ? decodeURIComponent(rawSite) : null;
+        const floor = rawFloor ? decodeURIComponent(rawFloor) : null;
 
-        if (site && floor) {
-            document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
-        } else {
-            document.getElementById('pageTitle').innerText = "未指定案場與樓層";
-        }
+        console.log("解析出的工地:", site, "樓層:", floor); // 可以在 F12 開發者工具查看
 
         // ==========================================
         // 3. 尋找圖片並載入 Canvas
