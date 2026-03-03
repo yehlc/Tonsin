@@ -10,7 +10,6 @@
         .header { background: #007bff; color: white; padding: 12px; font-size: 18px; font-weight: bold; }
         .hint { padding: 10px; font-size: 14px; color: #555; }
         
-        /* ★ 修改 2：優化外框與畫布，讓高解析度圖片適應螢幕，但不失真 */
         #canvas-container { 
             position: relative; 
             width: 100%; 
@@ -19,11 +18,10 @@
         }
         canvas { 
             border: 2px solid #ccc; 
-            width: 95%; /* CSS 視覺寬度縮放至螢幕寬度 */
-            height: auto; /* 保持比例 */
+            width: 95%; 
+            height: auto; 
             background: #fff; 
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            /* ★ 拿掉 touch-action: none; 讓雙指縮放能順利作用在畫布上 */
         }
         
         #sendBtn { 
@@ -47,9 +45,62 @@
     <script>
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
         
+        // ==========================================
+        // ★ 統一的「工地與樓層圖庫設定區」
+        // ==========================================
+        // 說明：你現在只需要把 98_1F.jpg 先填給所有樓層，
+        // 未來如果有對應的新圖，直接來這裡把 "98_1F.jpg" 換成新檔名即可，例如 "99_B1F.jpg"
+        
+        const defaultImg = "98_1F.jpg"; // 暫時統一使用的圖檔
+
+        const floorPlanDB = {
+            "98工地": {
+                "全區配置圖": "98_siteplan.jpg", "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
+                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
+                "1F": "98_1F.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
+                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
+                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
+                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
+                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
+            },
+            "99工地": {
+                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
+                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
+                "1F": defaultImg, "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
+                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
+                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
+                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
+                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
+            },
+            "95工地": {
+                "全區配置圖": defaultImg, "1F": defaultImg, "2F": defaultImg // 依此類推...
+            },
+            "鼎隆大苑": {
+                "全區配置圖": defaultImg, "1F": defaultImg, "2F": defaultImg
+            },
+            "毅聯R8": {
+                "全區配置圖": defaultImg, "1F": defaultImg, "2F": defaultImg
+            },
+            "毅聯寧夏": {
+                "全區配置圖": defaultImg, "1F": defaultImg, "2F": defaultImg
+            },
+            "內湖江南": {
+                "全區配置圖": defaultImg, "1F": defaultImg, "2F": defaultImg
+            },
+            "內湖富樂群": {
+                "全區配置圖": defaultImg, "1F": defaultImg, "2F": defaultImg
+            },
+            "中壢映象": {
+                "全區配置圖": defaultImg, "1F": defaultImg, "2F": defaultImg
+            }
+        };
+
+        // ==========================================
+        // 取得網址參數
+        // ==========================================
         const urlParams = new URLSearchParams(window.location.search);
-        const site = decodeURIComponent(urlParams.get('site') || "").toLowerCase();
-        const floor = decodeURIComponent(urlParams.get('floor') || "").toUpperCase();
+        const site = decodeURIComponent(urlParams.get('site') || "").trim(); // 拿掉 toLowerCase() 避免中文比對問題
+        const floor = decodeURIComponent(urlParams.get('floor') || "").trim().toUpperCase(); // 樓層保持大寫
         const viewX = urlParams.get('x');
         const viewY = urlParams.get('y');
         const mode = urlParams.get('mode');
@@ -60,14 +111,16 @@
             document.getElementById('pageTitle').innerText = "未指定案場與樓層";
         }
 
+        // ==========================================
+        // 尋找圖片路徑
+        // ==========================================
         let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
-        if (site.indexOf("98") > -1) {
-            if (floor === "1F") {
-                targetImgUrl = githubPagesUrl + "98_1F.jpg";
-            } else if (floor === "全區配置圖") {
-                targetImgUrl = githubPagesUrl + "98_siteplan.jpg";
-            }
-        } 
+        
+        // 從資料庫中比對
+        if (floorPlanDB[site] && floorPlanDB[site][floor]) {
+            // 將 Github 前綴與檔名組合起來
+            targetImgUrl = githubPagesUrl + floorPlanDB[site][floor];
+        }
 
         const canvas = document.getElementById('floorPlan');
         const ctx = canvas.getContext('2d');
@@ -79,19 +132,17 @@
         
         img.src = targetImgUrl;
 
-        // ★ 修改 3：維持圖片真實的高解析度像素，不物理壓縮
         img.onload = () => {
-            canvas.width = img.width;   // 物理像素：維持例如 2000px
-            canvas.height = img.height; // 物理像素：維持例如 1500px
+            canvas.width = img.width;   
+            canvas.height = img.height; 
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            // 如果是唯讀模式 (有 x, y 參數)，一載入就畫上紅點
+            // 唯讀模式，畫上紅點
             if (mode === 'view' && viewX && viewY) {
                 const px = (parseInt(viewX) / 100) * canvas.width;
                 const py = (parseInt(viewY) / 100) * canvas.height;
                 
                 ctx.beginPath();
-                // 依據原始高解析度調整圓點大小
                 ctx.arc(px, py, Math.max(canvas.width * 0.015, 12), 0, 2 * Math.PI);
                 ctx.fillStyle = 'red';
                 ctx.fill();
@@ -106,21 +157,19 @@
         img.onerror = () => {
             ctx.font = "20px Arial";
             ctx.fillText("找不到平面圖檔", 50, 50);
+            console.error("嘗試載入圖片失敗:", targetImgUrl);
         };
 
-        // ★ 修改 4：精準修正點擊座標的換算比例
         canvas.addEventListener('click', function(e) {
             if (mode === 'view') return; 
             
             const rect = canvas.getBoundingClientRect();
-            // 算出 CSS 顯示尺寸與 Canvas 真實像素的縮放比例
             const scaleX = canvas.width / rect.width;    
             const scaleY = canvas.height / rect.height;  
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             
-            // 乘上比例，精準打在高解析度畫布的對應位置
             selectedX = (clientX - rect.left) * scaleX;
             selectedY = (clientY - rect.top) * scaleY;
             
