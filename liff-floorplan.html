@@ -31,15 +31,13 @@
 
     <script>
         // ==========================================
-        // 1. 建立「圖庫對應表」(使用你的 GitHub Pages 網址)
-        // ==========================================
-        const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; // 你的 GitHub Pages 根目錄
-        
-        const floorPlanDB = {
+        // 1. 建立「圖庫對應表」
+        // ==========================================
+        const floorPlanDB = {
             "98工地": {
-                // 換回這個寫法，手機版 LINE 才能完美相容
-                "1F": githubPagesUrl + "98_1F.jpg", 
-                "全區配置圖": githubPagesUrl + "98_siteplan.jpg"
+                // ★ 必須改成 yehlc.github.io 的網址，手機版 LINE 才能完美載入
+                "1F": "https://yehlc.github.io/Tonsin/98_1F.jpg", 
+                "全區配置圖": "https://yehlc.github.io/Tonsin/98_siteplan.jpg"
             }
         };
 
