@@ -1,42 +1,41 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>平面圖定位</title>
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { margin: 0; padding: 0; text-align: center; background: #f0f0f0; font-family: sans-serif; }
-        .header { background: #007bff; color: white; padding: 12px; font-size: 18px; font-weight: bold; }
-        .hint { padding: 10px; font-size: 14px; color: #555; }
-        #canvas-container { position: relative; display: inline-block; margin-top: 5px; max-width: 100%; overflow: auto; }
-        canvas { border: 2px solid #ccc; max-width: 100%; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: #fff; touch-action: none; }
-        #sendBtn { 
-            display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold;
-            background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; 
-            cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        #sendBtn:active { background: #179038; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>平面圖定位</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { margin: 0; padding: 0; text-align: center; background: #f0f0f0; font-family: sans-serif; }
+        .header { background: #007bff; color: white; padding: 12px; font-size: 18px; font-weight: bold; }
+        .hint { padding: 10px; font-size: 14px; color: #555; }
+        #canvas-container { position: relative; display: inline-block; margin-top: 5px; max-width: 100%; overflow: auto; }
+        canvas { border: 2px solid #ccc; max-width: 100%; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: #fff; touch-action: none; }
+        #sendBtn { 
+            display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold;
+            background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; 
+            cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #sendBtn:active { background: #179038; }
+    </style>
 </head>
 <body>
-    <div class="header" id="pageTitle">平面圖載入中...</div>
-    <div class="hint">請在下方平面圖「點擊」發生缺失的位置</div>
-    
-    <div id="canvas-container">
-        <canvas id="floorPlan"></canvas>
-    </div>
-    
-    <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
-        <script>
+    <div class="header" id="pageTitle">平面圖載入中...</div>
+    <div class="hint" id="hintText">請在下方平面圖「點擊」發生缺失的位置</div>
+    
+    <div id="canvas-container">
+        <canvas id="floorPlan"></canvas>
+    </div>
+    
+    <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
+
+    <script>
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
         
-        // 1. 取得網址參數
+        // 1. 取得網址參數 (請確保這些都在 script 標籤內)
         const urlParams = new URLSearchParams(window.location.search);
-        // ★ 強制轉小寫並解碼，減少比對出錯的機率
         const site = decodeURIComponent(urlParams.get('site') || "").toLowerCase();
         const floor = decodeURIComponent(urlParams.get('floor') || "").toUpperCase();
-        
         const viewX = urlParams.get('x');
         const viewY = urlParams.get('y');
         const mode = urlParams.get('mode');
@@ -45,12 +44,11 @@
         if (site && floor) {
             document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
         } else {
-            document.getElementById('pageTitle').innerText = "未指定案場與樓層，載入預設圖";
+            document.getElementById('pageTitle').innerText = "未指定案場與樓層";
         }
 
-        // 2. ★ 改用 if/else 來決定圖片網址 (避開 JavaScript 物件 Key 的中文編碼問題)
+        // 2. 決定圖片網址
         let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
-        
         if (site.indexOf("98") > -1) {
             if (floor === "1F") {
                 targetImgUrl = githubPagesUrl + "98_1F.jpg";
@@ -58,10 +56,6 @@
                 targetImgUrl = githubPagesUrl + "98_siteplan.jpg";
             }
         } 
-        // 未來如果有其他工地，就這樣加：
-        // else if (site.indexOf("內湖") > -1) {
-        //     if (floor === "1F") targetImgUrl = githubPagesUrl + "neihu_1F.jpg";
-        // }
 
         const canvas = document.getElementById('floorPlan');
         const ctx = canvas.getContext('2d');
@@ -80,7 +74,7 @@
             canvas.height = img.height * scale;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            // 如果是唯讀模式，一載入就畫上紅點
+            // 如果是唯讀模式 (有 x, y 參數)，一載入就畫上紅點
             if (mode === 'view' && viewX && viewY) {
                 const px = (parseInt(viewX) / 100) * canvas.width;
                 const py = (parseInt(viewY) / 100) * canvas.height;
@@ -93,17 +87,19 @@
                 ctx.strokeStyle = '#fff';
                 ctx.stroke();
                 
-                document.querySelector('.hint').innerText = "📍 缺失發生位置";
+                document.getElementById('hintText').innerText = "📍 缺失發生位置 (僅供檢視)";
             }
         };
 
         img.onerror = () => {
-            alert(`圖片載入失敗。\n目前嘗試載入的網址是:\n${targetImgUrl}`);
+            // 防呆：如果圖片找不到，畫布上顯示錯誤字樣，避免一片空白
+            ctx.font = "20px Arial";
+            ctx.fillText("找不到平面圖檔", 50, 50);
         };
 
-        // 點擊事件：如果是唯讀模式，就禁止點擊畫圖
+        // 點擊事件
         canvas.addEventListener('click', function(e) {
-            if (mode === 'view') return; // 防呆
+            if (mode === 'view') return; // 如果是查看模式，不允許點擊畫圖
             
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -146,9 +142,9 @@
                 .then(() => liff.closeWindow())
                 .catch(err => alert('發送失敗: ' + err));
             } else {
-                alert(`非 LINE 環境測試成功！\n系統準備傳送文字：${coordText}`);
+                alert(`測試模式送出：${coordText}`);
             }
         }
     </script>
 </body>
-</html> 
+</html>
