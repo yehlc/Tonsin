@@ -30,6 +30,23 @@
             cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         #sendBtn:active { background: #179038; }
+
+        /* ★ 新增：點擊大頭針時彈出的資訊框 */
+        #defectInfoCard {
+            display: none;
+            position: fixed;
+            bottom: 20px; left: 5%; width: 90%;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px; border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            text-align: left; z-index: 100;
+            box-sizing: border-box;
+            border-left: 6px solid #ff9800; /* 預設顏色 */
+        }
+        .close-btn {
+            position: absolute; right: 15px; top: 10px;
+            background: none; border: none; font-size: 20px; cursor: pointer; color: #888;
+        }
     </style>
 </head>
 <body>
@@ -42,18 +59,19 @@
     
     <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
 
+    <div id="defectInfoCard">
+        <button class="close-btn" onclick="document.getElementById('defectInfoCard').style.display='none'">✖</button>
+        <div id="infoStatus" style="font-weight:bold; font-size:16px; margin-bottom:6px;"></div>
+        <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px;"></div>
+        <div id="infoDesc" style="color:#222; font-size:15px; line-height:1.4;"></div>
+    </div>
+
     <script>
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
-        
-        // ==========================================
-        // ★ 統一的「工地與樓層圖庫設定區」
-        // ==========================================
-        // 說明：你現在只需要把 98_1F.jpg 先填給所有樓層，
-        // 未來如果有對應的新圖，直接來這裡把 "98_1F.jpg" 換成新檔名即可，例如 "99_B1F.jpg"
-        
-        const defaultImg = "98_1F.jpg"; // 暫時統一使用的圖檔
+        const defaultImg = "98_1F.jpg"; 
 
-        const floorPlanDB = {
+        // 圖庫設定
+                const floorPlanDB = {
             "98工地": {
                 "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
                 "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
@@ -146,40 +164,31 @@
             }
         };
 
-        // ==========================================
-        // 取得網址參數
-        // ==========================================
         const urlParams = new URLSearchParams(window.location.search);
-        const site = decodeURIComponent(urlParams.get('site') || "").trim(); // 拿掉 toLowerCase() 避免中文比對問題
-        const floor = decodeURIComponent(urlParams.get('floor') || "").trim().toUpperCase(); // 樓層保持大寫
+        const site = decodeURIComponent(urlParams.get('site') || "").trim(); 
+        const floor = decodeURIComponent(urlParams.get('floor') || "").trim().toUpperCase(); 
         const viewX = urlParams.get('x');
         const viewY = urlParams.get('y');
         const mode = urlParams.get('mode');
+        const apiBaseUrl = urlParams.get('api'); // 接收後端網址
 
         if (site && floor) {
             document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
-        } else {
-            document.getElementById('pageTitle').innerText = "未指定案場與樓層";
         }
 
-        // ==========================================
-        // 尋找圖片路徑
-        // ==========================================
         let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
-        
-        // 從資料庫中比對
         if (floorPlanDB[site] && floorPlanDB[site][floor]) {
-            // 將 Github 前綴與檔名組合起來
             targetImgUrl = githubPagesUrl + floorPlanDB[site][floor];
         }
 
         const canvas = document.getElementById('floorPlan');
         const ctx = canvas.getContext('2d');
         const img = new Image();
-        
         img.crossOrigin = "Anonymous";
+        
         let selectedX = 0, selectedY = 0;
         let isSelected = false;
+        let defectsList = []; // 存放總覽資料
         
         img.src = targetImgUrl;
 
@@ -188,52 +197,116 @@
             canvas.height = img.height; 
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            // 唯讀模式，畫上紅點
             if (mode === 'view' && viewX && viewY) {
-                const px = (parseInt(viewX) / 100) * canvas.width;
-                const py = (parseInt(viewY) / 100) * canvas.height;
-                
-                ctx.beginPath();
-                ctx.arc(px, py, Math.max(canvas.width * 0.015, 12), 0, 2 * Math.PI);
-                ctx.fillStyle = 'red';
-                ctx.fill();
-                ctx.lineWidth = 5;
-                ctx.strokeStyle = '#fff';
-                ctx.stroke();
-                
+                // 單筆檢視模式
                 document.getElementById('hintText').innerText = "📍 缺失發生位置 (可雙指放大查看細節)";
+                drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, 'red');
+            } 
+            else if (mode === 'overview' && apiBaseUrl) {
+                // ★ 總覽模式：去後端撈取所有缺失
+                document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
+                fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, {
+                    headers: { "ngrok-skip-browser-warning": "true" }
+                })
+                .then(res => res.json())
+                .then(json => {
+                    if (json.success && json.data.length > 0) {
+                        defectsList = json.data;
+                        document.getElementById('hintText').innerText = `📍 圖紙總覽 (共 ${defectsList.length} 筆) - 點擊大頭針查看`;
+                        drawAllPins();
+                    } else {
+                        document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄";
+                    }
+                })
+                .catch(err => { document.getElementById('hintText').innerText = "❌ 資料載入失敗"; });
             }
         };
 
         img.onerror = () => {
             ctx.font = "20px Arial";
             ctx.fillText("找不到平面圖檔", 50, 50);
-            console.error("嘗試載入圖片失敗:", targetImgUrl);
         };
 
-        canvas.addEventListener('click', function(e) {
-            if (mode === 'view') return; 
-            
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;    
-            const scaleY = canvas.height / rect.height;  
-
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            selectedX = (clientX - rect.left) * scaleX;
-            selectedY = (clientY - rect.top) * scaleY;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
+        // 畫單一圖釘
+        function drawSinglePin(px, py, color) {
             ctx.beginPath();
-            ctx.arc(selectedX, selectedY, Math.max(canvas.width * 0.015, 12), 0, 2 * Math.PI);
-            ctx.fillStyle = 'red';
+            ctx.arc(px, py, Math.max(canvas.width * 0.015, 12), 0, 2 * Math.PI);
+            ctx.fillStyle = color;
             ctx.fill();
             ctx.lineWidth = 5;
             ctx.strokeStyle = '#fff';
             ctx.stroke();
+        }
+
+        // 畫出所有圖釘
+        function drawAllPins() {
+            defectsList.forEach(d => {
+                let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                if (match) {
+                    d.px = (parseInt(match[1]) / 100) * canvas.width;
+                    d.py = (parseInt(match[2]) / 100) * canvas.height;
+                    
+                    let color = '#dc3545'; // 紅色 (預設/待改善/退回)
+                    if (d.Status.includes('待驗收')) color = '#007bff'; // 藍色
+                    if (d.Status.includes('已改善')) color = '#1DB446'; // 綠色
+                    
+                    drawSinglePin(d.px, d.py, color);
+                }
+            });
+        }
+
+        canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;    
+            const scaleY = canvas.height / rect.height;  
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const clickX = (clientX - rect.left) * scaleX;
+            const clickY = (clientY - rect.top) * scaleY;
+
+            // 如果是總覽模式 -> 尋找被點擊的大頭針
+            if (mode === 'overview') {
+                let clickedDefect = null;
+                let threshold = Math.max(canvas.width * 0.03, 30); // 點擊容錯範圍
+                
+                for (let d of defectsList) {
+                    if (d.px && d.py) {
+                        let dist = Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2));
+                        if (dist <= threshold) {
+                            clickedDefect = d;
+                            break;
+                        }
+                    }
+                }
+
+                if (clickedDefect) {
+                    let cCard = document.getElementById('defectInfoCard');
+                    let color = '#dc3545';
+                    if (clickedDefect.Status.includes('待驗收')) color = '#007bff';
+                    if (clickedDefect.Status.includes('已改善')) color = '#1DB446';
+
+                    cCard.style.borderLeftColor = color;
+                    document.getElementById('infoStatus').innerText = "狀態：" + clickedDefect.Status;
+                    document.getElementById('infoStatus').style.color = color;
+                    document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${clickedDefect.Dept} | 回報：${clickedDefect.UserName}`;
+                    document.getElementById('infoDesc').innerText = clickedDefect.Description || "無備註說明";
+                    cCard.style.display = 'block';
+                } else {
+                    document.getElementById('defectInfoCard').style.display = 'none';
+                }
+                return; 
+            }
+
+            // 如果是檢視模式 -> 什麼都不做
+            if (mode === 'view') return; 
+
+            // 以下為新增模式：允許畫新標記
+            selectedX = clickX;
+            selectedY = clickY;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            drawSinglePin(selectedX, selectedY, 'red');
 
             isSelected = true;
             document.getElementById('sendBtn').style.display = 'block';
@@ -248,7 +321,6 @@
 
         function sendCoordinate() {
             if (!isSelected) return;
-            
             const percentX = Math.round((selectedX / canvas.width) * 100);
             const percentY = Math.round((selectedY / canvas.height) * 100);
             const coordText = `[座標] X:${percentX}%, Y:${percentY}%`;
