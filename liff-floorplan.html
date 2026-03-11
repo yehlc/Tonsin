@@ -10,19 +10,8 @@
         .header { background: #007bff; color: white; padding: 12px; font-size: 18px; font-weight: bold; }
         .hint { padding: 10px; font-size: 14px; color: #555; }
         
-        #canvas-container { 
-            position: relative; 
-            width: 100%; 
-            display: flex;
-            justify-content: center;
-        }
-        canvas { 
-            border: 2px solid #ccc; 
-            width: 95%; 
-            height: auto; 
-            background: #fff; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
+        #canvas-container { position: relative; width: 100%; display: flex; justify-content: center; }
+        canvas { border: 2px solid #ccc; width: 95%; height: auto; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         
         #sendBtn { 
             display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold;
@@ -31,43 +20,21 @@
         }
         #sendBtn:active { background: #179038; }
 
-        /* ★ 新增：點擊大頭針時彈出的資訊框 */
         #defectInfoCard {
-            display: none;
-            position: fixed;
-            bottom: 20px; left: 5%; width: 90%;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px; border-radius: 12px;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-            text-align: left; z-index: 100;
-            box-sizing: border-box;
-            border-left: 6px solid #ff9800; /* 預設顏色 */
-            max-height: 80vh; /* 防止卡片太高 */
-            overflow-y: auto;
+            display: none; position: fixed; bottom: 20px; left: 5%; width: 90%;
+            background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2); text-align: left; z-index: 100;
+            box-sizing: border-box; border-left: 6px solid #ff9800; 
+            max-height: 80vh; overflow-y: auto;
         }
-        /* ★ 新增：卡片內的預覽圖樣式 */
-        #infoImg {
-            width: 100%;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            background-color: #eee;
-        }
-        .close-btn {
-            position: absolute; right: 15px; top: 10px;
-            background: none; border: none; font-size: 20px; cursor: pointer; color: #888;
-        }
+        #infoImg { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background-color: #eee; }
+        .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
     </style>
 </head>
 <body>
     <div class="header" id="pageTitle">平面圖載入中...</div>
-    <div class="hint" id="hintText">請在下方平面圖「雙指放大」並「點擊」位置</div>
-    
-    <div id="canvas-container">
-        <canvas id="floorPlan"></canvas>
-    </div>
-    
+    <div class="hint" id="hintText">連線環境建立中...</div>
+    <div id="canvas-container"><canvas id="floorPlan"></canvas></div>
     <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
 
     <div id="defectInfoCard">
@@ -82,10 +49,9 @@
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
         const defaultImg = "98_1F.jpg"; 
 
-        // 圖庫設定
-                const floorPlanDB = {
+        const floorPlanDB = {
             "98工地": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
+                "全區配置圖": "98_siteplan.jpg", "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
                 "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
                 "1F": "98_1F.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
                 "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
@@ -93,103 +59,21 @@
                 "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
                 "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
             },
-            "99工地": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
-                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
-                "1F": defaultImg, "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
-                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
-                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
-                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
-                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
-            },
+            "99工地": { "全區配置圖": defaultImg, "1F": defaultImg, "2F": defaultImg },
             "95工地": {
                 "全區配置圖": "95_1F.png", "戶外周邊": "95_1F.png", "CBF": "95_CBF.png" ,
                 "B1F": "95_B1F.png", "B2F": "95_B2F.png", "B3F": "95_B3F.png", "B4F": defaultImg,
                 "1F": "95_1F.png", "2F": "95_2F.png", "3F": "95_3F.png", "4F": "95_4F.png", "5F": "95_5F.png", 
                 "6F": "95_6F.png", "7F": "95_7F.png", "R1F": "95_R1F.png", "R2F": "95_R2F.png", "R3F": "95_R3F.png"
-                
             },
-            "鼎隆大苑": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
-                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
-                "1F": "98_1F.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
-                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
-                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
-                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
-                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
-            },
-            "毅聯R8": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
-                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
-                "1F": "98_1F.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
-                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
-                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
-                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
-                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
-            },
-            "毅聯寧夏": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
-                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
-                "1F": "98_1F.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
-                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
-                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
-                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
-                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
-            },
-            "內湖江南": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
-                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
-                "1F": "98_1F.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
-                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
-                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
-                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
-                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
-            },
-            "內湖富樂群": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
-                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
-                "1F": "98_1F.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
-                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
-                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
-                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
-                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
-            },
-            "中壢映象": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
-                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
-                "1F": "98_1F.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
-                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
-                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
-                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
-                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
-            },
-            "測試工地": {
-                "全區配置圖": defaultImg, "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
-                "B1F": defaultImg, "B2F": defaultImg, "B3F": defaultImg, "B4F": defaultImg,
-                "1F": "test.jpg", "2F": defaultImg, "3F": defaultImg, "4F": defaultImg, "5F": defaultImg, 
-                "6F": defaultImg, "7F": defaultImg, "8F": defaultImg, "9F": defaultImg, "10F": defaultImg,
-                "11F": defaultImg, "12F": defaultImg, "13F": defaultImg, "14F": defaultImg, "15F": defaultImg, 
-                "16F": defaultImg, "17F": defaultImg, "18F": defaultImg, "19F": defaultImg, "20F": defaultImg,
-                "R1F": defaultImg, "R2F": defaultImg, "R3F": defaultImg, "PRF": defaultImg
-            }
+            "鼎隆大苑": { "全區配置圖": defaultImg, "1F": "98_1F.jpg", "2F": defaultImg },
+            "毅聯R8": { "全區配置圖": defaultImg, "1F": "98_1F.jpg", "2F": defaultImg },
+            "毅聯寧夏": { "全區配置圖": defaultImg, "1F": "98_1F.jpg", "2F": defaultImg },
+            "內湖江南": { "全區配置圖": defaultImg, "1F": "98_1F.jpg", "2F": defaultImg },
+            "內湖富樂群": { "全區配置圖": defaultImg, "1F": "98_1F.jpg", "2F": defaultImg },
+            "中壢映象": { "全區配置圖": defaultImg, "1F": "98_1F.jpg", "2F": defaultImg },
+            "測試工地": { "全區配置圖": defaultImg, "1F": "test.jpg", "2F": defaultImg }
         };
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const site = decodeURIComponent(urlParams.get('site') || "").trim(); 
-        const floor = decodeURIComponent(urlParams.get('floor') || "").trim().toUpperCase(); 
-        const viewX = urlParams.get('x');
-        const viewY = urlParams.get('y');
-        const mode = urlParams.get('mode');
-        const apiBaseUrl = urlParams.get('api'); // 接收後端網址
-
-        if (site && floor) {
-            document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
-        }
-
-        let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
-        if (floorPlanDB[site] && floorPlanDB[site][floor]) {
-            targetImgUrl = githubPagesUrl + floorPlanDB[site][floor];
-        }
 
         const canvas = document.getElementById('floorPlan');
         const ctx = canvas.getContext('2d');
@@ -198,44 +82,7 @@
         
         let selectedX = 0, selectedY = 0;
         let isSelected = false;
-        let defectsList = []; // 存放總覽資料
-        
-        img.src = targetImgUrl;
-
-        img.onload = () => {
-            canvas.width = img.width;   
-            canvas.height = img.height; 
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-            if (mode === 'view' && viewX && viewY) {
-                // 單筆檢視模式
-                document.getElementById('hintText').innerText = "📍 缺失發生位置 (可雙指放大查看細節)";
-                drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, 'red');
-            } 
-            else if (mode === 'overview' && apiBaseUrl) {
-                // ★ 總覽模式：去後端撈取所有缺失
-                document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
-                fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, {
-                    headers: { "ngrok-skip-browser-warning": "true" }
-                })
-                .then(res => res.json())
-                .then(json => {
-                    if (json.success && json.data.length > 0) {
-                        defectsList = json.data;
-                        document.getElementById('hintText').innerText = `📍 圖紙總覽 (共 ${defectsList.length} 筆) - 點擊大頭針查看`;
-                        drawAllPins();
-                    } else {
-                        document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄";
-                    }
-                })
-                .catch(err => { document.getElementById('hintText').innerText = "❌ 資料載入失敗"; });
-            }
-        };
-
-        img.onerror = () => {
-            ctx.font = "20px Arial";
-            ctx.fillText("找不到平面圖檔", 50, 50);
-        };
+        let defectsList = [];
 
         // 畫單一圖釘
         function drawSinglePin(px, py, color) {
@@ -255,82 +102,134 @@
                 if (match) {
                     d.px = (parseInt(match[1]) / 100) * canvas.width;
                     d.py = (parseInt(match[2]) / 100) * canvas.height;
-                    
-                    let color = '#dc3545'; // 紅色 (預設/待改善/退回)
+                    let color = '#dc3545'; // 紅色
                     if (d.Status.includes('待驗收')) color = '#007bff'; // 藍色
                     if (d.Status.includes('已改善')) color = '#1DB446'; // 綠色
-                    
                     drawSinglePin(d.px, d.py, color);
                 }
             });
         }
 
-        canvas.addEventListener('click', function(e) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;    
-            const scaleY = canvas.height / rect.height;  
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const clickX = (clientX - rect.left) * scaleX;
-            const clickY = (clientY - rect.top) * scaleY;
+        // ==========================================
+        // ★ 關鍵修復：把邏輯包在 liff.init 裡面，確保能抓到網址參數
+        // ==========================================
+        const myLiffId = "2009287087-4LSCRAq4"; 
+        liff.init({ liffId: myLiffId }).then(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const site = decodeURIComponent(urlParams.get('site') || "").trim(); 
+            const floor = decodeURIComponent(urlParams.get('floor') || "").trim().toUpperCase(); 
+            const viewX = urlParams.get('x');
+            const viewY = urlParams.get('y');
+            const mode = urlParams.get('mode');
+            const apiBaseUrl = urlParams.get('api');
 
-            // 如果是總覽模式 -> 尋找被點擊的大頭針
-            if (mode === 'overview') {
-                let clickedDefect = null;
-                let threshold = Math.max(canvas.width * 0.03, 30); // 點擊容錯範圍
-                
-                for (let d of defectsList) {
-                    if (d.px && d.py) {
-                        let dist = Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2));
-                        if (dist <= threshold) {
-                            clickedDefect = d;
-                            break;
-                        }
-                    }
-                }
-
-                // ... (找大頭針的 for 迴圈保持不變) ...
-
-                if (clickedDefect) {
-                    let cCard = document.getElementById('defectInfoCard');
-                    let color = '#dc3545'; // 紅色
-                    if (clickedDefect.Status.includes('待驗收')) color = '#007bff'; // 藍色
-                    if (clickedDefect.Status.includes('已改善')) color = '#1DB446'; // 綠色
-
-                    cCard.style.borderLeftColor = color;
-                    document.getElementById('infoStatus').innerText = "狀態：" + clickedDefect.Status;
-                    document.getElementById('infoStatus').style.color = color;
-                    
-                    // ★ 組合完整的圖片網址並載入
-                    document.getElementById('infoImg').src = apiBaseUrl + clickedDefect.DisplayImageUrl;
-
-                    document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${clickedDefect.Dept} | 回報：${clickedDefect.UserName}`;
-                    document.getElementById('infoDesc').innerText = clickedDefect.Description || "無備註說明";
-                    cCard.style.display = 'block';
-                } else {
-                    document.getElementById('defectInfoCard').style.display = 'none';
-                }
-                return;
+            if (site && floor) {
+                document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
+                document.getElementById('hintText').innerText = "請在下方平面圖「雙指放大」並「點擊」位置";
+            } else {
+                document.getElementById('pageTitle').innerText = "未指定案場與樓層";
+                document.getElementById('hintText').innerText = "無法載入參數，請重新操作";
             }
 
-            // 如果是檢視模式 -> 什麼都不做
-            if (mode === 'view') return; 
-
-            // 以下為新增模式：允許畫新標記
-            selectedX = clickX;
-            selectedY = clickY;
+            let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
+            if (floorPlanDB[site] && floorPlanDB[site][floor]) {
+                targetImgUrl = githubPagesUrl + floorPlanDB[site][floor];
+            }
             
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            drawSinglePin(selectedX, selectedY, 'red');
+            img.src = targetImgUrl;
 
-            isSelected = true;
-            document.getElementById('sendBtn').style.display = 'block';
-        });
+            img.onload = () => {
+                canvas.width = img.width;   
+                canvas.height = img.height; 
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // 初始化 LIFF
-        const myLiffId = "2009287087-4LSCRAq4"; 
-        liff.init({ liffId: myLiffId }).catch(err => {
+                if (mode === 'view' && viewX && viewY) {
+                    document.getElementById('hintText').innerText = "📍 缺失發生位置 (可雙指放大查看細節)";
+                    drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, 'red');
+                } 
+                else if (mode === 'overview' && apiBaseUrl) {
+                    document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
+                    fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, {
+                        headers: { "ngrok-skip-browser-warning": "true" }
+                    })
+                    .then(res => res.json())
+                    .then(json => {
+                        if (json.success && json.data.length > 0) {
+                            defectsList = json.data;
+                            document.getElementById('hintText').innerText = `📍 圖紙總覽 (共 ${defectsList.length} 筆) - 點擊大頭針查看`;
+                            drawAllPins();
+                        } else {
+                            document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄";
+                        }
+                    })
+                    .catch(err => { document.getElementById('hintText').innerText = "❌ 資料載入失敗"; });
+                }
+            };
+
+            img.onerror = () => {
+                ctx.font = "20px Arial";
+                ctx.fillText("找不到平面圖檔", 50, 50);
+                console.error("嘗試載入圖片失敗:", targetImgUrl);
+            };
+
+            canvas.addEventListener('click', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;    
+                const scaleY = canvas.height / rect.height;  
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const clickX = (clientX - rect.left) * scaleX;
+                const clickY = (clientY - rect.top) * scaleY;
+
+                if (mode === 'overview') {
+                    let clickedDefect = null;
+                    let threshold = Math.max(canvas.width * 0.03, 30); 
+                    
+                    for (let d of defectsList) {
+                        if (d.px && d.py) {
+                            let dist = Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2));
+                            if (dist <= threshold) {
+                                clickedDefect = d;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (clickedDefect) {
+                        let cCard = document.getElementById('defectInfoCard');
+                        let color = '#dc3545';
+                        if (clickedDefect.Status.includes('待驗收')) color = '#007bff';
+                        if (clickedDefect.Status.includes('已改善')) color = '#1DB446';
+
+                        cCard.style.borderLeftColor = color;
+                        document.getElementById('infoStatus').innerText = "狀態：" + clickedDefect.Status;
+                        document.getElementById('infoStatus').style.color = color;
+                        
+                        // 確保圖片在總覽時也能正確顯示
+                        document.getElementById('infoImg').src = apiBaseUrl + clickedDefect.DisplayImageUrl;
+
+                        document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${clickedDefect.Dept} | 回報：${clickedDefect.UserName}`;
+                        document.getElementById('infoDesc').innerText = clickedDefect.Description || "無備註說明";
+                        cCard.style.display = 'block';
+                    } else {
+                        document.getElementById('defectInfoCard').style.display = 'none';
+                    }
+                    return; 
+                }
+
+                if (mode === 'view') return; 
+
+                selectedX = clickX;
+                selectedY = clickY;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                drawSinglePin(selectedX, selectedY, 'red');
+
+                isSelected = true;
+                document.getElementById('sendBtn').style.display = 'block';
+            });
+
+        }).catch(err => {
             console.error(err);
             document.getElementById('pageTitle').innerText = "LIFF 初始化失敗";
         });
