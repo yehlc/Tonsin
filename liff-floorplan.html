@@ -20,6 +20,7 @@
         }
         #sendBtn:active { background: #179038; }
 
+        /* 懸浮資訊卡片 */
         #defectInfoCard {
             display: none; position: fixed; bottom: 20px; left: 5%; width: 90%;
             background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px;
@@ -27,61 +28,59 @@
             box-sizing: border-box; border-left: 6px solid #ff9800; 
             max-height: 85vh; overflow-y: auto;
         }
-
-        /* ★ 修改：讓卡片內的圖片不再裁切，並加上點擊放大的游標 */
-        #infoImg { 
-            width: 100%; 
-            max-height: 250px; 
-            height: auto; 
-            object-fit: contain; /* 保證全圖顯示 */
-            border-radius: 8px; 
-            margin-bottom: 5px; 
-            background-color: #111; /* 黑色背景讓照片更清楚 */
-            cursor: zoom-in; 
-        }
-        
+        #infoImg { width: 100%; max-height: 250px; height: auto; object-fit: contain; border-radius: 8px; margin-bottom: 5px; background-color: #111; cursor: zoom-in; }
         .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
         
         /* 載入動畫 */
         .loader {
             border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%;
-            width: 20px; height: 20px; animation: spin 1s linear infinite;
-            display: inline-block; margin-right: 10px; vertical-align: middle;
+            width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; margin-right: 10px; vertical-align: middle;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* ★ 新增：全螢幕看圖模式 (PlanGrid Style) */
+        /* 全螢幕看圖模式 */
         #fullscreenModal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.92); z-index: 9999;
-            justify-content: center; align-items: center; flex-direction: column;
+            background: rgba(0,0,0,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;
         }
-        #fullscreenImg {
-            max-width: 95%; max-height: 90%; object-fit: contain;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px;
+        #fullscreenImg { max-width: 95%; max-height: 90%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px; }
+        .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none; }
+
+        /* ★ 新增：篩選器下拉選單樣式 */
+        #filterContainer {
+            display: none; position: fixed; top: 60px; right: 15px; z-index: 50;
         }
-        .modal-close {
-            position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none;
+        #statusFilter {
+            padding: 8px 12px; font-size: 14px; font-weight: bold; border-radius: 8px;
+            border: 2px solid #007bff; background: rgba(255,255,255,0.95);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; color: #333;
         }
     </style>
 </head>
 <body>
     <div class="header" id="pageTitle">平面圖載入中...</div>
     <div class="hint" id="hintText">連線環境建立中...</div>
+    
+    <div id="filterContainer">
+        <select id="statusFilter" onchange="applyFilter()">
+            <option value="ALL">🔍 顯示全部</option>
+            <option value="待改善">🔺 待改善 (紅)</option>
+            <option value="待驗收">🔵 待驗收 (藍)</option>
+            <option value="已改善">🟩 已改善 (綠)</option>
+        </select>
+    </div>
+
     <div id="canvas-container"><canvas id="floorPlan"></canvas></div>
     <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
 
     <div id="defectInfoCard">
         <button class="close-btn" onclick="document.getElementById('defectInfoCard').style.display='none'">✖</button>
         <div id="infoStatus" style="font-weight:bold; font-size:16px; margin-bottom:6px;"></div>
-        
         <div id="imgLoading" style="display:none; text-align:center; padding:20px; color:#888;">
             <div class="loader"></div> 圖片載入中...
         </div>
-        
         <img id="infoImg" src="" alt="缺失照片" style="display:none;" />
         <div id="imgZoomHint" style="display:none; text-align:center; font-size:12px; color:#1DB446; margin-bottom:8px;">🔍 點擊圖片可放大查看全圖</div>
-        
         <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px; margin-top:8px;"></div>
         <div id="infoDesc" style="color:#222; font-size:15px; line-height:1.4;"></div>
     </div>
@@ -130,31 +129,67 @@
         let isSelected = false;
         let defectsList = [];
 
-        function drawSinglePin(px, py, color) {
-            ctx.beginPath();
-            ctx.arc(px, py, Math.max(canvas.width * 0.004, 3), 0, 2 * Math.PI);
-            ctx.fillStyle = color;
-            ctx.fill();
+        // ★ 修改：色弱友善的「形狀+顏色」繪製邏輯
+        function drawSinglePin(px, py, status) {
+            let size = Math.max(canvas.width * 0.007, 5); // 控制圖示大小
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#fff';
-            ctx.stroke();
+
+            if (status.includes('待驗收')) {
+                // 🔵 藍色圓形 (待驗收)
+                ctx.beginPath();
+                ctx.arc(px, py, size, 0, 2 * Math.PI);
+                ctx.fillStyle = '#007bff';
+                ctx.fill();
+                ctx.stroke();
+            } else if (status.includes('已改善')) {
+                // 🟩 綠色正方形 (已改善)
+                ctx.beginPath();
+                ctx.rect(px - size, py - size, size * 2, size * 2);
+                ctx.fillStyle = '#1DB446';
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                // 🔺 紅色三角形 (待改善 / 預設)
+                ctx.beginPath();
+                ctx.moveTo(px, py - size * 1.3);
+                ctx.lineTo(px + size * 1.2, py + size * 1.1);
+                ctx.lineTo(px - size * 1.2, py + size * 1.1);
+                ctx.closePath();
+                ctx.fillStyle = '#dc3545';
+                ctx.fill();
+                ctx.stroke();
+            }
         }
 
+        // ★ 修改：加入篩選判斷的繪製迴圈
         function drawAllPins() {
+            let filterValue = document.getElementById('statusFilter').value;
+
             defectsList.forEach(d => {
+                // 如果不是選 ALL，且狀態不包含選擇的關鍵字，就跳過不畫
+                if (filterValue !== 'ALL' && !d.Status.includes(filterValue)) return;
+
                 let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
                 if (match) {
                     d.px = (parseInt(match[1]) / 100) * canvas.width;
                     d.py = (parseInt(match[2]) / 100) * canvas.height;
-                    let color = '#dc3545'; // 紅色
-                    if (d.Status.includes('待驗收')) color = '#007bff'; // 藍色
-                    if (d.Status.includes('已改善')) color = '#1DB446'; // 綠色
-                    drawSinglePin(d.px, d.py, color);
+                    drawSinglePin(d.px, d.py, d.Status);
                 }
             });
         }
 
-        // ★ 新增：關閉全螢幕的方法
+        // ★ 新增：篩選器觸發事件
+        function applyFilter() {
+            // 清除畫布並重繪底圖
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            // 重新畫大頭針
+            drawAllPins();
+            // 隱藏目前開啟的資訊卡
+            document.getElementById('defectInfoCard').style.display = 'none';
+        }
+
         function closeFullscreen() {
             document.getElementById('fullscreenModal').style.display = 'none';
         }
@@ -191,10 +226,14 @@
 
                 if (mode === 'view' && viewX && viewY) {
                     document.getElementById('hintText').innerText = "📍 缺失發生位置 (可雙指放大查看細節)";
-                    drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, 'red');
+                    // 單筆檢視預設畫紅色三角形
+                    drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, '待改善');
                 } 
                 else if (mode === 'overview' && apiBaseUrl) {
+                    // ★ 總覽模式：顯示篩選器
+                    document.getElementById('filterContainer').style.display = 'block';
                     document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
+                    
                     fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, {
                         headers: { "ngrok-skip-browser-warning": "true" }
                     })
@@ -202,7 +241,7 @@
                     .then(json => {
                         if (json.success && json.data.length > 0) {
                             defectsList = json.data;
-                            document.getElementById('hintText').innerText = `📍 圖紙總覽 (共 ${defectsList.length} 筆) - 點擊大頭針查看`;
+                            document.getElementById('hintText').innerText = `📍 點擊圖示查看內容 (共 ${defectsList.length} 筆)`;
                             drawAllPins();
                         } else {
                             document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄";
@@ -215,7 +254,6 @@
             img.onerror = () => {
                 ctx.font = "20px Arial";
                 ctx.fillText("找不到平面圖檔", 50, 50);
-                console.error("嘗試載入圖片失敗:", targetImgUrl);
             };
 
             canvas.addEventListener('click', function(e) {
@@ -230,8 +268,12 @@
                 if (mode === 'overview') {
                     let clickedDefect = null;
                     let threshold = Math.max(canvas.width * 0.03, 20); 
+                    let currentFilter = document.getElementById('statusFilter').value;
                     
                     for (let d of defectsList) {
+                        // 點擊判定時，也要排除已經被篩選隱藏掉的點
+                        if (currentFilter !== 'ALL' && !d.Status.includes(currentFilter)) continue;
+
                         if (d.px && d.py) {
                             let dist = Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2));
                             if (dist <= threshold) {
@@ -270,7 +312,6 @@
                             let imgEle = document.getElementById('infoImg');
                             imgEle.src = objectURL;
                             
-                            // ★ 綁定全螢幕點擊事件
                             imgEle.onclick = function() {
                                 document.getElementById('fullscreenImg').src = objectURL;
                                 document.getElementById('fullscreenModal').style.display = 'flex';
@@ -297,7 +338,8 @@
                 selectedY = clickY;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                drawSinglePin(selectedX, selectedY, 'red');
+                // 新增點位時預設畫紅色三角形
+                drawSinglePin(selectedX, selectedY, '待改善');
 
                 isSelected = true;
                 document.getElementById('sendBtn').style.display = 'block';
