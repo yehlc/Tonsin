@@ -25,9 +25,21 @@
             background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px;
             box-shadow: 0 6px 16px rgba(0,0,0,0.2); text-align: left; z-index: 100;
             box-sizing: border-box; border-left: 6px solid #ff9800; 
-            max-height: 80vh; overflow-y: auto;
+            max-height: 85vh; overflow-y: auto;
         }
-        #infoImg { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background-color: #eee; }
+
+        /* ★ 修改：讓卡片內的圖片不再裁切，並加上點擊放大的游標 */
+        #infoImg { 
+            width: 100%; 
+            max-height: 250px; 
+            height: auto; 
+            object-fit: contain; /* 保證全圖顯示 */
+            border-radius: 8px; 
+            margin-bottom: 5px; 
+            background-color: #111; /* 黑色背景讓照片更清楚 */
+            cursor: zoom-in; 
+        }
+        
         .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
         
         /* 載入動畫 */
@@ -37,6 +49,20 @@
             display: inline-block; margin-right: 10px; vertical-align: middle;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* ★ 新增：全螢幕看圖模式 (PlanGrid Style) */
+        #fullscreenModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92); z-index: 9999;
+            justify-content: center; align-items: center; flex-direction: column;
+        }
+        #fullscreenImg {
+            max-width: 95%; max-height: 90%; object-fit: contain;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px;
+        }
+        .modal-close {
+            position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none;
+        }
     </style>
 </head>
 <body>
@@ -52,10 +78,17 @@
         <div id="imgLoading" style="display:none; text-align:center; padding:20px; color:#888;">
             <div class="loader"></div> 圖片載入中...
         </div>
+        
         <img id="infoImg" src="" alt="缺失照片" style="display:none;" />
+        <div id="imgZoomHint" style="display:none; text-align:center; font-size:12px; color:#1DB446; margin-bottom:8px;">🔍 點擊圖片可放大查看全圖</div>
         
         <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px; margin-top:8px;"></div>
         <div id="infoDesc" style="color:#222; font-size:15px; line-height:1.4;"></div>
+    </div>
+
+    <div id="fullscreenModal" onclick="closeFullscreen()">
+        <button class="modal-close">✖</button>
+        <img id="fullscreenImg" src="" />
     </div>
 
     <script>
@@ -97,7 +130,6 @@
         let isSelected = false;
         let defectsList = [];
 
-        // ★ 修改：縮小大頭針的半徑比例 (從 0.015 降到 0.008，最小值從 12 降到 6)
         function drawSinglePin(px, py, color) {
             ctx.beginPath();
             ctx.arc(px, py, Math.max(canvas.width * 0.008, 6), 0, 2 * Math.PI);
@@ -108,7 +140,6 @@
             ctx.stroke();
         }
 
-        // 畫出所有圖釘
         function drawAllPins() {
             defectsList.forEach(d => {
                 let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
@@ -121,6 +152,11 @@
                     drawSinglePin(d.px, d.py, color);
                 }
             });
+        }
+
+        // ★ 新增：關閉全螢幕的方法
+        function closeFullscreen() {
+            document.getElementById('fullscreenModal').style.display = 'none';
         }
 
         const myLiffId = "2009287087-4LSCRAq4"; 
@@ -193,7 +229,7 @@
 
                 if (mode === 'overview') {
                     let clickedDefect = null;
-                    let threshold = Math.max(canvas.width * 0.03, 30); 
+                    let threshold = Math.max(canvas.width * 0.03, 20); 
                     
                     for (let d of defectsList) {
                         if (d.px && d.py) {
@@ -218,10 +254,11 @@
                         document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${clickedDefect.Dept} | 回報：${clickedDefect.UserName}`;
                         document.getElementById('infoDesc').innerText = clickedDefect.Description || "無備註說明";
                         
-                        // ★ 破解 ngrok 圖片阻擋：透過 fetch 取得 Blob 再轉成預覽網址
                         let realImgUrl = apiBaseUrl + clickedDefect.DisplayImageUrl;
                         document.getElementById('infoImg').style.display = 'none';
+                        document.getElementById('imgZoomHint').style.display = 'none';
                         document.getElementById('imgLoading').style.display = 'block';
+                        document.getElementById('imgLoading').innerHTML = '<div class="loader"></div> 圖片載入中...';
                         
                         fetch(realImgUrl, { headers: { "ngrok-skip-browser-warning": "true" } })
                         .then(response => {
@@ -230,12 +267,21 @@
                         })
                         .then(blob => {
                             let objectURL = URL.createObjectURL(blob);
-                            document.getElementById('infoImg').src = objectURL;
+                            let imgEle = document.getElementById('infoImg');
+                            imgEle.src = objectURL;
+                            
+                            // ★ 綁定全螢幕點擊事件
+                            imgEle.onclick = function() {
+                                document.getElementById('fullscreenImg').src = objectURL;
+                                document.getElementById('fullscreenModal').style.display = 'flex';
+                            };
+
                             document.getElementById('imgLoading').style.display = 'none';
-                            document.getElementById('infoImg').style.display = 'block';
+                            imgEle.style.display = 'block';
+                            document.getElementById('imgZoomHint').style.display = 'block';
                         })
                         .catch(error => {
-                            document.getElementById('imgLoading').innerHTML = "⚠️ 圖片載入失敗";
+                            document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片 (可能已移除或無權限)";
                         });
 
                         cCard.style.display = 'block';
