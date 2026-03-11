@@ -132,10 +132,10 @@
 
         function drawSinglePin(px, py, color) {
             ctx.beginPath();
-            ctx.arc(px, py, Math.max(canvas.width * 0.008, 6), 0, 2 * Math.PI);
+            ctx.arc(px, py, Math.max(canvas.width * 0.004, 3), 0, 2 * Math.PI);
             ctx.fillStyle = color;
             ctx.fill();
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2;
             ctx.strokeStyle = '#fff';
             ctx.stroke();
         }
