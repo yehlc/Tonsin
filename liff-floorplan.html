@@ -29,6 +29,14 @@
         }
         #infoImg { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background-color: #eee; }
         .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
+        
+        /* 載入動畫 */
+        .loader {
+            border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%;
+            width: 20px; height: 20px; animation: spin 1s linear infinite;
+            display: inline-block; margin-right: 10px; vertical-align: middle;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -40,8 +48,13 @@
     <div id="defectInfoCard">
         <button class="close-btn" onclick="document.getElementById('defectInfoCard').style.display='none'">✖</button>
         <div id="infoStatus" style="font-weight:bold; font-size:16px; margin-bottom:6px;"></div>
-        <img id="infoImg" src="" alt="缺失照片" />
-        <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px;"></div>
+        
+        <div id="imgLoading" style="display:none; text-align:center; padding:20px; color:#888;">
+            <div class="loader"></div> 圖片載入中...
+        </div>
+        <img id="infoImg" src="" alt="缺失照片" style="display:none;" />
+        
+        <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px; margin-top:8px;"></div>
         <div id="infoDesc" style="color:#222; font-size:15px; line-height:1.4;"></div>
     </div>
 
@@ -84,13 +97,13 @@
         let isSelected = false;
         let defectsList = [];
 
-        // 畫單一圖釘
+        // ★ 修改：縮小大頭針的半徑比例 (從 0.015 降到 0.008，最小值從 12 降到 6)
         function drawSinglePin(px, py, color) {
             ctx.beginPath();
-            ctx.arc(px, py, Math.max(canvas.width * 0.015, 12), 0, 2 * Math.PI);
+            ctx.arc(px, py, Math.max(canvas.width * 0.008, 6), 0, 2 * Math.PI);
             ctx.fillStyle = color;
             ctx.fill();
-            ctx.lineWidth = 5;
+            ctx.lineWidth = 3;
             ctx.strokeStyle = '#fff';
             ctx.stroke();
         }
@@ -110,9 +123,6 @@
             });
         }
 
-        // ==========================================
-        // ★ 關鍵修復：把邏輯包在 liff.init 裡面，確保能抓到網址參數
-        // ==========================================
         const myLiffId = "2009287087-4LSCRAq4"; 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -205,11 +215,29 @@
                         document.getElementById('infoStatus').innerText = "狀態：" + clickedDefect.Status;
                         document.getElementById('infoStatus').style.color = color;
                         
-                        // 確保圖片在總覽時也能正確顯示
-                        document.getElementById('infoImg').src = apiBaseUrl + clickedDefect.DisplayImageUrl;
-
                         document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${clickedDefect.Dept} | 回報：${clickedDefect.UserName}`;
                         document.getElementById('infoDesc').innerText = clickedDefect.Description || "無備註說明";
+                        
+                        // ★ 破解 ngrok 圖片阻擋：透過 fetch 取得 Blob 再轉成預覽網址
+                        let realImgUrl = apiBaseUrl + clickedDefect.DisplayImageUrl;
+                        document.getElementById('infoImg').style.display = 'none';
+                        document.getElementById('imgLoading').style.display = 'block';
+                        
+                        fetch(realImgUrl, { headers: { "ngrok-skip-browser-warning": "true" } })
+                        .then(response => {
+                            if(response.ok) return response.blob();
+                            throw new Error('Network response was not ok.');
+                        })
+                        .then(blob => {
+                            let objectURL = URL.createObjectURL(blob);
+                            document.getElementById('infoImg').src = objectURL;
+                            document.getElementById('imgLoading').style.display = 'none';
+                            document.getElementById('infoImg').style.display = 'block';
+                        })
+                        .catch(error => {
+                            document.getElementById('imgLoading').innerHTML = "⚠️ 圖片載入失敗";
+                        });
+
                         cCard.style.display = 'block';
                     } else {
                         document.getElementById('defectInfoCard').style.display = 'none';
