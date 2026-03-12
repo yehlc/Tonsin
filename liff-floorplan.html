@@ -53,6 +53,12 @@
         .fail-inputs { display: none; margin-top: 10px; background: #fafafa; padding: 12px; border-radius: 8px; border-left: 4px solid #d63031; }
         .fail-inputs textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 8px; resize: vertical; height: 70px; font-family: inherit; }
         
+        /* 拍照按鈕特別設計 */
+        .camera-btn-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+        .camera-btn { width: 100%; padding: 10px; background: #fff; border: 1px dashed #dc3545; color: #dc3545; font-weight: bold; border-radius: 6px; text-align: center; display: block; }
+        .camera-input { position: absolute; top: 0; left: 0; font-size: 100px; text-align: right; opacity: 0; outline: none; background: white; cursor: inherit; display: block; width: 100%; height: 100%; }
+        .camera-preview { max-width: 100%; height: auto; border-radius: 4px; margin-top: 10px; display: none; border: 1px solid #ddd; }
+
         /* 簽名板與圖片區 */
         .signature-box { border: 2px dashed #74b9ff; border-radius: 8px; background: #fdfdfd; position: relative; margin-bottom: 10px; height: 160px; }
         .sig-canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
@@ -158,7 +164,7 @@
         let currentFormType = "";
         let currentLogId = "";
 
-        // ★ 動態多表單題庫 (擴充時只要在這裡加資料即可)
+        // ★ 動態多表單題庫
         const FORM_TEMPLATES = {
             "一般安全檢查表": [
                 { section: "門禁管制", items: [
@@ -186,7 +192,6 @@
             ]
         };
 
-        // 預設題庫 (找不到指定名稱時使用)
         const DEFAULT_TEMPLATE = FORM_TEMPLATES["一般安全檢查表"];
 
         // ================= LIFF 初始化與路由 =================
@@ -199,19 +204,16 @@
             currentDate = urlParams.get('date');
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             currentFormType = decodeURIComponent(urlParams.get('formType') || "一般安全檢查表");
-            currentLogId = urlParams.get('logId'); // 檢視或簽核時才有
+            currentLogId = urlParams.get('logId');
 
-            // 路由判斷
             if (currentMode && currentMode.startsWith('hse_')) {
-                // 表單模式 (新增 / 檢視 / 簽核)
                 document.getElementById('mapView').style.display = 'none';
                 document.getElementById('formView').style.display = 'block';
                 initFormMode();
             } else {
-                // 圖紙模式 (overview / view)
                 document.getElementById('formView').style.display = 'none';
                 document.getElementById('mapView').style.display = 'block';
-                // ★ 就是這裡錯了！原本寫 site，要改成 currentSite
+                // ★ 這裡的 site 變數要用 currentSite
                 initMapMode(currentSite, floor, urlParams.get('x'), urlParams.get('y'), urlParams.get('focusId'));
             }
         }).catch(err => {
@@ -246,7 +248,13 @@
                         </div>
                         <div class="fail-inputs" id="failBox_${item.id}">
                             <textarea id="desc_${item.id}" placeholder="請輸入不合格改善措施..." ${isReadOnly?'disabled':''}></textarea>
-                            ${!isReadOnly ? `<input type="file" id="file_${item.id}" accept="image/*" style="font-size:12px; margin-top:5px;">` : ''}
+                            ${!isReadOnly ? `
+                            <div class="camera-btn-wrapper">
+                                <span class="camera-btn">📷 點擊拍照佐證</span>
+                                <input type="file" id="file_${item.id}" accept="image/*" capture="environment" class="camera-input" onchange="previewImage(this, '${item.id}')">
+                            </div>
+                            <img id="preview_${item.id}" class="camera-preview">
+                            ` : ''}
                         </div>
                     </div>`;
                 });
@@ -256,13 +264,11 @@
 
             // 2. 根據模式設定按鈕與簽名板
             if (currentMode === 'hse_form') {
-                // 新增模式
                 document.getElementById('inspectorSigBox').style.display = 'block';
                 document.getElementById('btnSubmitForm').style.display = 'block';
                 initCanvas('sigInspector');
             } 
             else if (currentMode === 'hse_view' || currentMode === 'hse_approve') {
-                // 載入伺服器資料
                 document.getElementById('pageTitle').innerText = "載入中...";
                 fetch(`${apiBaseUrl}/get-form-detail/${currentLogId}`, { headers: { "ngrok-skip-browser-warning": "true" }})
                 .then(r => r.json())
@@ -277,21 +283,17 @@
                             <b>📊 狀態：</b><span style="color:#d63031; font-weight:bold;">${dbData.FormStatus}</span>
                         `;
 
-                        // 填入作答結果
                         let results = JSON.parse(dbData.ContentJson || "{}");
                         template.forEach(sec => {
                             sec.items.forEach(item => {
                                 let ans = results[item.text] || 'PASS';
-                                selectRadio(item.id, ans, false); // 先強制觸發 UI 變更
-                                
-                                // 若有異常，填入舊備註 (由於原本結構沒存備註在 Json，需搭配後續 API 更新，這裡預留介面)
+                                selectRadio(item.id, ans, false); 
                                 if (ans === 'FAIL') {
                                     document.getElementById(`desc_${item.id}`).value = "詳見缺失追蹤系統"; 
                                 }
                             });
                         });
 
-                        // 顯示檢查人簽名圖片
                         document.getElementById('inspectorSigArea').style.display = 'block';
                         document.getElementById('inspectorSigBox').style.display = 'none';
                         let inspImg = document.getElementById('inspectorSigImg');
@@ -300,7 +302,6 @@
 
                         if (currentMode === 'hse_view') {
                             document.getElementById('btnCloseForm').style.display = 'block';
-                            // 如果已結案，顯示主任簽名
                             if (dbData.FormStatus === '已結案') {
                                 document.getElementById('directorSigArea').style.display = 'block';
                                 let dirImg = document.getElementById('directorSigImg');
@@ -319,7 +320,19 @@
             }
         }
 
-        // Radio UI 切換
+        // 預覽相機照片
+        window.previewImage = function(input, qId) {
+            let preview = document.getElementById(`preview_${qId}`);
+            if (input.files && input.files[0]) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
         window.selectRadio = function(qId, val, isReadOnly) {
             if(isReadOnly) return;
             let group = document.getElementById(`group_${qId}`);
@@ -337,11 +350,9 @@
             group.dataset.value = val;
         };
 
-        // --- 簽名板控制 ---
         let canvases = {}; let ctxs = {};
         function initCanvas(id) {
             let cvs = document.getElementById(id);
-            // 延遲一點點確保 DOM 已經展開，抓得到長寬
             setTimeout(() => {
                 cvs.width = cvs.offsetWidth; cvs.height = cvs.offsetHeight;
                 let ctx = cvs.getContext('2d');
@@ -378,7 +389,6 @@
             return canvas.toDataURL() === blank.toDataURL();
         }
 
-        // --- 提交新表單 API ---
         window.submitHSEForm = async function() {
             let btn = document.getElementById('btnSubmitForm');
             btn.innerText = "⏳ 資料上傳中..."; btn.disabled = true;
@@ -430,7 +440,6 @@
             }).catch(e => { alert("❌ 網路連線錯誤"); btn.innerText = "📤 送出檢查表"; btn.disabled = false; });
         };
 
-        // --- 主任簽核 API ---
         window.approveHSEForm = function() {
             let btn = document.getElementById('btnApproveForm');
             btn.innerText = "⏳ 簽核傳送中..."; btn.disabled = true;
@@ -462,15 +471,13 @@
             });
         }
 
-
         // ==========================================
-        // 模塊 2：圖紙模式邏輯 (沿用，稍作精簡整理)
+        // 模塊 2：圖紙模式邏輯 (修復 Bug 版)
         // ==========================================
         const floorPlanDB = {
             "98工地": { "全區配置圖": "/98地號/98_1F.png", "1F": "/98地號/98_1F.png" },
             "99工地": { "全區配置圖": "/99地號/99_1F.png", "1F": "/99地號/99_1F.png" },
             "95工地": { "全區配置圖": "/95地號/95_1F.png", "1F": "/95地號/95_1F.png" }
-            // ... 這裡保留你原本完整的 floorPlanDB 配置 ...
         };
 
         function initMapMode(site, floor, viewX, viewY, focusId) {
@@ -536,7 +543,6 @@
                 }
             };
 
-            // 圖紙點擊事件
             canvas.addEventListener('click', function(e) {
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;  
@@ -555,7 +561,6 @@
                 }
 
                 if (currentMode === 'view') return; 
-                // 新增打點
                 selectedX = clickX; selectedY = clickY;
                 ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 drawSinglePin(selectedX, selectedY, '待改善', null, ctx, canvas);
@@ -563,7 +568,6 @@
             });
         }
 
-        // 畫單顆圖釘
         function drawSinglePin(px, py, status, textId, ctx, canvas) {
             let size = Math.max(canvas.width * 0.007, 5); ctx.lineWidth = 2; ctx.strokeStyle = '#fff';
             if (status.includes('待驗收')) { ctx.beginPath(); ctx.arc(px, py, size, 0, 2 * Math.PI); ctx.fillStyle = '#007bff'; ctx.fill(); ctx.stroke(); } 
@@ -577,7 +581,6 @@
             }
         }
 
-        // 顯示缺失卡片 (包含 Before/After 與 歷程)
         function showDefectCard(defectData) {
             currentLogId = defectData.ID; 
             let cCard = document.getElementById('defectInfoCard');
