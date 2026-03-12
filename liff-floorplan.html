@@ -221,7 +221,8 @@
             document.getElementById('formMeta').innerHTML = metaHtml;
 
             let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
-            let isQuestionsReadOnly = (currentMode !== 'hse_form' && currentUserRole !== '檢查人員');
+            // 編輯模式下，檢查人員依然可以修改題目
+            let isQuestionsReadOnly = (currentMode !== 'hse_form' && currentMode !== 'hse_edit' && currentUserRole !== '檢查人員');
 
             let container = document.getElementById('formContent');
             let html = "";
@@ -253,56 +254,93 @@
             container.innerHTML = html;
 
             if (currentMode === 'hse_form') {
-                document.getElementById('phInspector').style.display = 'none';
-                document.getElementById('boxInspector').style.display = 'block';
-                document.getElementById('btnSubmitForm').style.display = 'block';
-                initCanvas('sigInspector');
-            } 
-            else if (currentMode.startsWith('hse_view') || currentMode.startsWith('hse_approve')) {
-                document.getElementById('pageTitle').innerText = "載入資料中...";
-                fetch(`${apiBaseUrl}/get-form-detail/${currentLogId}`, { headers: { "ngrok-skip-browser-warning": "true" }})
+                // ★ 新增：防重複與編輯機制
+                document.getElementById('pageTitle').innerText = "檢查重複紀錄中...";
+                fetch(`${apiBaseUrl}/check-duplicate-form?site=${encodeURIComponent(currentSite)}&date=${currentDate}&formType=${encodeURIComponent(currentFormType)}`, { headers: { "ngrok-skip-browser-warning": "true" }})
                 .then(r => r.json())
                 .then(res => {
-                    if (res.success) {
-                        let dbData = res.data;
-                        document.getElementById('pageTitle').innerText = dbData.FormType;
-                        document.getElementById('formMeta').innerHTML = `
-                            <b>🏢 案場：</b>${dbData.SiteName} <br>
-                            <b>📅 日期：</b>${dbData.CheckDate} <br>
-                            <b>👤 建立者：</b>${dbData.Inspector} <br>
-                            <b>📊 狀態：</b><span style="color:#d63031; font-weight:bold;">${dbData.FormStatus}</span>
-                        `;
-
-                        let results = JSON.parse(dbData.ContentJson || "{}");
-                        template.forEach(sec => {
-                            sec.items.forEach(item => {
-                                let ans = results[item.text] || 'PASS';
-                                selectRadio(item.id, ans, false); 
-                                if (ans === 'FAIL') document.getElementById(`desc_${item.id}`).value = "詳見缺失追蹤系統"; 
-                            });
-                        });
-
-                        loadSigImage('inspector', 'imgInspector', 'phInspector');
-                        if(dbData.FormStatus !== '待安衛簽核') loadSigImage('safety', 'imgSafety', 'phSafety');
-                        if(dbData.FormStatus === '已結案') loadSigImage('director', 'imgDirector', 'phDirector');
-
-                        if (currentMode === 'hse_approve_safety') {
-                            document.getElementById('phSafety').style.display = 'none';
-                            document.getElementById('boxSafety').style.display = 'block';
-                            document.getElementById('btnSubmitForm').style.display = 'block';
-                            initCanvas('sigSafety');
-                        } 
-                        else if (currentMode === 'hse_approve_director') {
-                            document.getElementById('phDirector').style.display = 'none';
-                            document.getElementById('boxDirector').style.display = 'block';
-                            document.getElementById('btnSubmitForm').innerText = "✅ 確認覆核並結案";
-                            document.getElementById('btnSubmitForm').style.display = 'block';
-                            initCanvas('sigDirector');
-                        }
-                        else document.getElementById('btnCloseForm').style.display = 'block';
-                    } else { alert("找不到表單資料"); liff.closeWindow(); }
-                }).catch(e => { alert("連線異常"); liff.closeWindow(); });
+                    if (res.exists) {
+                        alert("⚠️ 本日已存在此表單，系統自動為您切換至「編輯模式」。");
+                        currentMode = 'hse_edit';
+                        currentLogId = res.logId;
+                        loadFormDetail(template); // 載入舊資料
+                    } else {
+                        // 真正的新增模式
+                        document.getElementById('pageTitle').innerText = currentFormType;
+                        document.getElementById('phInspector').style.display = 'none';
+                        document.getElementById('boxInspector').style.display = 'block';
+                        document.getElementById('btnSubmitForm').style.display = 'block';
+                        initCanvas('sigInspector');
+                    }
+                }).catch(e => {
+                    // 若 API 異常，Fallback 退回一般新增模式
+                    document.getElementById('pageTitle').innerText = currentFormType;
+                    document.getElementById('phInspector').style.display = 'none';
+                    document.getElementById('boxInspector').style.display = 'block';
+                    document.getElementById('btnSubmitForm').style.display = 'block';
+                    initCanvas('sigInspector');
+                });
+            } else {
+                // 如果是簽核或歷史查詢，直接載入資料
+                loadFormDetail(template);
             }
+        }
+
+        // 獨立出「載入詳細資料」的模塊
+        function loadFormDetail(template) {
+            document.getElementById('pageTitle').innerText = "載入資料中...";
+            fetch(`${apiBaseUrl}/get-form-detail/${currentLogId}`, { headers: { "ngrok-skip-browser-warning": "true" }})
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    let dbData = res.data;
+                    document.getElementById('pageTitle').innerText = dbData.FormType;
+                    document.getElementById('formMeta').innerHTML = `
+                        <b>🏢 案場：</b>${dbData.SiteName} <br>
+                        <b>📅 日期：</b>${dbData.CheckDate} <br>
+                        <b>👤 建立者：</b>${dbData.Inspector} <br>
+                        <b>📊 狀態：</b><span style="color:#d63031; font-weight:bold;">${dbData.FormStatus}</span>
+                    `;
+
+                    let results = JSON.parse(dbData.ContentJson || "{}");
+                    template.forEach(sec => {
+                        sec.items.forEach(item => {
+                            let ans = results[item.text] || 'PASS';
+                            selectRadio(item.id, ans, false); 
+                            if (ans === 'FAIL') document.getElementById(`desc_${item.id}`).value = "詳見缺失追蹤系統"; 
+                        });
+                    });
+
+                    loadSigImage('inspector', 'imgInspector', 'phInspector');
+                    if(dbData.FormStatus !== '待安衛簽核') loadSigImage('safety', 'imgSafety', 'phSafety');
+                    if(dbData.FormStatus === '已結案') loadSigImage('director', 'imgDirector', 'phDirector');
+
+                    if (currentMode === 'hse_approve_safety') {
+                        document.getElementById('phSafety').style.display = 'none';
+                        document.getElementById('boxSafety').style.display = 'block';
+                        document.getElementById('btnSubmitForm').style.display = 'block';
+                        initCanvas('sigSafety');
+                    } 
+                    else if (currentMode === 'hse_approve_director') {
+                        document.getElementById('phDirector').style.display = 'none';
+                        document.getElementById('boxDirector').style.display = 'block';
+                        document.getElementById('btnSubmitForm').innerText = "✅ 確認覆核並結案";
+                        document.getElementById('btnSubmitForm').style.display = 'block';
+                        initCanvas('sigDirector');
+                    }
+                    else if (currentMode === 'hse_edit') {
+                        // 編輯模式：顯示舊簽名，並開放畫布讓人員重簽以示負責
+                        document.getElementById('phInspector').style.display = 'none';
+                        document.getElementById('boxInspector').style.display = 'block';
+                        document.getElementById('btnSubmitForm').innerText = "📤 更新紀錄";
+                        document.getElementById('btnSubmitForm').style.display = 'block';
+                        initCanvas('sigInspector');
+                    }
+                    else {
+                        document.getElementById('btnCloseForm').style.display = 'block';
+                    }
+                } else { alert("找不到表單資料"); liff.closeWindow(); }
+            }).catch(e => { alert("連線異常"); liff.closeWindow(); });
         }
 
         function loadSigImage(type, imgId, phId) {
