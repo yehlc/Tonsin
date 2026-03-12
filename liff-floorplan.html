@@ -211,7 +211,8 @@
                 // 圖紙模式 (overview / view)
                 document.getElementById('formView').style.display = 'none';
                 document.getElementById('mapView').style.display = 'block';
-                initMapMode(site, floor, urlParams.get('x'), urlParams.get('y'), urlParams.get('focusId'));
+                // ★ 就是這裡錯了！原本寫 site，要改成 currentSite
+                initMapMode(currentSite, floor, urlParams.get('x'), urlParams.get('y'), urlParams.get('focusId'));
             }
         }).catch(err => {
             document.getElementById('pageTitle').innerText = "系統初始化失敗";
