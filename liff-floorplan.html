@@ -38,7 +38,7 @@
         #fullscreenImg { max-width: 95%; max-height: 90%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px; }
         .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none; }
 
-        /* ★ 新增：篩選器容器 (雙排) */
+        /* 篩選器容器 */
         #filterContainer {
             display: none; padding: 5px 10px; text-align: center;
             background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px;
@@ -89,7 +89,6 @@
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
         const defaultImg = "test.jpg"; 
 
-        // 圖庫設定 (保持不變)
         const floorPlanDB = {
             "98工地": {
                 "全區配置圖": "/98地號/98_1F.png", "戶外周邊": "/98地號/98_1F.png", "屋頂外觀": defaultImg, "地工階段": defaultImg,
@@ -139,14 +138,13 @@
         let selectedX = 0, selectedY = 0;
         let isSelected = false;
         let defectsList = [];
+        let apiBaseUrl = ""; // 提升為全域變數，方便顯示卡片時使用
 
-        // ★ 修改：加入文字編號 (ID) 的繪製
         function drawSinglePin(px, py, status, textId) {
             let size = Math.max(canvas.width * 0.007, 5); 
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#fff';
 
-            // 畫圖形
             if (status.includes('待驗收')) {
                 ctx.beginPath(); ctx.arc(px, py, size, 0, 2 * Math.PI); ctx.fillStyle = '#007bff'; ctx.fill(); ctx.stroke();
             } else if (status.includes('已改善')) {
@@ -155,29 +153,22 @@
                 ctx.beginPath(); ctx.moveTo(px, py - size * 1.3); ctx.lineTo(px + size * 1.2, py + size * 1.1); ctx.lineTo(px - size * 1.2, py + size * 1.1); ctx.closePath(); ctx.fillStyle = '#dc3545'; ctx.fill(); ctx.stroke();
             }
 
-            // ★ 畫文字編號 (在圖釘右上方)
             if (textId) {
                 let fontSize = Math.max(canvas.width * 0.016, 12);
                 ctx.font = `bold ${fontSize}px sans-serif`;
-                
-                // 文字外框(防背景干擾)
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                 ctx.strokeText("#" + textId, px + size * 1.2, py - size * 0.5);
-                
-                // 依據狀態給定文字顏色
                 ctx.fillStyle = status.includes('待驗收') ? '#0056b3' : (status.includes('已改善') ? '#127a2c' : '#a71d2a');
                 ctx.fillText("#" + textId, px + size * 1.2, py - size * 0.5);
             }
         }
 
-        // 重新繪製所有符合篩選的圖釘
         function drawAllPins() {
             let filterStatus = document.getElementById('statusFilter').value;
             let filterDept = document.getElementById('deptFilter').value;
 
             defectsList.forEach(d => {
-                // 雙重篩選判斷
                 if (filterStatus !== 'ALL' && !d.Status.includes(filterStatus)) return;
                 if (filterDept !== 'ALL' && !d.Dept.includes(filterDept)) return;
 
@@ -185,13 +176,11 @@
                 if (match) {
                     d.px = (parseInt(match[1]) / 100) * canvas.width;
                     d.py = (parseInt(match[2]) / 100) * canvas.height;
-                    // ★ 傳入 ID 進行繪製
                     drawSinglePin(d.px, d.py, d.Status, d.ID);
                 }
             });
         }
 
-        // 觸發篩選
         function applyFilter() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -201,6 +190,52 @@
 
         function closeFullscreen() { document.getElementById('fullscreenModal').style.display = 'none'; }
 
+        // ★ 新增：將顯示卡片的邏輯獨立成一個 Function，方便重複呼叫
+        function showCard(defectData) {
+            let cCard = document.getElementById('defectInfoCard');
+            let color = '#dc3545';
+            if (defectData.Status.includes('待驗收')) color = '#007bff';
+            if (defectData.Status.includes('已改善')) color = '#1DB446';
+
+            cCard.style.borderLeftColor = color;
+            document.getElementById('infoStatus').innerText = "狀態：" + defectData.Status + " (#" + defectData.ID + ")";
+            document.getElementById('infoStatus').style.color = color;
+            
+            document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${defectData.Dept} | 回報：${defectData.UserName}`;
+            document.getElementById('infoDesc').innerText = defectData.Description || "無備註說明";
+            
+            let realImgUrl = apiBaseUrl + defectData.DisplayImageUrl;
+            document.getElementById('infoImg').style.display = 'none';
+            document.getElementById('imgZoomHint').style.display = 'none';
+            document.getElementById('imgLoading').style.display = 'block';
+            document.getElementById('imgLoading').innerHTML = '<div class="loader"></div> 圖片載入中...';
+            
+            fetch(realImgUrl, { headers: { "ngrok-skip-browser-warning": "true" } })
+            .then(response => {
+                if(response.ok) return response.blob();
+                throw new Error('Network response was not ok.');
+            })
+            .then(blob => {
+                let objectURL = URL.createObjectURL(blob);
+                let imgEle = document.getElementById('infoImg');
+                imgEle.src = objectURL;
+                
+                imgEle.onclick = function() {
+                    document.getElementById('fullscreenImg').src = objectURL;
+                    document.getElementById('fullscreenModal').style.display = 'flex';
+                };
+
+                document.getElementById('imgLoading').style.display = 'none';
+                imgEle.style.display = 'block';
+                document.getElementById('imgZoomHint').style.display = 'block';
+            })
+            .catch(error => {
+                document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片";
+            });
+
+            cCard.style.display = 'block';
+        }
+
         const myLiffId = "2009287087-4LSCRAq4"; 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -209,11 +244,16 @@
             const viewX = urlParams.get('x');
             const viewY = urlParams.get('y');
             const mode = urlParams.get('mode');
-            const apiBaseUrl = urlParams.get('api');
+            apiBaseUrl = urlParams.get('api'); // 賦值給全域變數
+            const focusId = urlParams.get('focusId'); // ★ 取得要聚焦的特定缺失 ID
 
             if (site && floor) {
-                document.getElementById('pageTitle').innerText = `${site} - ${floor} 總覽`;
-                document.getElementById('hintText').innerText = "請在下方平面圖「雙指放大」並「點擊」位置";
+                document.getElementById('pageTitle').innerText = `${site} - ${floor}`;
+                if (mode === 'overview' && !focusId) {
+                    document.getElementById('hintText').innerText = "請在下方平面圖「雙指放大」並「點擊」位置";
+                } else if (focusId) {
+                    document.getElementById('hintText').innerText = "📍 缺失位置如下所示";
+                }
             }
 
             let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
@@ -228,12 +268,14 @@
                 canvas.height = img.height; 
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                if (mode === 'view' && viewX && viewY) {
-                    document.getElementById('hintText').innerText = "📍 缺失發生位置 (可雙指放大查看細節)";
-                    drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, '待改善', null);
+                if (mode === 'view' && !focusId) {
+                    // 相容舊版的新增模式 (單打點不查資料)
+                    document.getElementById('hintText').innerText = "📍 請點選缺失發生位置";
+                    if(viewX && viewY) drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, '待改善', null);
                 } 
                 else if (mode === 'overview' && apiBaseUrl) {
-                    document.getElementById('filterContainer').style.display = 'block';
+                    
+                    if(!focusId) document.getElementById('filterContainer').style.display = 'block';
                     document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
                     
                     fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, {
@@ -243,9 +285,8 @@
                     .then(json => {
                         if (json.success && json.data.length > 0) {
                             defectsList = json.data;
-                            document.getElementById('hintText').innerText = `📍 點擊圖釘查看詳細內容 (共 ${defectsList.length} 筆)`;
                             
-                            // ★ 動態產生工種(Dept)下拉選單
+                            // 產生工種下拉選單
                             let deptSelect = document.getElementById('deptFilter');
                             let uniqueDepts = [...new Set(defectsList.map(d => d.Dept))];
                             uniqueDepts.forEach(dept => {
@@ -258,6 +299,20 @@
                             });
 
                             drawAllPins();
+
+                            // ★ 重頭戲：如果是從單筆查詢跳進來的，自動找到那筆資料並顯示卡片！
+                            if (focusId) {
+                                let focusDefect = defectsList.find(d => d.ID.toString() === focusId);
+                                if (focusDefect) {
+                                    document.getElementById('hintText').innerText = `📍 缺失 #${focusId} 所在位置`;
+                                    showCard(focusDefect);
+                                } else {
+                                    document.getElementById('hintText').innerText = "⚠️ 找不到該筆缺失資料";
+                                }
+                            } else {
+                                document.getElementById('hintText').innerText = `📍 點擊圖釘查看詳細內容 (共 ${defectsList.length} 筆)`;
+                            }
+
                         } else {
                             document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄";
                         }
@@ -266,7 +321,11 @@
                 }
             };
 
-            // ... (canvas 點擊事件與 sendCoordinate 保持原本的，只需改下面那行 threshold)
+            img.onerror = () => {
+                ctx.font = "20px Arial";
+                ctx.fillText("找不到平面圖檔", 50, 50);
+            };
+
             canvas.addEventListener('click', function(e) {
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width;    
@@ -278,14 +337,14 @@
 
                 if (mode === 'overview') {
                     let clickedDefect = null;
-                    let threshold = Math.max(canvas.width * 0.04, 30); // 點擊感應範圍加大一點點
+                    let threshold = Math.max(canvas.width * 0.04, 30); 
                     let currentStatus = document.getElementById('statusFilter').value;
                     let currentDept = document.getElementById('deptFilter').value;
                     
                     for (let d of defectsList) {
-                        // 略過被隱藏的點
-                        if (currentStatus !== 'ALL' && !d.Status.includes(currentStatus)) continue;
-                        if (currentDept !== 'ALL' && !d.Dept.includes(currentDept)) continue;
+                        // 略過被隱藏的點 (如果是由 focusId 進入，則忽略篩選器)
+                        if (!focusId && currentStatus !== 'ALL' && !d.Status.includes(currentStatus)) continue;
+                        if (!focusId && currentDept !== 'ALL' && !d.Dept.includes(currentDept)) continue;
 
                         if (d.px && d.py) {
                             let dist = Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2));
@@ -297,48 +356,7 @@
                     }
 
                     if (clickedDefect) {
-                        let cCard = document.getElementById('defectInfoCard');
-                        let color = '#dc3545';
-                        if (clickedDefect.Status.includes('待驗收')) color = '#007bff';
-                        if (clickedDefect.Status.includes('已改善')) color = '#1DB446';
-
-                        cCard.style.borderLeftColor = color;
-                        document.getElementById('infoStatus').innerText = "狀態：" + clickedDefect.Status + " (#" + clickedDefect.ID + ")";
-                        document.getElementById('infoStatus').style.color = color;
-                        
-                        document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${clickedDefect.Dept} | 回報：${clickedDefect.UserName}`;
-                        document.getElementById('infoDesc').innerText = clickedDefect.Description || "無備註說明";
-                        
-                        let realImgUrl = apiBaseUrl + clickedDefect.DisplayImageUrl;
-                        document.getElementById('infoImg').style.display = 'none';
-                        document.getElementById('imgZoomHint').style.display = 'none';
-                        document.getElementById('imgLoading').style.display = 'block';
-                        document.getElementById('imgLoading').innerHTML = '<div class="loader"></div> 圖片載入中...';
-                        
-                        fetch(realImgUrl, { headers: { "ngrok-skip-browser-warning": "true" } })
-                        .then(response => {
-                            if(response.ok) return response.blob();
-                            throw new Error('Network response was not ok.');
-                        })
-                        .then(blob => {
-                            let objectURL = URL.createObjectURL(blob);
-                            let imgEle = document.getElementById('infoImg');
-                            imgEle.src = objectURL;
-                            
-                            imgEle.onclick = function() {
-                                document.getElementById('fullscreenImg').src = objectURL;
-                                document.getElementById('fullscreenModal').style.display = 'flex';
-                            };
-
-                            document.getElementById('imgLoading').style.display = 'none';
-                            imgEle.style.display = 'block';
-                            document.getElementById('imgZoomHint').style.display = 'block';
-                        })
-                        .catch(error => {
-                            document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片";
-                        });
-
-                        cCard.style.display = 'block';
+                        showCard(clickedDefect);
                     } else {
                         document.getElementById('defectInfoCard').style.display = 'none';
                     }
