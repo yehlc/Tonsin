@@ -35,7 +35,7 @@
         #fullscreenImg { max-width: 95%; max-height: 90%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px; }
         .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none; }
 
-        /* ================= 表單模式樣式 (PlanGrid Style) ================= */
+        /* ================= 表單模式樣式 ================= */
         #formView { display: none; padding: 15px; max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.05); min-height: 100vh;}
         .form-meta-card { background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; color: #495057; line-height: 1.6; }
         .form-section { margin-bottom: 25px; border: 1px solid #dfe6e9; border-radius: 8px; overflow: hidden; background: #fff; }
@@ -53,13 +53,11 @@
         .fail-inputs { display: none; margin-top: 10px; background: #fafafa; padding: 12px; border-radius: 8px; border-left: 4px solid #d63031; }
         .fail-inputs textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 8px; resize: vertical; height: 70px; font-family: inherit; }
         
-        /* 拍照按鈕特別設計 */
         .camera-btn-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
         .camera-btn { width: 100%; padding: 10px; background: #fff; border: 1px dashed #dc3545; color: #dc3545; font-weight: bold; border-radius: 6px; text-align: center; display: block; }
         .camera-input { position: absolute; top: 0; left: 0; font-size: 100px; text-align: right; opacity: 0; outline: none; background: white; cursor: inherit; display: block; width: 100%; height: 100%; }
         .camera-preview { max-width: 100%; height: auto; border-radius: 4px; margin-top: 10px; display: none; border: 1px solid #ddd; }
 
-        /* 簽名板與圖片區 (三層並排或上下排) */
         .sig-grid { display: flex; flex-direction: column; gap: 15px; }
         .sig-block { border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #fafafa; }
         .sig-block-title { font-weight: bold; color: #333; margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
@@ -95,21 +93,17 @@
         <div id="defectInfoCard">
             <button class="close-btn" onclick="document.getElementById('defectInfoCard').style.display='none'">✖</button>
             <div id="infoStatus" style="font-weight:bold; font-size:16px; margin-bottom:10px;"></div>
-            
             <div class="tab-container" id="imgToggleTabs" style="display:none;">
                 <button id="btnAfter" class="tab-btn active" onclick="switchImg('fixed')">✨ 改善後</button>
                 <button id="btnBefore" class="tab-btn" onclick="switchImg('original')">📸 改善前</button>
             </div>
-
             <div id="imgLoading" style="display:none; text-align:center; padding:20px; color:#888;">
                 <div class="loader"></div> 讀取照片中...
             </div>
             <img id="infoImg" src="" alt="缺失照片" style="display:none;" />
             <div id="imgZoomHint" style="display:none; text-align:center; font-size:12px; color:#1DB446; margin-bottom:8px;">🔍 點擊圖片可放大查看全圖</div>
-            
             <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px; margin-top:8px;"></div>
             <div id="infoDesc" style="color:#222; font-size:15px; line-height:1.4;"></div>
-
             <button class="history-btn" onclick="toggleHistory()">🕒 展開狀態歷程紀錄</button>
             <div id="historyContainer"></div>
         </div>
@@ -117,13 +111,11 @@
 
     <div id="formView">
         <div class="form-meta-card" id="formMeta"></div>
-        
         <div id="formContent"></div> 
 
         <div class="form-section">
             <div class="form-section-title">✍️ 簽章核定區</div>
             <div class="sig-grid" style="padding: 15px;">
-                
                 <div class="sig-block" id="blockInspector">
                     <div class="sig-block-title">🧑‍🔧 檢查人員</div>
                     <div id="boxInspector" class="signature-box" style="display:none;">
@@ -133,7 +125,6 @@
                     <img id="imgInspector" class="sig-img-preview" style="display:none;" />
                     <div id="phInspector" class="sig-placeholder">等待填寫...</div>
                 </div>
-
                 <div class="sig-block" id="blockSafety">
                     <div class="sig-block-title">⛑️ 安衛人員</div>
                     <div id="boxSafety" class="signature-box" style="display:none;">
@@ -143,7 +134,6 @@
                     <img id="imgSafety" class="sig-img-preview" style="display:none;" />
                     <div id="phSafety" class="sig-placeholder">等待簽核...</div>
                 </div>
-
                 <div class="sig-block" id="blockDirector">
                     <div class="sig-block-title">👷‍♂️ 工地主任</div>
                     <div id="boxDirector" class="signature-box" style="display:none;">
@@ -153,10 +143,8 @@
                     <img id="imgDirector" class="sig-img-preview" style="display:none;" />
                     <div id="phDirector" class="sig-placeholder">等待簽核...</div>
                 </div>
-
             </div>
         </div>
-
         <button id="btnSubmitForm" class="action-btn btn-submit" style="display:none;" onclick="submitHSEForm()">📤 儲存並送出</button>
         <button id="btnCloseForm" class="action-btn btn-close" style="display:none;" onclick="liff.closeWindow()">✖ 關閉視窗</button>
     </div>
@@ -167,10 +155,8 @@
     </div>
 
     <script>
-        // ================= 全域變數 (提升至最上層解決圖紙卡死問題) =================
         const myLiffId = "2009287087-4LSCRAq4"; 
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
-        const defaultImg = "test.jpg"; 
         
         let apiBaseUrl = ""; 
         let currentMode = ""; 
@@ -181,12 +167,10 @@
         let currentFormType = "";
         let currentLogId = "";
 
-        // 圖紙模式專用全域變數
         let floorCanvas, floorCtx, floorImg;
         let globalDefectsList = [];
         let selectedX = 0, selectedY = 0, isSelected = false;
 
-        // ★ 動態多表單題庫
         const FORM_TEMPLATES = {
             "一般安全檢查表": [
                 { section: "門禁管制", items: [ { id: "Q1", text: "人員、車輛進出工區應指派專人管制" }, { id: "Q2", text: "人員進入工區應配戴安全帽、著安全鞋" } ]},
@@ -202,7 +186,6 @@
 
         const DEFAULT_TEMPLATE = FORM_TEMPLATES["一般安全檢查表"];
 
-        // ================= LIFF 初始化與路由 =================
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "").trim(); 
@@ -238,10 +221,8 @@
             document.getElementById('formMeta').innerHTML = metaHtml;
 
             let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
-            // 只要不是填寫新表單或由檢查人員編輯，題目就唯讀
             let isQuestionsReadOnly = (currentMode !== 'hse_form' && currentUserRole !== '檢查人員');
 
-            // 1. 產生題目 UI
             let container = document.getElementById('formContent');
             let html = "";
             template.forEach(sec => {
@@ -271,16 +252,13 @@
             });
             container.innerHTML = html;
 
-            // 2. 根據模式設定簽名區塊
             if (currentMode === 'hse_form') {
-                // 新增模式：只開檢查人畫布
                 document.getElementById('phInspector').style.display = 'none';
                 document.getElementById('boxInspector').style.display = 'block';
                 document.getElementById('btnSubmitForm').style.display = 'block';
                 initCanvas('sigInspector');
             } 
             else if (currentMode.startsWith('hse_view') || currentMode.startsWith('hse_approve')) {
-                // 載入伺服器資料
                 document.getElementById('pageTitle').innerText = "載入資料中...";
                 fetch(`${apiBaseUrl}/get-form-detail/${currentLogId}`, { headers: { "ngrok-skip-browser-warning": "true" }})
                 .then(r => r.json())
@@ -295,24 +273,19 @@
                             <b>📊 狀態：</b><span style="color:#d63031; font-weight:bold;">${dbData.FormStatus}</span>
                         `;
 
-                        // 填入作答結果
                         let results = JSON.parse(dbData.ContentJson || "{}");
                         template.forEach(sec => {
                             sec.items.forEach(item => {
                                 let ans = results[item.text] || 'PASS';
                                 selectRadio(item.id, ans, false); 
-                                if (ans === 'FAIL') {
-                                    document.getElementById(`desc_${item.id}`).value = "詳見缺失追蹤系統"; 
-                                }
+                                if (ans === 'FAIL') document.getElementById(`desc_${item.id}`).value = "詳見缺失追蹤系統"; 
                             });
                         });
 
-                        // 載入簽名圖片 (如果有)
                         loadSigImage('inspector', 'imgInspector', 'phInspector');
                         if(dbData.FormStatus !== '待安衛簽核') loadSigImage('safety', 'imgSafety', 'phSafety');
                         if(dbData.FormStatus === '已結案') loadSigImage('director', 'imgDirector', 'phDirector');
 
-                        // 根據身分打開對應的簽核畫布
                         if (currentMode === 'hse_approve_safety') {
                             document.getElementById('phSafety').style.display = 'none';
                             document.getElementById('boxSafety').style.display = 'block';
@@ -326,23 +299,16 @@
                             document.getElementById('btnSubmitForm').style.display = 'block';
                             initCanvas('sigDirector');
                         }
-                        else {
-                            // 純檢視
-                            document.getElementById('btnCloseForm').style.display = 'block';
-                        }
+                        else document.getElementById('btnCloseForm').style.display = 'block';
                     } else { alert("找不到表單資料"); liff.closeWindow(); }
                 }).catch(e => { alert("連線異常"); liff.closeWindow(); });
             }
         }
 
-        // 載入簽名圖片的輔助函式
         function loadSigImage(type, imgId, phId) {
             let img = document.getElementById(imgId);
             img.src = `${apiBaseUrl}/image-sig/${currentLogId}/${type}?cb=${new Date().getTime()}`;
-            img.onload = () => {
-                document.getElementById(phId).style.display = 'none';
-                img.style.display = 'block';
-            };
+            img.onload = () => { document.getElementById(phId).style.display = 'none'; img.style.display = 'block'; };
         }
 
         window.previewImage = function(input, qId) {
@@ -411,12 +377,10 @@
             return canvas.toDataURL() === blank.toDataURL();
         }
 
-        // --- 統一提交 API (包含新增與各階層簽核) ---
         window.submitHSEForm = async function() {
             let btn = document.getElementById('btnSubmitForm');
             btn.innerText = "⏳ 處理中..."; btn.disabled = true;
 
-            // 判斷當前該誰簽名
             let targetCanvasId = 'sigInspector';
             if (currentMode === 'hse_approve_safety') targetCanvasId = 'sigSafety';
             if (currentMode === 'hse_approve_director') targetCanvasId = 'sigDirector';
@@ -427,7 +391,6 @@
             }
             let sigBase64 = canvases[targetCanvasId].toDataURL('image/png').split(',')[1];
 
-            // 收集題目資料 (只有新增或檢查人編輯時才會有變動)
             let formResults = {};
             let defectsToUpload = [];
             let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
@@ -438,7 +401,6 @@
                     let val = group.dataset.value || 'PASS'; 
                     formResults[item.text] = val;
 
-                    // 只有在填寫新表單時，才處理照片上傳，避免簽核時重複上傳
                     if (val === 'FAIL' && currentMode === 'hse_form') {
                         let desc = document.getElementById(`desc_${item.id}`).value;
                         let fileInput = document.getElementById(`file_${item.id}`);
@@ -479,7 +441,7 @@
         }
 
         // ==========================================
-        // 模塊 2：圖紙模式邏輯 (全域變數修復版)
+        // 模塊 2：圖紙模式邏輯
         // ==========================================
         const floorPlanDB = {
             "98工地": { "全區配置圖": "/98地號/98_1F.png", "1F": "/98地號/98_1F.png" },
@@ -515,7 +477,7 @@
                         .then(res => res.json())
                         .then(json => {
                             if (json.success && json.data.length > 0) {
-                                globalDefectsList = json.data; // 存入全域變數
+                                globalDefectsList = json.data; 
                                 
                                 let deptSelect = document.getElementById('deptFilter');
                                 let uniqueDepts = [...new Set(globalDefectsList.map(d => d.Dept))];
