@@ -22,31 +22,35 @@
         /* 懸浮資訊卡片 */
         #defectInfoCard {
             display: none; position: fixed; bottom: 20px; left: 5%; width: 90%;
-            background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.2); text-align: left; z-index: 100;
+            background: rgba(255, 255, 255, 0.98); padding: 15px; border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3); text-align: left; z-index: 100;
             box-sizing: border-box; border-left: 6px solid #ff9800; max-height: 85vh; overflow-y: auto;
         }
-        #infoImg { width: 100%; max-height: 250px; height: auto; object-fit: contain; border-radius: 8px; margin-bottom: 5px; background-color: #111; cursor: zoom-in; }
+        
+        /* ★ 新增：Before/After 切換按鈕樣式 */
+        .tab-container { display: flex; margin-bottom: 8px; border-radius: 6px; overflow: hidden; border: 1px solid #007bff; }
+        .tab-btn { flex: 1; padding: 8px; font-size: 14px; font-weight: bold; border: none; background: white; color: #007bff; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { background: #007bff; color: white; }
+        
+        #infoImg { width: 100%; max-height: 250px; height: auto; object-fit: contain; border-radius: 8px; background-color: #111; cursor: zoom-in; margin-bottom: 5px; }
         .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
         
-        /* 載入動畫 */
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; margin-right: 10px; vertical-align: middle; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right:8px;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* 全螢幕看圖模式 */
         #fullscreenModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
         #fullscreenImg { max-width: 95%; max-height: 90%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px; }
         .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none; }
 
-        /* 篩選器容器 */
-        #filterContainer {
-            display: none; padding: 5px 10px; text-align: center;
-            background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px;
-        }
-        .filter-select {
-            padding: 6px 10px; font-size: 14px; font-weight: bold; border-radius: 6px;
-            border: 1px solid #007bff; background: #fff; color: #333; width: 45%; margin: 2px;
-        }
+        #filterContainer { display: none; padding: 5px 10px; text-align: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        .filter-select { padding: 6px 10px; font-size: 14px; font-weight: bold; border-radius: 6px; border: 1px solid #007bff; background: #fff; color: #333; width: 45%; margin: 2px; }
+
+        /* ★ 新增：歷程紀錄區塊樣式 */
+        .history-btn { width: 100%; padding: 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-weight: bold; color: #444; margin-top: 10px; }
+        .history-btn:hover { background: #e0e0e0; }
+        #historyContainer { display: none; font-size: 13px; color: #444; background: #fafafa; padding: 10px; border-radius: 6px; margin-top: 5px; border: 1px inset #eee; }
+        .history-item { margin-bottom: 6px; }
+        .history-time { font-size: 11px; color: #888; }
     </style>
 </head>
 <body>
@@ -70,14 +74,24 @@
 
     <div id="defectInfoCard">
         <button class="close-btn" onclick="document.getElementById('defectInfoCard').style.display='none'">✖</button>
-        <div id="infoStatus" style="font-weight:bold; font-size:16px; margin-bottom:6px;"></div>
+        <div id="infoStatus" style="font-weight:bold; font-size:16px; margin-bottom:10px;"></div>
+        
+        <div class="tab-container" id="imgToggleTabs" style="display:none;">
+            <button id="btnAfter" class="tab-btn active" onclick="switchImg('fixed')">✨ 改善後</button>
+            <button id="btnBefore" class="tab-btn" onclick="switchImg('original')">📸 改善前</button>
+        </div>
+
         <div id="imgLoading" style="display:none; text-align:center; padding:20px; color:#888;">
-            <div class="loader"></div> 圖片載入中...
+            <div class="loader"></div> 讀取照片中...
         </div>
         <img id="infoImg" src="" alt="缺失照片" style="display:none;" />
         <div id="imgZoomHint" style="display:none; text-align:center; font-size:12px; color:#1DB446; margin-bottom:8px;">🔍 點擊圖片可放大查看全圖</div>
+        
         <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px; margin-top:8px;"></div>
         <div id="infoDesc" style="color:#222; font-size:15px; line-height:1.4;"></div>
+
+        <button class="history-btn" onclick="toggleHistory()">🕒 展開狀態歷程紀錄</button>
+        <div id="historyContainer"></div>
     </div>
 
     <div id="fullscreenModal" onclick="closeFullscreen()">
@@ -138,7 +152,8 @@
         let selectedX = 0, selectedY = 0;
         let isSelected = false;
         let defectsList = [];
-        let apiBaseUrl = ""; // 提升為全域變數，方便顯示卡片時使用
+        let apiBaseUrl = ""; 
+        let currentDefectId = null; // ★ 追蹤當前點擊的缺失ID
 
         function drawSinglePin(px, py, status, textId) {
             let size = Math.max(canvas.width * 0.007, 5); 
@@ -190,10 +205,80 @@
 
         function closeFullscreen() { document.getElementById('fullscreenModal').style.display = 'none'; }
 
-        // ★ 新增：將顯示卡片的邏輯獨立成一個 Function，方便重複呼叫
+        // ★ 新增：切換照片 (Before / After) 的邏輯
+        function switchImg(type) {
+            document.getElementById('btnAfter').classList.remove('active');
+            document.getElementById('btnBefore').classList.remove('active');
+            
+            if(type === 'fixed') document.getElementById('btnAfter').classList.add('active');
+            if(type === 'original') document.getElementById('btnBefore').classList.add('active');
+
+            let realImgUrl = `${apiBaseUrl}/image/${currentDefectId}/${type}?cb=${new Date().getTime()}`;
+            
+            document.getElementById('infoImg').style.display = 'none';
+            document.getElementById('imgZoomHint').style.display = 'none';
+            document.getElementById('imgLoading').style.display = 'block';
+            
+            fetch(realImgUrl, { headers: { "ngrok-skip-browser-warning": "true" } })
+            .then(response => {
+                if(response.ok) return response.blob();
+                throw new Error('Image not found');
+            })
+            .then(blob => {
+                let objectURL = URL.createObjectURL(blob);
+                let imgEle = document.getElementById('infoImg');
+                imgEle.src = objectURL;
+                imgEle.onclick = function() {
+                    document.getElementById('fullscreenImg').src = objectURL;
+                    document.getElementById('fullscreenModal').style.display = 'flex';
+                };
+                document.getElementById('imgLoading').style.display = 'none';
+                imgEle.style.display = 'block';
+                document.getElementById('imgZoomHint').style.display = 'block';
+            })
+            .catch(error => {
+                document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片 (可能尚未上傳)";
+            });
+        }
+
+        // ★ 新增：載入歷程紀錄的邏輯
+        function toggleHistory() {
+            let container = document.getElementById('historyContainer');
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'block';
+            container.innerHTML = '<div class="loader" style="width:15px; height:15px; border-width:3px;"></div> 載入中...';
+            
+            fetch(`${apiBaseUrl}/defect-history/${currentDefectId}`, { headers: { "ngrok-skip-browser-warning": "true" }})
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success && res.data.length > 0) {
+                        let html = "";
+                        res.data.forEach(log => {
+                            html += `<div class="history-item">
+                                        <div class="history-time">${log.OpTimeStr}</div>
+                                        <b>${log.OpUser}</b>: ${log.OldStatus} ➡️ <b>${log.NewStatus}</b>
+                                     </div>`;
+                        });
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = "📝 尚無狀態變更紀錄";
+                    }
+                }).catch(e => container.innerHTML = "❌ 載入失敗");
+        }
+
         function showCard(defectData) {
+            currentDefectId = defectData.ID; // 記住目前觀看的 ID
+            
             let cCard = document.getElementById('defectInfoCard');
             let color = '#dc3545';
+            
+            // 判斷是否需要顯示 Before/After 切換鈕
+            let isFixedPhase = defectData.Status.includes('待驗收') || defectData.Status.includes('已改善');
+            
             if (defectData.Status.includes('待驗收')) color = '#007bff';
             if (defectData.Status.includes('已改善')) color = '#1DB446';
 
@@ -204,34 +289,18 @@
             document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${defectData.Dept} | 回報：${defectData.UserName}`;
             document.getElementById('infoDesc').innerText = defectData.Description || "無備註說明";
             
-            let realImgUrl = apiBaseUrl + defectData.DisplayImageUrl;
-            document.getElementById('infoImg').style.display = 'none';
-            document.getElementById('imgZoomHint').style.display = 'none';
-            document.getElementById('imgLoading').style.display = 'block';
-            document.getElementById('imgLoading').innerHTML = '<div class="loader"></div> 圖片載入中...';
-            
-            fetch(realImgUrl, { headers: { "ngrok-skip-browser-warning": "true" } })
-            .then(response => {
-                if(response.ok) return response.blob();
-                throw new Error('Network response was not ok.');
-            })
-            .then(blob => {
-                let objectURL = URL.createObjectURL(blob);
-                let imgEle = document.getElementById('infoImg');
-                imgEle.src = objectURL;
-                
-                imgEle.onclick = function() {
-                    document.getElementById('fullscreenImg').src = objectURL;
-                    document.getElementById('fullscreenModal').style.display = 'flex';
-                };
+            // 隱藏並清空歷程
+            document.getElementById('historyContainer').style.display = 'none';
+            document.getElementById('historyContainer').innerHTML = '';
 
-                document.getElementById('imgLoading').style.display = 'none';
-                imgEle.style.display = 'block';
-                document.getElementById('imgZoomHint').style.display = 'block';
-            })
-            .catch(error => {
-                document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片";
-            });
+            // ★ 判斷是否顯示 Tabs，並載入對應照片
+            if (isFixedPhase) {
+                document.getElementById('imgToggleTabs').style.display = 'flex';
+                switchImg('fixed'); // 預設看改善後
+            } else {
+                document.getElementById('imgToggleTabs').style.display = 'none';
+                switchImg('original'); // 只能看改善前
+            }
 
             cCard.style.display = 'block';
         }
@@ -244,8 +313,8 @@
             const viewX = urlParams.get('x');
             const viewY = urlParams.get('y');
             const mode = urlParams.get('mode');
-            apiBaseUrl = urlParams.get('api'); // 賦值給全域變數
-            const focusId = urlParams.get('focusId'); // ★ 取得要聚焦的特定缺失 ID
+            apiBaseUrl = urlParams.get('api');
+            const focusId = urlParams.get('focusId'); // ★ 如果是從卡片點進來的，會有這個 ID
 
             if (site && floor) {
                 document.getElementById('pageTitle').innerText = `${site} - ${floor}`;
@@ -269,12 +338,12 @@
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 if (mode === 'view' && !focusId) {
-                    // 相容舊版的新增模式 (單打點不查資料)
                     document.getElementById('hintText').innerText = "📍 請點選缺失發生位置";
                     if(viewX && viewY) drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, '待改善', null);
                 } 
                 else if (mode === 'overview' && apiBaseUrl) {
                     
+                    // ★ 如果不是單筆檢視，才顯示篩選器
                     if(!focusId) document.getElementById('filterContainer').style.display = 'block';
                     document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
                     
@@ -286,7 +355,6 @@
                         if (json.success && json.data.length > 0) {
                             defectsList = json.data;
                             
-                            // 產生工種下拉選單
                             let deptSelect = document.getElementById('deptFilter');
                             let uniqueDepts = [...new Set(defectsList.map(d => d.Dept))];
                             uniqueDepts.forEach(dept => {
@@ -300,7 +368,7 @@
 
                             drawAllPins();
 
-                            // ★ 重頭戲：如果是從單筆查詢跳進來的，自動找到那筆資料並顯示卡片！
+                            // ★ 自動聚焦到特定缺失
                             if (focusId) {
                                 let focusDefect = defectsList.find(d => d.ID.toString() === focusId);
                                 if (focusDefect) {
@@ -342,7 +410,7 @@
                     let currentDept = document.getElementById('deptFilter').value;
                     
                     for (let d of defectsList) {
-                        // 略過被隱藏的點 (如果是由 focusId 進入，則忽略篩選器)
+                        // 如果有 focusId，代表不應該過濾掉任何點，否則就照 Filter 邏輯
                         if (!focusId && currentStatus !== 'ALL' && !d.Status.includes(currentStatus)) continue;
                         if (!focusId && currentDept !== 'ALL' && !d.Dept.includes(currentDept)) continue;
 
@@ -350,7 +418,7 @@
                             let dist = Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2));
                             if (dist <= threshold) {
                                 clickedDefect = d;
-                                break;
+                                break; // 找到就跳出迴圈
                             }
                         }
                     }
