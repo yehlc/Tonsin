@@ -59,24 +59,27 @@
         .camera-input { position: absolute; top: 0; left: 0; font-size: 100px; text-align: right; opacity: 0; outline: none; background: white; cursor: inherit; display: block; width: 100%; height: 100%; }
         .camera-preview { max-width: 100%; height: auto; border-radius: 4px; margin-top: 10px; display: none; border: 1px solid #ddd; }
 
-        /* 簽名板與圖片區 */
-        .signature-box { border: 2px dashed #74b9ff; border-radius: 8px; background: #fdfdfd; position: relative; margin-bottom: 10px; height: 160px; }
+        /* 簽名板與圖片區 (三層並排或上下排) */
+        .sig-grid { display: flex; flex-direction: column; gap: 15px; }
+        .sig-block { border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #fafafa; }
+        .sig-block-title { font-weight: bold; color: #333; margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .signature-box { border: 2px dashed #74b9ff; border-radius: 6px; background: #fff; position: relative; height: 120px; }
         .sig-canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
-        .clear-sig { position: absolute; top: 5px; right: 5px; background: #ff7675; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; z-index: 10; }
-        .sig-img-preview { width: 100%; height: 160px; object-fit: contain; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+        .clear-sig { position: absolute; top: 5px; right: 5px; background: #ff7675; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; z-index: 10; }
+        .sig-img-preview { width: 100%; height: 120px; object-fit: contain; background: #fff; }
+        .sig-placeholder { width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 14px; font-style: italic; background: #eee; border-radius: 6px; }
         
-        .action-btn { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; }
+        .action-btn { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; }
         .btn-submit { background: #0984e3; }
         .btn-approve { background: #e17055; }
         .btn-close { background: #636e72; }
-        .action-btn:disabled { background: #b2bec3; cursor: not-allowed; box-shadow: none; }
     </style>
 </head>
 <body>
     <div class="header" id="pageTitle">系統載入中...</div>
 
     <div id="mapView">
-        <div class="hint" id="hintText"></div>
+        <div class="hint" id="hintText">載入圖紙中...</div>
         <div id="filterContainer">
             <select id="deptFilter" class="filter-select" onchange="applyFilter()"><option value="ALL">🛠️ 所有工種</option></select>
             <select id="statusFilter" class="filter-select" onchange="applyFilter()">
@@ -115,33 +118,46 @@
     <div id="formView">
         <div class="form-meta-card" id="formMeta"></div>
         
-        <div id="formContent"></div> <div class="form-section">
-            <div class="form-section-title">✍️ 簽核區</div>
-            <div style="padding: 15px;">
+        <div id="formContent"></div> 
+
+        <div class="form-section">
+            <div class="form-section-title">✍️ 簽章核定區</div>
+            <div class="sig-grid" style="padding: 15px;">
                 
-                <div id="inspectorSigArea" style="margin-bottom: 20px;">
-                    <b style="color:#2d3436;">檢查人簽名：</b>
-                    <div id="inspectorSigBox" class="signature-box" style="display:none;">
+                <div class="sig-block" id="blockInspector">
+                    <div class="sig-block-title">🧑‍🔧 檢查人員</div>
+                    <div id="boxInspector" class="signature-box" style="display:none;">
                         <canvas id="sigInspector" class="sig-canvas"></canvas>
                         <button class="clear-sig" onclick="clearCanvas('sigInspector')">重簽</button>
                     </div>
-                    <img id="inspectorSigImg" class="sig-img-preview" style="display:none;" />
+                    <img id="imgInspector" class="sig-img-preview" style="display:none;" />
+                    <div id="phInspector" class="sig-placeholder">等待填寫...</div>
                 </div>
 
-                <div id="directorSigArea" style="display:none; border-top: 1px dashed #ccc; padding-top: 15px;">
-                    <b style="color:#2d3436;">工地主任簽名：</b>
-                    <div id="directorSigBox" class="signature-box" style="display:none;">
+                <div class="sig-block" id="blockSafety">
+                    <div class="sig-block-title">⛑️ 安衛人員</div>
+                    <div id="boxSafety" class="signature-box" style="display:none;">
+                        <canvas id="sigSafety" class="sig-canvas"></canvas>
+                        <button class="clear-sig" onclick="clearCanvas('sigSafety')">重簽</button>
+                    </div>
+                    <img id="imgSafety" class="sig-img-preview" style="display:none;" />
+                    <div id="phSafety" class="sig-placeholder">等待簽核...</div>
+                </div>
+
+                <div class="sig-block" id="blockDirector">
+                    <div class="sig-block-title">👷‍♂️ 工地主任</div>
+                    <div id="boxDirector" class="signature-box" style="display:none;">
                         <canvas id="sigDirector" class="sig-canvas"></canvas>
                         <button class="clear-sig" onclick="clearCanvas('sigDirector')">重簽</button>
                     </div>
-                    <img id="directorSigImg" class="sig-img-preview" style="display:none;" />
+                    <img id="imgDirector" class="sig-img-preview" style="display:none;" />
+                    <div id="phDirector" class="sig-placeholder">等待簽核...</div>
                 </div>
 
             </div>
         </div>
 
-        <button id="btnSubmitForm" class="action-btn btn-submit" style="display:none;" onclick="submitHSEForm()">📤 送出檢查表</button>
-        <button id="btnApproveForm" class="action-btn btn-approve" style="display:none;" onclick="approveHSEForm()">✅ 確認覆核並結案</button>
+        <button id="btnSubmitForm" class="action-btn btn-submit" style="display:none;" onclick="submitHSEForm()">📤 儲存並送出</button>
         <button id="btnCloseForm" class="action-btn btn-close" style="display:none;" onclick="liff.closeWindow()">✖ 關閉視窗</button>
     </div>
 
@@ -151,44 +167,36 @@
     </div>
 
     <script>
-        // ================= 全域變數與核心設定 =================
+        // ================= 全域變數 (提升至最上層解決圖紙卡死問題) =================
         const myLiffId = "2009287087-4LSCRAq4"; 
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
         const defaultImg = "test.jpg"; 
         
         let apiBaseUrl = ""; 
-        let currentMode = ""; // overview, view, hse_form, hse_view, hse_approve
+        let currentMode = ""; 
         let currentSite = "";
         let currentDate = "";
         let currentUser = "";
+        let currentUserRole = "檢查人員";
         let currentFormType = "";
         let currentLogId = "";
+
+        // 圖紙模式專用全域變數
+        let floorCanvas, floorCtx, floorImg;
+        let globalDefectsList = [];
+        let selectedX = 0, selectedY = 0, isSelected = false;
 
         // ★ 動態多表單題庫
         const FORM_TEMPLATES = {
             "一般安全檢查表": [
-                { section: "門禁管制", items: [
-                    { id: "Q1", text: "人員、車輛進出工區應指派專人管制" },
-                    { id: "Q2", text: "人員進入工區應配戴安全帽、著安全鞋" }
-                ]},
-                { section: "開口防護", items: [
-                    { id: "Q3", text: "開口部、坑洞墜落防護措施應設置" },
-                    { id: "Q4", text: "從事高架作業勞工應佩戴安全帶" }
-                ]}
+                { section: "門禁管制", items: [ { id: "Q1", text: "人員、車輛進出工區應指派專人管制" }, { id: "Q2", text: "人員進入工區應配戴安全帽、著安全鞋" } ]},
+                { section: "開口防護", items: [ { id: "Q3", text: "開口部、坑洞墜落防護措施應設置" }, { id: "Q4", text: "從事高架作業勞工應佩戴安全帶" } ]}
             ],
             "圍籬及大門作業檢查表": [
-                { section: "硬體設施", items: [
-                    { id: "Q1", text: "施工圍籬是否依規定設置且穩固" },
-                    { id: "Q2", text: "大門是否設有警告標示及照明設備" },
-                    { id: "Q3", text: "門禁管制措施是否落實" }
-                ]}
+                { section: "硬體設施", items: [ { id: "Q1", text: "施工圍籬是否依規定設置且穩固" }, { id: "Q2", text: "大門是否設有警告標示及照明設備" }, { id: "Q3", text: "門禁管制措施是否落實" } ]}
             ],
             "模板作業檢查表": [
-                { section: "支撐與組立", items: [
-                    { id: "Q1", text: "模板支撐材料是否有明顯腐朽或變形" },
-                    { id: "Q2", text: "支撐基底是否穩固且無積水" },
-                    { id: "Q3", text: "上下設備(樓梯、爬梯)是否安全牢固" }
-                ]}
+                { section: "支撐與組立", items: [ { id: "Q1", text: "模板支撐材料是否有明顯腐朽或變形" }, { id: "Q2", text: "支撐基底是否穩固且無積水" }, { id: "Q3", text: "上下設備(樓梯、爬梯)是否安全牢固" } ]}
             ]
         };
 
@@ -203,6 +211,7 @@
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "");
             currentDate = urlParams.get('date');
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
+            currentUserRole = decodeURIComponent(urlParams.get('role') || "檢查人員");
             currentFormType = decodeURIComponent(urlParams.get('formType') || "一般安全檢查表");
             currentLogId = urlParams.get('logId');
 
@@ -213,7 +222,6 @@
             } else {
                 document.getElementById('formView').style.display = 'none';
                 document.getElementById('mapView').style.display = 'block';
-                // ★ 這裡的 site 變數要用 currentSite
                 initMapMode(currentSite, floor, urlParams.get('x'), urlParams.get('y'), urlParams.get('focusId'));
             }
         }).catch(err => {
@@ -222,15 +230,16 @@
         });
 
         // ==========================================
-        // 模塊 1：動態電子表單邏輯
+        // 模塊 1：動態電子表單邏輯 (三層簽核)
         // ==========================================
         function initFormMode() {
             document.getElementById('pageTitle').innerText = currentFormType;
-            let metaHtml = `<b>🏢 案場：</b>${currentSite} <br><b>📅 日期：</b>${currentDate} <br><b>👤 操作人：</b>${currentUser}`;
+            let metaHtml = `<b>🏢 案場：</b>${currentSite} <br><b>📅 日期：</b>${currentDate} <br><b>👤 操作人：</b>${currentUser} (${currentUserRole})`;
             document.getElementById('formMeta').innerHTML = metaHtml;
 
             let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
-            let isReadOnly = (currentMode === 'hse_view' || currentMode === 'hse_approve');
+            // 只要不是填寫新表單或由檢查人員編輯，題目就唯讀
+            let isQuestionsReadOnly = (currentMode !== 'hse_form' && currentUserRole !== '檢查人員');
 
             // 1. 產生題目 UI
             let container = document.getElementById('formContent');
@@ -238,17 +247,17 @@
             template.forEach(sec => {
                 html += `<div class="form-section"><div class="form-section-title">📋 ${sec.section}</div>`;
                 sec.items.forEach(item => {
-                    let disabledClass = isReadOnly ? "disabled" : "";
+                    let disabledClass = isQuestionsReadOnly ? "disabled" : "";
                     html += `
                     <div class="form-item">
                         <div class="item-title">${item.id}. ${item.text}</div>
                         <div class="radio-group" id="group_${item.id}" data-text="${item.text}">
-                            <div class="radio-label pass selected ${disabledClass}" onclick="selectRadio('${item.id}', 'PASS', ${isReadOnly})">✅ 合格</div>
-                            <div class="radio-label fail ${disabledClass}" onclick="selectRadio('${item.id}', 'FAIL', ${isReadOnly})">❌ 異常</div>
+                            <div class="radio-label pass selected ${disabledClass}" onclick="selectRadio('${item.id}', 'PASS', ${isQuestionsReadOnly})">✅ 合格</div>
+                            <div class="radio-label fail ${disabledClass}" onclick="selectRadio('${item.id}', 'FAIL', ${isQuestionsReadOnly})">❌ 異常</div>
                         </div>
                         <div class="fail-inputs" id="failBox_${item.id}">
-                            <textarea id="desc_${item.id}" placeholder="請輸入不合格改善措施..." ${isReadOnly?'disabled':''}></textarea>
-                            ${!isReadOnly ? `
+                            <textarea id="desc_${item.id}" placeholder="請輸入不合格改善措施..." ${isQuestionsReadOnly?'disabled':''}></textarea>
+                            ${!isQuestionsReadOnly ? `
                             <div class="camera-btn-wrapper">
                                 <span class="camera-btn">📷 點擊拍照佐證</span>
                                 <input type="file" id="file_${item.id}" accept="image/*" capture="environment" class="camera-input" onchange="previewImage(this, '${item.id}')">
@@ -262,14 +271,17 @@
             });
             container.innerHTML = html;
 
-            // 2. 根據模式設定按鈕與簽名板
+            // 2. 根據模式設定簽名區塊
             if (currentMode === 'hse_form') {
-                document.getElementById('inspectorSigBox').style.display = 'block';
+                // 新增模式：只開檢查人畫布
+                document.getElementById('phInspector').style.display = 'none';
+                document.getElementById('boxInspector').style.display = 'block';
                 document.getElementById('btnSubmitForm').style.display = 'block';
                 initCanvas('sigInspector');
             } 
-            else if (currentMode === 'hse_view' || currentMode === 'hse_approve') {
-                document.getElementById('pageTitle').innerText = "載入中...";
+            else if (currentMode.startsWith('hse_view') || currentMode.startsWith('hse_approve')) {
+                // 載入伺服器資料
+                document.getElementById('pageTitle').innerText = "載入資料中...";
                 fetch(`${apiBaseUrl}/get-form-detail/${currentLogId}`, { headers: { "ngrok-skip-browser-warning": "true" }})
                 .then(r => r.json())
                 .then(res => {
@@ -279,10 +291,11 @@
                         document.getElementById('formMeta').innerHTML = `
                             <b>🏢 案場：</b>${dbData.SiteName} <br>
                             <b>📅 日期：</b>${dbData.CheckDate} <br>
-                            <b>👤 檢查人：</b>${dbData.Inspector} <br>
+                            <b>👤 建立者：</b>${dbData.Inspector} <br>
                             <b>📊 狀態：</b><span style="color:#d63031; font-weight:bold;">${dbData.FormStatus}</span>
                         `;
 
+                        // 填入作答結果
                         let results = JSON.parse(dbData.ContentJson || "{}");
                         template.forEach(sec => {
                             sec.items.forEach(item => {
@@ -294,41 +307,49 @@
                             });
                         });
 
-                        document.getElementById('inspectorSigArea').style.display = 'block';
-                        document.getElementById('inspectorSigBox').style.display = 'none';
-                        let inspImg = document.getElementById('inspectorSigImg');
-                        inspImg.src = `${apiBaseUrl}/image-sig/${currentLogId}/inspector?cb=${new Date().getTime()}`;
-                        inspImg.style.display = 'block';
+                        // 載入簽名圖片 (如果有)
+                        loadSigImage('inspector', 'imgInspector', 'phInspector');
+                        if(dbData.FormStatus !== '待安衛簽核') loadSigImage('safety', 'imgSafety', 'phSafety');
+                        if(dbData.FormStatus === '已結案') loadSigImage('director', 'imgDirector', 'phDirector');
 
-                        if (currentMode === 'hse_view') {
-                            document.getElementById('btnCloseForm').style.display = 'block';
-                            if (dbData.FormStatus === '已結案') {
-                                document.getElementById('directorSigArea').style.display = 'block';
-                                let dirImg = document.getElementById('directorSigImg');
-                                dirImg.src = `${apiBaseUrl}/image-sig/${currentLogId}/director?cb=${new Date().getTime()}`;
-                                dirImg.style.display = 'block';
-                            }
+                        // 根據身分打開對應的簽核畫布
+                        if (currentMode === 'hse_approve_safety') {
+                            document.getElementById('phSafety').style.display = 'none';
+                            document.getElementById('boxSafety').style.display = 'block';
+                            document.getElementById('btnSubmitForm').style.display = 'block';
+                            initCanvas('sigSafety');
                         } 
-                        else if (currentMode === 'hse_approve') {
-                            document.getElementById('directorSigArea').style.display = 'block';
-                            document.getElementById('directorSigBox').style.display = 'block';
-                            document.getElementById('btnApproveForm').style.display = 'block';
+                        else if (currentMode === 'hse_approve_director') {
+                            document.getElementById('phDirector').style.display = 'none';
+                            document.getElementById('boxDirector').style.display = 'block';
+                            document.getElementById('btnSubmitForm').innerText = "✅ 確認覆核並結案";
+                            document.getElementById('btnSubmitForm').style.display = 'block';
                             initCanvas('sigDirector');
+                        }
+                        else {
+                            // 純檢視
+                            document.getElementById('btnCloseForm').style.display = 'block';
                         }
                     } else { alert("找不到表單資料"); liff.closeWindow(); }
                 }).catch(e => { alert("連線異常"); liff.closeWindow(); });
             }
         }
 
-        // 預覽相機照片
+        // 載入簽名圖片的輔助函式
+        function loadSigImage(type, imgId, phId) {
+            let img = document.getElementById(imgId);
+            img.src = `${apiBaseUrl}/image-sig/${currentLogId}/${type}?cb=${new Date().getTime()}`;
+            img.onload = () => {
+                document.getElementById(phId).style.display = 'none';
+                img.style.display = 'block';
+            };
+        }
+
         window.previewImage = function(input, qId) {
             let preview = document.getElementById(`preview_${qId}`);
             if (input.files && input.files[0]) {
                 let reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                }
+                reader.onload = function(e) { preview.src = e.target.result; preview.style.display = 'block'; }
                 reader.readAsDataURL(input.files[0]);
             }
         }
@@ -350,6 +371,7 @@
             group.dataset.value = val;
         };
 
+        // --- 簽名板控制 ---
         let canvases = {}; let ctxs = {};
         function initCanvas(id) {
             let cvs = document.getElementById(id);
@@ -389,16 +411,23 @@
             return canvas.toDataURL() === blank.toDataURL();
         }
 
+        // --- 統一提交 API (包含新增與各階層簽核) ---
         window.submitHSEForm = async function() {
             let btn = document.getElementById('btnSubmitForm');
-            btn.innerText = "⏳ 資料上傳中..."; btn.disabled = true;
+            btn.innerText = "⏳ 處理中..."; btn.disabled = true;
 
-            if (isCanvasBlank(canvases['sigInspector'])) {
-                alert("請在下方【檢查人簽名區】完成簽名！");
-                btn.innerText = "📤 送出檢查表"; btn.disabled = false; return;
+            // 判斷當前該誰簽名
+            let targetCanvasId = 'sigInspector';
+            if (currentMode === 'hse_approve_safety') targetCanvasId = 'sigSafety';
+            if (currentMode === 'hse_approve_director') targetCanvasId = 'sigDirector';
+
+            if (isCanvasBlank(canvases[targetCanvasId])) {
+                alert("請在您的簽名區完成手寫簽名！");
+                btn.innerText = "📤 儲存並送出"; btn.disabled = false; return;
             }
-            let sigBase64 = canvases['sigInspector'].toDataURL('image/png').split(',')[1];
+            let sigBase64 = canvases[targetCanvasId].toDataURL('image/png').split(',')[1];
 
+            // 收集題目資料 (只有新增或檢查人編輯時才會有變動)
             let formResults = {};
             let defectsToUpload = [];
             let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
@@ -409,7 +438,8 @@
                     let val = group.dataset.value || 'PASS'; 
                     formResults[item.text] = val;
 
-                    if (val === 'FAIL') {
+                    // 只有在填寫新表單時，才處理照片上傳，避免簽核時重複上傳
+                    if (val === 'FAIL' && currentMode === 'hse_form') {
                         let desc = document.getElementById(`desc_${item.id}`).value;
                         let fileInput = document.getElementById(`file_${item.id}`);
                         let base64Img = null;
@@ -424,7 +454,8 @@
 
             let payload = {
                 site: currentSite, date: currentDate, formType: currentFormType,
-                inspector: currentUser, resultsJson: JSON.stringify(formResults),
+                inspector: currentUser, role: currentUserRole, 
+                resultsJson: JSON.stringify(formResults),
                 signature: sigBase64, defects: defectsToUpload 
             };
 
@@ -434,34 +465,10 @@
                 body: JSON.stringify(payload)
             }).then(res => res.json()).then(data => {
                 if (data.success) {
-                    alert("✅ 表單送出成功！已通知主任簽核。");
+                    alert("✅ 作業成功！系統已更新狀態。");
                     if (liff.isInClient()) liff.closeWindow();
-                } else { alert("❌ 儲存失敗：" + data.error); btn.innerText = "📤 送出檢查表"; btn.disabled = false; }
-            }).catch(e => { alert("❌ 網路連線錯誤"); btn.innerText = "📤 送出檢查表"; btn.disabled = false; });
-        };
-
-        window.approveHSEForm = function() {
-            let btn = document.getElementById('btnApproveForm');
-            btn.innerText = "⏳ 簽核傳送中..."; btn.disabled = true;
-
-            if (isCanvasBlank(canvases['sigDirector'])) {
-                alert("請在最下方【工地主任簽名區】完成簽名！");
-                btn.innerText = "✅ 確認覆核並結案"; btn.disabled = false; return;
-            }
-            let sigBase64 = canvases['sigDirector'].toDataURL('image/png').split(',')[1];
-
-            let payload = { logId: currentLogId, director: currentUser, signature: sigBase64 };
-
-            fetch(`${apiBaseUrl}/approve-form`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-                body: JSON.stringify(payload)
-            }).then(res => res.json()).then(data => {
-                if (data.success) {
-                    alert("✅ 簽核成功！表單已結案。");
-                    if (liff.isInClient()) liff.closeWindow();
-                } else { alert("❌ 簽核失敗：" + data.error); btn.innerText = "✅ 確認覆核並結案"; btn.disabled = false; }
-            }).catch(e => { alert("❌ 網路連線錯誤"); btn.innerText = "✅ 確認覆核並結案"; btn.disabled = false; });
+                } else { alert("❌ 儲存失敗：" + data.error); btn.innerText = "📤 儲存並送出"; btn.disabled = false; }
+            }).catch(e => { alert("❌ 網路連線錯誤"); btn.innerText = "📤 儲存並送出"; btn.disabled = false; });
         };
 
         function fileToBase64(file) {
@@ -472,7 +479,7 @@
         }
 
         // ==========================================
-        // 模塊 2：圖紙模式邏輯 (修復 Bug 版)
+        // 模塊 2：圖紙模式邏輯 (全域變數修復版)
         // ==========================================
         const floorPlanDB = {
             "98工地": { "全區配置圖": "/98地號/98_1F.png", "1F": "/98地號/98_1F.png" },
@@ -481,103 +488,113 @@
         };
 
         function initMapMode(site, floor, viewX, viewY, focusId) {
-            const canvas = document.getElementById('floorPlan');
-            const ctx = canvas.getContext('2d');
-            const img = new Image(); img.crossOrigin = "Anonymous";
-            
-            let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
-            if (floorPlanDB[site] && floorPlanDB[site][floor]) {
-                targetImgUrl = githubPagesUrl + floorPlanDB[site][floor];
-            }
-            img.src = targetImgUrl;
-
-            img.onload = () => {
-                canvas.width = img.width; canvas.height = img.height; 
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                if (currentMode === 'view' && !focusId) {
-                    document.getElementById('hintText').innerText = "📍 請點選缺失發生位置";
-                    if(viewX && viewY) drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, '待改善', null, ctx, canvas);
-                } else if (currentMode === 'overview' && apiBaseUrl) {
-                    if(!focusId) document.getElementById('filterContainer').style.display = 'block';
-                    document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
-                    
-                    fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, { headers: { "ngrok-skip-browser-warning": "true" } })
-                    .then(res => res.json())
-                    .then(json => {
-                        if (json.success && json.data.length > 0) {
-                            defectsList = json.data;
-                            
-                            let deptSelect = document.getElementById('deptFilter');
-                            let uniqueDepts = [...new Set(defectsList.map(d => d.Dept))];
-                            uniqueDepts.forEach(dept => { if(dept) { let opt = document.createElement('option'); opt.value = dept; opt.innerText = "🛠️ " + dept; deptSelect.appendChild(opt); } });
-
-                            window.drawAllPins = function() {
-                                let filterStatus = document.getElementById('statusFilter').value;
-                                let filterDept = document.getElementById('deptFilter').value;
-                                defectsList.forEach(d => {
-                                    if (!focusId && filterStatus !== 'ALL' && !d.Status.includes(filterStatus)) return;
-                                    if (!focusId && filterDept !== 'ALL' && !d.Dept.includes(filterDept)) return;
-                                    let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
-                                    if (match) {
-                                        d.px = (parseInt(match[1]) / 100) * canvas.width;
-                                        d.py = (parseInt(match[2]) / 100) * canvas.height;
-                                        drawSinglePin(d.px, d.py, d.Status, d.ID, ctx, canvas);
-                                    }
-                                });
-                            };
-                            window.applyFilter = function() {
-                                ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                drawAllPins(); document.getElementById('defectInfoCard').style.display = 'none';
-                            };
-
-                            drawAllPins();
-
-                            if (focusId) {
-                                let focusDefect = defectsList.find(d => d.ID.toString() === focusId);
-                                if (focusDefect) { document.getElementById('hintText').innerText = `📍 缺失 #${focusId} 位置`; showDefectCard(focusDefect); } 
-                                else { document.getElementById('hintText').innerText = "⚠️ 找不到該筆缺失資料"; }
-                            } else { document.getElementById('hintText').innerText = `📍 點擊圖釘查看詳細 (共 ${defectsList.length} 筆)`; }
-                        } else { document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄"; }
-                    }).catch(err => { document.getElementById('hintText').innerText = "❌ 資料載入失敗"; });
+            try {
+                document.getElementById('pageTitle').innerText = `${site} - ${floor}`;
+                floorCanvas = document.getElementById('floorPlan');
+                floorCtx = floorCanvas.getContext('2d');
+                floorImg = new Image(); floorImg.crossOrigin = "Anonymous";
+                
+                let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
+                if (floorPlanDB[site] && floorPlanDB[site][floor]) {
+                    targetImgUrl = githubPagesUrl + floorPlanDB[site][floor];
                 }
-            };
+                floorImg.src = targetImgUrl;
 
-            canvas.addEventListener('click', function(e) {
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;  
-                const clickX = (e.clientX - rect.left) * scaleX; const clickY = (e.clientY - rect.top) * scaleY;
+                floorImg.onload = () => {
+                    floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; 
+                    floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
 
-                if (currentMode === 'overview') {
-                    let clickedDefect = null; let threshold = Math.max(canvas.width * 0.04, 30); 
-                    for (let d of defectsList) {
-                        if (d.px && d.py && Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2)) <= threshold) {
-                            clickedDefect = d; break; 
-                        }
+                    if (currentMode === 'view' && !focusId) {
+                        document.getElementById('hintText').innerText = "📍 請點選缺失發生位置";
+                        if(viewX && viewY) drawSinglePin((parseInt(viewX)/100)*floorCanvas.width, (parseInt(viewY)/100)*floorCanvas.height, '待改善', null);
+                    } else if (currentMode === 'overview' && apiBaseUrl) {
+                        if(!focusId) document.getElementById('filterContainer').style.display = 'block';
+                        document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
+                        
+                        fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, { headers: { "ngrok-skip-browser-warning": "true" } })
+                        .then(res => res.json())
+                        .then(json => {
+                            if (json.success && json.data.length > 0) {
+                                globalDefectsList = json.data; // 存入全域變數
+                                
+                                let deptSelect = document.getElementById('deptFilter');
+                                let uniqueDepts = [...new Set(globalDefectsList.map(d => d.Dept))];
+                                uniqueDepts.forEach(dept => { if(dept) { let opt = document.createElement('option'); opt.value = dept; opt.innerText = "🛠️ " + dept; deptSelect.appendChild(opt); } });
+
+                                window.drawAllPins = function() {
+                                    let filterStatus = document.getElementById('statusFilter').value;
+                                    let filterDept = document.getElementById('deptFilter').value;
+                                    globalDefectsList.forEach(d => {
+                                        if (!focusId && filterStatus !== 'ALL' && !d.Status.includes(filterStatus)) return;
+                                        if (!focusId && filterDept !== 'ALL' && !d.Dept.includes(filterDept)) return;
+                                        let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                                        if (match) {
+                                            d.px = (parseInt(match[1]) / 100) * floorCanvas.width;
+                                            d.py = (parseInt(match[2]) / 100) * floorCanvas.height;
+                                            drawSinglePin(d.px, d.py, d.Status, d.ID);
+                                        }
+                                    });
+                                };
+
+                                window.applyFilter = function() {
+                                    floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height); 
+                                    floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
+                                    drawAllPins(); 
+                                    document.getElementById('defectInfoCard').style.display = 'none';
+                                };
+
+                                drawAllPins();
+
+                                if (focusId) {
+                                    let focusDefect = globalDefectsList.find(d => d.ID.toString() === focusId);
+                                    if (focusDefect) { document.getElementById('hintText').innerText = `📍 缺失 #${focusId} 位置`; showDefectCard(focusDefect); } 
+                                    else { document.getElementById('hintText').innerText = "⚠️ 找不到該筆缺失資料"; }
+                                } else { document.getElementById('hintText').innerText = `📍 點擊圖釘查看詳細 (共 ${globalDefectsList.length} 筆)`; }
+                            } else { document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄"; }
+                        }).catch(err => { document.getElementById('hintText').innerText = "❌ 資料載入失敗"; });
                     }
-                    if (clickedDefect) showDefectCard(clickedDefect);
-                    else document.getElementById('defectInfoCard').style.display = 'none';
-                    return; 
-                }
+                };
 
-                if (currentMode === 'view') return; 
-                selectedX = clickX; selectedY = clickY;
-                ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                drawSinglePin(selectedX, selectedY, '待改善', null, ctx, canvas);
-                isSelected = true; document.getElementById('sendBtn').style.display = 'block';
-            });
+                floorCanvas.addEventListener('click', function(e) {
+                    const rect = floorCanvas.getBoundingClientRect();
+                    const scaleX = floorCanvas.width / rect.width; const scaleY = floorCanvas.height / rect.height;  
+                    const clickX = (e.clientX - rect.left) * scaleX; const clickY = (e.clientY - rect.top) * scaleY;
+
+                    if (currentMode === 'overview') {
+                        let clickedDefect = null; let threshold = Math.max(floorCanvas.width * 0.04, 30); 
+                        for (let d of globalDefectsList) {
+                            if (d.px && d.py && Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2)) <= threshold) {
+                                clickedDefect = d; break; 
+                            }
+                        }
+                        if (clickedDefect) showDefectCard(clickedDefect);
+                        else document.getElementById('defectInfoCard').style.display = 'none';
+                        return; 
+                    }
+
+                    if (currentMode === 'view') return; 
+                    selectedX = clickX; selectedY = clickY;
+                    floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height); 
+                    floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
+                    drawSinglePin(selectedX, selectedY, '待改善', null);
+                    isSelected = true; document.getElementById('sendBtn').style.display = 'block';
+                });
+            } catch(e) {
+                document.getElementById('pageTitle').innerText = "圖紙載入發生錯誤";
+                console.error(e);
+            }
         }
 
-        function drawSinglePin(px, py, status, textId, ctx, canvas) {
-            let size = Math.max(canvas.width * 0.007, 5); ctx.lineWidth = 2; ctx.strokeStyle = '#fff';
-            if (status.includes('待驗收')) { ctx.beginPath(); ctx.arc(px, py, size, 0, 2 * Math.PI); ctx.fillStyle = '#007bff'; ctx.fill(); ctx.stroke(); } 
-            else if (status.includes('已改善')) { ctx.beginPath(); ctx.rect(px - size, py - size, size * 2, size * 2); ctx.fillStyle = '#1DB446'; ctx.fill(); ctx.stroke(); } 
-            else { ctx.beginPath(); ctx.moveTo(px, py - size * 1.3); ctx.lineTo(px + size * 1.2, py + size * 1.1); ctx.lineTo(px - size * 1.2, py + size * 1.1); ctx.closePath(); ctx.fillStyle = '#dc3545'; ctx.fill(); ctx.stroke(); }
+        function drawSinglePin(px, py, status, textId) {
+            let size = Math.max(floorCanvas.width * 0.007, 5); floorCtx.lineWidth = 2; floorCtx.strokeStyle = '#fff';
+            if (status.includes('待驗收')) { floorCtx.beginPath(); floorCtx.arc(px, py, size, 0, 2 * Math.PI); floorCtx.fillStyle = '#007bff'; floorCtx.fill(); floorCtx.stroke(); } 
+            else if (status.includes('已改善')) { floorCtx.beginPath(); floorCtx.rect(px - size, py - size, size * 2, size * 2); floorCtx.fillStyle = '#1DB446'; floorCtx.fill(); floorCtx.stroke(); } 
+            else { floorCtx.beginPath(); floorCtx.moveTo(px, py - size * 1.3); floorCtx.lineTo(px + size * 1.2, py + size * 1.1); floorCtx.lineTo(px - size * 1.2, py + size * 1.1); floorCtx.closePath(); floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke(); }
             if (textId) {
-                let fontSize = Math.max(canvas.width * 0.016, 12); ctx.font = `bold ${fontSize}px sans-serif`;
-                ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.strokeText("#" + textId, px + size * 1.2, py - size * 0.5);
-                ctx.fillStyle = status.includes('待驗收') ? '#0056b3' : (status.includes('已改善') ? '#127a2c' : '#a71d2a');
-                ctx.fillText("#" + textId, px + size * 1.2, py - size * 0.5);
+                let fontSize = Math.max(floorCanvas.width * 0.016, 12); floorCtx.font = `bold ${fontSize}px sans-serif`;
+                floorCtx.lineWidth = 3; floorCtx.strokeStyle = 'rgba(255,255,255,0.8)'; floorCtx.strokeText("#" + textId, px + size * 1.2, py - size * 0.5);
+                floorCtx.fillStyle = status.includes('待驗收') ? '#0056b3' : (status.includes('已改善') ? '#127a2c' : '#a71d2a');
+                floorCtx.fillText("#" + textId, px + size * 1.2, py - size * 0.5);
             }
         }
 
