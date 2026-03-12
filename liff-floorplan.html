@@ -263,7 +263,7 @@
                         alert("⚠️ 本日已存在此表單，系統自動為您切換至「編輯模式」。");
                         currentMode = 'hse_edit';
                         currentLogId = res.logId;
-                        loadFormDetail(template); // 載入舊資料
+                        (template); // 載入舊資料
                     } else {
                         // 真正的新增模式
                         document.getElementById('pageTitle').innerText = currentFormType;
@@ -303,11 +303,28 @@
                     `;
 
                     let results = JSON.parse(dbData.ContentJson || "{}");
+                    let defects = dbData.Defects || []; // ★ 取得後端傳來的異常紀錄
+
                     template.forEach(sec => {
                         sec.items.forEach(item => {
                             let ans = results[item.text] || 'PASS';
                             selectRadio(item.id, ans, false); 
-                            if (ans === 'FAIL') document.getElementById(`desc_${item.id}`).value = "詳見缺失追蹤系統"; 
+                            
+                            // ★ 修改：如果是異常，載入對應的描述與圖片
+                            if (ans === 'FAIL') {
+                                // 利用 "安衛-題目名稱" 來對應缺失紀錄
+                                let matchedDefect = defects.find(d => d.Dept === "安衛-" + item.text);
+                                if (matchedDefect) {
+                                    // 填入當時的理由
+                                    document.getElementById(`desc_${item.id}`).value = matchedDefect.Description;
+                                    // 載入當時的照片
+                                    let previewImg = document.getElementById(`preview_${item.id}`);
+                                    previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}`;
+                                    previewImg.style.display = 'block';
+                                } else {
+                                    document.getElementById(`desc_${item.id}`).value = "未填寫理由";
+                                }
+                            } 
                         });
                     });
 
