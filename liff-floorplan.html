@@ -7,42 +7,63 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { margin: 0; padding: 0; background: #f0f0f0; font-family: sans-serif; }
-        .header { background: #007bff; color: white; padding: 12px; font-size: 18px; font-weight: bold; text-align:center; position:sticky; top:0; z-index:100; }
-        
-        /* ---------------- 圖紙模式樣式 ---------------- */
+        .header { background: #007bff; color: white; padding: 15px; font-size: 18px; font-weight: bold; text-align:center; position:sticky; top:0; z-index:100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right:8px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* ================= 圖紙模式樣式 ================= */
         #mapView { display: none; text-align: center; }
-        .hint { padding: 8px; font-size: 14px; color: #555; }
+        .hint { padding: 10px; font-size: 14px; color: #555; font-weight: bold; background: #e9ecef; }
         #canvas-container { position: relative; width: 100%; display: flex; justify-content: center; }
         #floorPlan { border: 2px solid #ccc; width: 95%; height: auto; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        #sendBtn { display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold; background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; cursor: pointer; }
-        #defectInfoCard { display: none; position: fixed; bottom: 20px; left: 5%; width: 90%; background: rgba(255, 255, 255, 0.98); padding: 15px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); text-align: left; z-index: 100; box-sizing: border-box; border-left: 6px solid #ff9800; max-height: 85vh; overflow-y: auto; }
-        #filterContainer { display: none; padding: 5px 10px; text-align: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; }
-        .filter-select { padding: 6px 10px; font-size: 14px; font-weight: bold; border-radius: 6px; border: 1px solid #007bff; width: 45%; margin: 2px; }
-        .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
+        #sendBtn { display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold; background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        #filterContainer { display: none; padding: 8px 10px; text-align: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        .filter-select { padding: 8px; font-size: 14px; font-weight: bold; border-radius: 6px; border: 1px solid #007bff; width: 48%; margin: 2px; }
         
-        /* ---------------- 表單模式樣式 ---------------- */
-        #formView { display: none; padding: 15px; max-width: 600px; margin: 0 auto; background: #fff; }
-        .form-section { margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
-        .form-section-title { background: #34495e; color: #fff; padding: 10px; font-size: 16px; font-weight: bold; }
-        .form-item { padding: 15px; border-bottom: 1px solid #eee; }
+        #defectInfoCard { display: none; position: fixed; bottom: 20px; left: 5%; width: 90%; background: rgba(255, 255, 255, 0.98); padding: 15px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); text-align: left; z-index: 100; box-sizing: border-box; border-left: 6px solid #ff9800; max-height: 85vh; overflow-y: auto; }
+        .tab-container { display: flex; margin-bottom: 8px; border-radius: 6px; overflow: hidden; border: 1px solid #007bff; }
+        .tab-btn { flex: 1; padding: 8px; font-size: 14px; font-weight: bold; border: none; background: white; color: #007bff; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { background: #007bff; color: white; }
+        #infoImg { width: 100%; max-height: 250px; height: auto; object-fit: contain; border-radius: 8px; background-color: #111; cursor: zoom-in; margin-bottom: 5px; }
+        .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
+        .history-btn { width: 100%; padding: 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-weight: bold; color: #444; margin-top: 10px; }
+        #historyContainer { display: none; font-size: 13px; color: #444; background: #fafafa; padding: 10px; border-radius: 6px; margin-top: 5px; border: 1px inset #eee; }
+        .history-item { margin-bottom: 6px; }
+        .history-time { font-size: 11px; color: #888; }
+
+        #fullscreenModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+        #fullscreenImg { max-width: 95%; max-height: 90%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px; }
+        .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none; }
+
+        /* ================= 表單模式樣式 (PlanGrid Style) ================= */
+        #formView { display: none; padding: 15px; max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.05); min-height: 100vh;}
+        .form-meta-card { background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; color: #495057; line-height: 1.6; }
+        .form-section { margin-bottom: 25px; border: 1px solid #dfe6e9; border-radius: 8px; overflow: hidden; background: #fff; }
+        .form-section-title { background: #2d3436; color: #fff; padding: 12px 15px; font-size: 16px; font-weight: bold; }
+        .form-item { padding: 15px; border-bottom: 1px solid #f1f2f6; }
         .form-item:last-child { border-bottom: none; }
-        .item-title { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 10px; line-height: 1.4; }
+        .item-title { font-size: 15px; font-weight: bold; color: #2d3436; margin-bottom: 12px; line-height: 1.5; }
         
         .radio-group { display: flex; gap: 10px; margin-bottom: 10px; }
-        .radio-label { flex: 1; text-align: center; padding: 10px; border: 2px solid #ccc; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .radio-label.pass.selected { border-color: #1DB446; background: #e8f8ec; color: #1DB446; }
-        .radio-label.fail.selected { border-color: #dc3545; background: #fcebeb; color: #dc3545; }
+        .radio-label { flex: 1; text-align: center; padding: 12px; border: 2px solid #dfe6e9; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; color: #636e72; background: #fff; }
+        .radio-label.pass.selected { border-color: #00b894; background: #e8f8f5; color: #00b894; box-shadow: 0 2px 5px rgba(0,184,148,0.2); }
+        .radio-label.fail.selected { border-color: #d63031; background: #ffefef; color: #d63031; box-shadow: 0 2px 5px rgba(214,48,49,0.2); }
+        .radio-label.disabled { pointer-events: none; opacity: 0.7; }
         
-        .fail-inputs { display: none; margin-top: 10px; background: #fafafa; padding: 10px; border-radius: 6px; border-left: 4px solid #dc3545; }
-        .fail-inputs textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 8px; resize: vertical; height: 60px; }
+        .fail-inputs { display: none; margin-top: 10px; background: #fafafa; padding: 12px; border-radius: 8px; border-left: 4px solid #d63031; }
+        .fail-inputs textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 8px; resize: vertical; height: 70px; font-family: inherit; }
         
-        /* 簽名板樣式 */
-        .signature-box { border: 2px dashed #007bff; border-radius: 8px; background: #fafafa; position: relative; margin-bottom: 10px; height: 150px; }
-        .sig-canvas { width: 100%; height: 100%; touch-action: none; }
-        .clear-sig { position: absolute; top: 5px; right: 5px; background: #ff9800; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        /* 簽名板與圖片區 */
+        .signature-box { border: 2px dashed #74b9ff; border-radius: 8px; background: #fdfdfd; position: relative; margin-bottom: 10px; height: 160px; }
+        .sig-canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+        .clear-sig { position: absolute; top: 5px; right: 5px; background: #ff7675; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; z-index: 10; }
+        .sig-img-preview { width: 100%; height: 160px; object-fit: contain; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
         
-        .submit-btn { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px; margin-bottom: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .action-btn { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; }
+        .btn-submit { background: #0984e3; }
+        .btn-approve { background: #e17055; }
+        .btn-close { background: #636e72; }
+        .action-btn:disabled { background: #b2bec3; cursor: not-allowed; box-shadow: none; }
     </style>
 </head>
 <body>
@@ -65,63 +86,110 @@
         <div id="defectInfoCard">
             <button class="close-btn" onclick="document.getElementById('defectInfoCard').style.display='none'">✖</button>
             <div id="infoStatus" style="font-weight:bold; font-size:16px; margin-bottom:10px;"></div>
-            <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px;"></div>
+            
+            <div class="tab-container" id="imgToggleTabs" style="display:none;">
+                <button id="btnAfter" class="tab-btn active" onclick="switchImg('fixed')">✨ 改善後</button>
+                <button id="btnBefore" class="tab-btn" onclick="switchImg('original')">📸 改善前</button>
+            </div>
+
+            <div id="imgLoading" style="display:none; text-align:center; padding:20px; color:#888;">
+                <div class="loader"></div> 讀取照片中...
+            </div>
+            <img id="infoImg" src="" alt="缺失照片" style="display:none;" />
+            <div id="imgZoomHint" style="display:none; text-align:center; font-size:12px; color:#1DB446; margin-bottom:8px;">🔍 點擊圖片可放大查看全圖</div>
+            
+            <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px; margin-top:8px;"></div>
             <div id="infoDesc" style="color:#222; font-size:15px; line-height:1.4;"></div>
+
+            <button class="history-btn" onclick="toggleHistory()">🕒 展開狀態歷程紀錄</button>
+            <div id="historyContainer"></div>
         </div>
     </div>
 
     <div id="formView">
-        <div style="font-size:14px; color:#666; margin-bottom:15px;" id="formMeta"></div>
+        <div class="form-meta-card" id="formMeta"></div>
         
         <div id="formContent"></div> <div class="form-section">
-            <div class="form-section-title">✍️ 簽核區 (請在虛線框內手寫簽名)</div>
+            <div class="form-section-title">✍️ 簽核區</div>
             <div style="padding: 15px;">
-                <b>檢查人簽名：</b>
-                <div class="signature-box">
-                    <canvas id="sigInspector" class="sig-canvas"></canvas>
-                    <button class="clear-sig" onclick="clearCanvas('sigInspector')">清除重簽</button>
+                
+                <div id="inspectorSigArea" style="margin-bottom: 20px;">
+                    <b style="color:#2d3436;">檢查人簽名：</b>
+                    <div id="inspectorSigBox" class="signature-box" style="display:none;">
+                        <canvas id="sigInspector" class="sig-canvas"></canvas>
+                        <button class="clear-sig" onclick="clearCanvas('sigInspector')">重簽</button>
+                    </div>
+                    <img id="inspectorSigImg" class="sig-img-preview" style="display:none;" />
                 </div>
+
+                <div id="directorSigArea" style="display:none; border-top: 1px dashed #ccc; padding-top: 15px;">
+                    <b style="color:#2d3436;">工地主任簽名：</b>
+                    <div id="directorSigBox" class="signature-box" style="display:none;">
+                        <canvas id="sigDirector" class="sig-canvas"></canvas>
+                        <button class="clear-sig" onclick="clearCanvas('sigDirector')">重簽</button>
+                    </div>
+                    <img id="directorSigImg" class="sig-img-preview" style="display:none;" />
+                </div>
+
             </div>
         </div>
 
-        <button id="submitFormBtn" class="submit-btn" onclick="submitHSEForm()">📤 送出檢查表</button>
+        <button id="btnSubmitForm" class="action-btn btn-submit" style="display:none;" onclick="submitHSEForm()">📤 送出檢查表</button>
+        <button id="btnApproveForm" class="action-btn btn-approve" style="display:none;" onclick="approveHSEForm()">✅ 確認覆核並結案</button>
+        <button id="btnCloseForm" class="action-btn btn-close" style="display:none;" onclick="liff.closeWindow()">✖ 關閉視窗</button>
+    </div>
+
+    <div id="fullscreenModal" onclick="closeFullscreen()">
+        <button class="modal-close">✖</button>
+        <img id="fullscreenImg" src="" />
     </div>
 
     <script>
-        // ================= 全域變數 =================
+        // ================= 全域變數與核心設定 =================
         const myLiffId = "2009287087-4LSCRAq4"; 
+        const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
+        const defaultImg = "test.jpg"; 
+        
         let apiBaseUrl = ""; 
-        let currentMode = "";
+        let currentMode = ""; // overview, view, hse_form, hse_view, hse_approve
         let currentSite = "";
         let currentDate = "";
         let currentUser = "";
+        let currentFormType = "";
+        let currentLogId = "";
 
-        // ================= 表單題庫設定 =================
-        const HSE_CHECKLIST = [
-            {
-                section: "門禁管制",
-                items: [
+        // ★ 動態多表單題庫 (擴充時只要在這裡加資料即可)
+        const FORM_TEMPLATES = {
+            "一般安全檢查表": [
+                { section: "門禁管制", items: [
                     { id: "Q1", text: "人員、車輛進出工區應指派專人管制" },
                     { id: "Q2", text: "人員進入工區應配戴安全帽、著安全鞋" }
-                ]
-            },
-            {
-                section: "開口防護",
-                items: [
+                ]},
+                { section: "開口防護", items: [
                     { id: "Q3", text: "開口部、坑洞墜落防護措施應設置" },
                     { id: "Q4", text: "從事高架作業勞工應佩戴安全帶" }
-                ]
-            },
-            {
-                section: "感電防止",
-                items: [
-                    { id: "Q5", text: "各分電箱應設置漏電斷路器" },
-                    { id: "Q6", text: "電線應架高，不得橫越地面或浸泡水中" }
-                ]
-            }
-        ];
+                ]}
+            ],
+            "圍籬及大門作業檢查表": [
+                { section: "硬體設施", items: [
+                    { id: "Q1", text: "施工圍籬是否依規定設置且穩固" },
+                    { id: "Q2", text: "大門是否設有警告標示及照明設備" },
+                    { id: "Q3", text: "門禁管制措施是否落實" }
+                ]}
+            ],
+            "模板作業檢查表": [
+                { section: "支撐與組立", items: [
+                    { id: "Q1", text: "模板支撐材料是否有明顯腐朽或變形" },
+                    { id: "Q2", text: "支撐基底是否穩固且無積水" },
+                    { id: "Q3", text: "上下設備(樓梯、爬梯)是否安全牢固" }
+                ]}
+            ]
+        };
 
-        // ================= 1. 初始化 LIFF 與 路由 =================
+        // 預設題庫 (找不到指定名稱時使用)
+        const DEFAULT_TEMPLATE = FORM_TEMPLATES["一般安全檢查表"];
+
+        // ================= LIFF 初始化與路由 =================
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "").trim(); 
@@ -129,97 +197,155 @@
             currentMode = urlParams.get('mode');
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "");
             currentDate = urlParams.get('date');
-            currentUser = decodeURIComponent(urlParams.get('user') || "未知人員");
+            currentUser = decodeURIComponent(urlParams.get('user') || "未知");
+            currentFormType = decodeURIComponent(urlParams.get('formType') || "一般安全檢查表");
+            currentLogId = urlParams.get('logId'); // 檢視或簽核時才有
 
-            if (currentMode === 'hse_form') {
-                // 啟動表單模式
-                document.getElementById('pageTitle').innerText = "一般安全檢查表";
+            // 路由判斷
+            if (currentMode && currentMode.startsWith('hse_')) {
+                // 表單模式 (新增 / 檢視 / 簽核)
                 document.getElementById('mapView').style.display = 'none';
                 document.getElementById('formView').style.display = 'block';
-                document.getElementById('formMeta').innerText = `🏢 案場：${currentSite} \n📅 日期：${currentDate} \n👤 檢查人：${currentUser}`;
-                
-                renderForm();
-                initSignatures();
+                initFormMode();
             } else {
-                // 啟動圖紙模式 (相容你原本的邏輯)
-                document.getElementById('pageTitle').innerText = `${currentSite} - ${floor}`;
-                document.getElementById('mapView').style.display = 'block';
+                // 圖紙模式 (overview / view)
                 document.getElementById('formView').style.display = 'none';
-                // ... 這裡保留你原本的圖紙載入邏輯 img.onload = () => { ... } ...
+                document.getElementById('mapView').style.display = 'block';
+                initMapMode(site, floor, urlParams.get('x'), urlParams.get('y'), urlParams.get('focusId'));
             }
         }).catch(err => {
-            document.getElementById('pageTitle').innerText = "LIFF 初始化失敗";
+            document.getElementById('pageTitle').innerText = "系統初始化失敗";
+            console.error(err);
         });
 
-        // ================= 2. 表單模式邏輯 =================
+        // ==========================================
+        // 模塊 1：動態電子表單邏輯
+        // ==========================================
+        function initFormMode() {
+            document.getElementById('pageTitle').innerText = currentFormType;
+            let metaHtml = `<b>🏢 案場：</b>${currentSite} <br><b>📅 日期：</b>${currentDate} <br><b>👤 操作人：</b>${currentUser}`;
+            document.getElementById('formMeta').innerHTML = metaHtml;
 
-        function renderForm() {
+            let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
+            let isReadOnly = (currentMode === 'hse_view' || currentMode === 'hse_approve');
+
+            // 1. 產生題目 UI
             let container = document.getElementById('formContent');
             let html = "";
-
-            HSE_CHECKLIST.forEach((sec, sIdx) => {
-                html += `<div class="form-section">
-                            <div class="form-section-title">📋 ${sec.section}</div>`;
-                
-                sec.items.forEach((item, iIdx) => {
+            template.forEach(sec => {
+                html += `<div class="form-section"><div class="form-section-title">📋 ${sec.section}</div>`;
+                sec.items.forEach(item => {
+                    let disabledClass = isReadOnly ? "disabled" : "";
                     html += `
                     <div class="form-item">
                         <div class="item-title">${item.id}. ${item.text}</div>
-                        <div class="radio-group" id="group_${item.id}">
-                            <div class="radio-label pass selected" onclick="selectRadio('${item.id}', 'PASS')">✅ 合格</div>
-                            <div class="radio-label fail" onclick="selectRadio('${item.id}', 'FAIL')">❌ 異常</div>
+                        <div class="radio-group" id="group_${item.id}" data-text="${item.text}">
+                            <div class="radio-label pass selected ${disabledClass}" onclick="selectRadio('${item.id}', 'PASS', ${isReadOnly})">✅ 合格</div>
+                            <div class="radio-label fail ${disabledClass}" onclick="selectRadio('${item.id}', 'FAIL', ${isReadOnly})">❌ 異常</div>
                         </div>
                         <div class="fail-inputs" id="failBox_${item.id}">
-                            <textarea id="desc_${item.id}" placeholder="請輸入不合格改善措施..."></textarea>
-                            <input type="file" id="file_${item.id}" accept="image/*" style="font-size:12px; margin-top:5px;">
+                            <textarea id="desc_${item.id}" placeholder="請輸入不合格改善措施..." ${isReadOnly?'disabled':''}></textarea>
+                            ${!isReadOnly ? `<input type="file" id="file_${item.id}" accept="image/*" style="font-size:12px; margin-top:5px;">` : ''}
                         </div>
                     </div>`;
                 });
                 html += `</div>`;
             });
             container.innerHTML = html;
+
+            // 2. 根據模式設定按鈕與簽名板
+            if (currentMode === 'hse_form') {
+                // 新增模式
+                document.getElementById('inspectorSigBox').style.display = 'block';
+                document.getElementById('btnSubmitForm').style.display = 'block';
+                initCanvas('sigInspector');
+            } 
+            else if (currentMode === 'hse_view' || currentMode === 'hse_approve') {
+                // 載入伺服器資料
+                document.getElementById('pageTitle').innerText = "載入中...";
+                fetch(`${apiBaseUrl}/get-form-detail/${currentLogId}`, { headers: { "ngrok-skip-browser-warning": "true" }})
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        let dbData = res.data;
+                        document.getElementById('pageTitle').innerText = dbData.FormType;
+                        document.getElementById('formMeta').innerHTML = `
+                            <b>🏢 案場：</b>${dbData.SiteName} <br>
+                            <b>📅 日期：</b>${dbData.CheckDate} <br>
+                            <b>👤 檢查人：</b>${dbData.Inspector} <br>
+                            <b>📊 狀態：</b><span style="color:#d63031; font-weight:bold;">${dbData.FormStatus}</span>
+                        `;
+
+                        // 填入作答結果
+                        let results = JSON.parse(dbData.ContentJson || "{}");
+                        template.forEach(sec => {
+                            sec.items.forEach(item => {
+                                let ans = results[item.text] || 'PASS';
+                                selectRadio(item.id, ans, false); // 先強制觸發 UI 變更
+                                
+                                // 若有異常，填入舊備註 (由於原本結構沒存備註在 Json，需搭配後續 API 更新，這裡預留介面)
+                                if (ans === 'FAIL') {
+                                    document.getElementById(`desc_${item.id}`).value = "詳見缺失追蹤系統"; 
+                                }
+                            });
+                        });
+
+                        // 顯示檢查人簽名圖片
+                        document.getElementById('inspectorSigArea').style.display = 'block';
+                        document.getElementById('inspectorSigBox').style.display = 'none';
+                        let inspImg = document.getElementById('inspectorSigImg');
+                        inspImg.src = `${apiBaseUrl}/image-sig/${currentLogId}/inspector?cb=${new Date().getTime()}`;
+                        inspImg.style.display = 'block';
+
+                        if (currentMode === 'hse_view') {
+                            document.getElementById('btnCloseForm').style.display = 'block';
+                            // 如果已結案，顯示主任簽名
+                            if (dbData.FormStatus === '已結案') {
+                                document.getElementById('directorSigArea').style.display = 'block';
+                                let dirImg = document.getElementById('directorSigImg');
+                                dirImg.src = `${apiBaseUrl}/image-sig/${currentLogId}/director?cb=${new Date().getTime()}`;
+                                dirImg.style.display = 'block';
+                            }
+                        } 
+                        else if (currentMode === 'hse_approve') {
+                            document.getElementById('directorSigArea').style.display = 'block';
+                            document.getElementById('directorSigBox').style.display = 'block';
+                            document.getElementById('btnApproveForm').style.display = 'block';
+                            initCanvas('sigDirector');
+                        }
+                    } else { alert("找不到表單資料"); liff.closeWindow(); }
+                }).catch(e => { alert("連線異常"); liff.closeWindow(); });
+            }
         }
 
-        // 切換 合格/異常 按鈕樣式
-        window.selectRadio = function(qId, val) {
+        // Radio UI 切換
+        window.selectRadio = function(qId, val, isReadOnly) {
+            if(isReadOnly) return;
             let group = document.getElementById(`group_${qId}`);
             let passBtn = group.querySelector('.pass');
             let failBtn = group.querySelector('.fail');
             let failBox = document.getElementById(`failBox_${qId}`);
 
             if (val === 'PASS') {
-                passBtn.classList.add('selected');
-                failBtn.classList.remove('selected');
+                passBtn.classList.add('selected'); failBtn.classList.remove('selected');
                 failBox.style.display = 'none';
             } else {
-                failBtn.classList.add('selected');
-                passBtn.classList.remove('selected');
+                failBtn.classList.add('selected'); passBtn.classList.remove('selected');
                 failBox.style.display = 'block';
             }
-            // 將值偷偷存在 DOM 上方便收集
             group.dataset.value = val;
         };
 
-        // ================= 3. 簽名板邏輯 (Canvas) =================
-        let canvases = {};
-        let ctxs = {};
-        
-        function initSignatures() {
-            let sigIds = ['sigInspector']; // 未來可擴充 sigSafety, sigDirector
-            
-            sigIds.forEach(id => {
-                let cvs = document.getElementById(id);
-                // 解決 Canvas 在手機上模糊的問題
-                cvs.width = cvs.offsetWidth;
-                cvs.height = cvs.offsetHeight;
-                
+        // --- 簽名板控制 ---
+        let canvases = {}; let ctxs = {};
+        function initCanvas(id) {
+            let cvs = document.getElementById(id);
+            // 延遲一點點確保 DOM 已經展開，抓得到長寬
+            setTimeout(() => {
+                cvs.width = cvs.offsetWidth; cvs.height = cvs.offsetHeight;
                 let ctx = cvs.getContext('2d');
-                ctx.lineWidth = 3;
-                ctx.lineCap = "round";
-                ctx.strokeStyle = "#000";
-                
-                canvases[id] = cvs;
-                ctxs[id] = ctx;
+                ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.strokeStyle = "#2d3436";
+                canvases[id] = cvs; ctxs[id] = ctx;
                 
                 let drawing = false;
                 let getPos = (e) => {
@@ -228,113 +354,276 @@
                     let clientY = e.touches ? e.touches[0].clientY : e.clientY;
                     return { x: clientX - rect.left, y: clientY - rect.top };
                 };
-
                 let start = (e) => { e.preventDefault(); drawing = true; let pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); };
                 let draw = (e) => { e.preventDefault(); if(!drawing) return; let pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); };
                 let stop = (e) => { e.preventDefault(); drawing = false; };
 
                 cvs.addEventListener('mousedown', start); cvs.addEventListener('mousemove', draw); cvs.addEventListener('mouseup', stop);
-                cvs.addEventListener('touchstart', start); cvs.addEventListener('touchmove', draw); cvs.addEventListener('touchend', stop);
-            });
+                cvs.addEventListener('touchstart', start, {passive: false}); 
+                cvs.addEventListener('touchmove', draw, {passive: false}); 
+                cvs.addEventListener('touchend', stop);
+            }, 300);
         }
 
         window.clearCanvas = function(id) {
             let cvs = canvases[id];
-            ctxs[id].clearRect(0, 0, cvs.width, cvs.height);
+            if(cvs && ctxs[id]) ctxs[id].clearRect(0, 0, cvs.width, cvs.height);
         };
 
-        // 檢查 Canvas 是否空白
         function isCanvasBlank(canvas) {
+            if(!canvas) return true;
             const blank = document.createElement('canvas');
-            blank.width = canvas.width;
-            blank.height = canvas.height;
+            blank.width = canvas.width; blank.height = canvas.height;
             return canvas.toDataURL() === blank.toDataURL();
         }
 
-        // ================= 4. 收集並送出表單 =================
+        // --- 提交新表單 API ---
         window.submitHSEForm = async function() {
-            let btn = document.getElementById('submitFormBtn');
-            btn.innerText = "⏳ 資料上傳中...";
-            btn.disabled = true;
+            let btn = document.getElementById('btnSubmitForm');
+            btn.innerText = "⏳ 資料上傳中..."; btn.disabled = true;
 
-            // 1. 檢查簽名
             if (isCanvasBlank(canvases['sigInspector'])) {
                 alert("請在下方【檢查人簽名區】完成簽名！");
-                btn.innerText = "📤 送出檢查表"; btn.disabled = false;
-                return;
+                btn.innerText = "📤 送出檢查表"; btn.disabled = false; return;
             }
             let sigBase64 = canvases['sigInspector'].toDataURL('image/png').split(',')[1];
 
-            // 2. 收集所有題目資料
             let formResults = {};
-            let defectsToUpload = []; // 需要順便上傳到 DefectLogs 的異常項目
+            let defectsToUpload = [];
+            let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
 
-            for (let sec of HSE_CHECKLIST) {
+            for (let sec of template) {
                 for (let item of sec.items) {
                     let group = document.getElementById(`group_${item.id}`);
-                    let val = group.dataset.value || 'PASS'; // 預設 PASS
+                    let val = group.dataset.value || 'PASS'; 
                     formResults[item.text] = val;
 
                     if (val === 'FAIL') {
                         let desc = document.getElementById(`desc_${item.id}`).value;
                         let fileInput = document.getElementById(`file_${item.id}`);
-                        
                         let base64Img = null;
                         if (fileInput.files.length > 0) {
-                            base64Img = await fileToBase64(fileInput.files[0]);
-                            base64Img = base64Img.split(',')[1]; // 去除開頭
+                            let rawBase64 = await fileToBase64(fileInput.files[0]);
+                            base64Img = rawBase64.split(',')[1]; 
                         }
-                        
-                        // 準備同步寫入缺失庫的資料
-                        defectsToUpload.push({
-                            dept: "安衛-" + item.text,
-                            desc: desc,
-                            imageBase64: base64Img
-                        });
+                        defectsToUpload.push({ dept: "安衛-" + item.text, desc: desc, imageBase64: base64Img });
                     }
                 }
             }
 
-            // 3. 組合發送 Payload
             let payload = {
-                site: currentSite,
-                date: currentDate,
-                inspector: currentUser,
-                resultsJson: JSON.stringify(formResults),
-                signature: sigBase64,
-                defects: defectsToUpload // 後端可以遍歷這個陣列自動新增缺失卡片
+                site: currentSite, date: currentDate, formType: currentFormType,
+                inspector: currentUser, resultsJson: JSON.stringify(formResults),
+                signature: sigBase64, defects: defectsToUpload 
             };
 
-            // 4. 呼叫 Node.js API
             fetch(`${apiBaseUrl}/submit-hse-form`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(data => {
+            }).then(res => res.json()).then(data => {
                 if (data.success) {
-                    alert("✅ 表單送出成功！\n異常項目已自動轉為缺失追蹤。");
+                    alert("✅ 表單送出成功！已通知主任簽核。");
                     if (liff.isInClient()) liff.closeWindow();
-                } else {
-                    alert("❌ 儲存失敗：" + data.error);
-                    btn.innerText = "📤 送出檢查表"; btn.disabled = false;
-                }
-            }).catch(e => {
-                alert("❌ 網路連線錯誤");
-                btn.innerText = "📤 送出檢查表"; btn.disabled = false;
-            });
+                } else { alert("❌ 儲存失敗：" + data.error); btn.innerText = "📤 送出檢查表"; btn.disabled = false; }
+            }).catch(e => { alert("❌ 網路連線錯誤"); btn.innerText = "📤 送出檢查表"; btn.disabled = false; });
         };
 
-        // 檔案轉 Base64 工具
+        // --- 主任簽核 API ---
+        window.approveHSEForm = function() {
+            let btn = document.getElementById('btnApproveForm');
+            btn.innerText = "⏳ 簽核傳送中..."; btn.disabled = true;
+
+            if (isCanvasBlank(canvases['sigDirector'])) {
+                alert("請在最下方【工地主任簽名區】完成簽名！");
+                btn.innerText = "✅ 確認覆核並結案"; btn.disabled = false; return;
+            }
+            let sigBase64 = canvases['sigDirector'].toDataURL('image/png').split(',')[1];
+
+            let payload = { logId: currentLogId, director: currentUser, signature: sigBase64 };
+
+            fetch(`${apiBaseUrl}/approve-form`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                body: JSON.stringify(payload)
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    alert("✅ 簽核成功！表單已結案。");
+                    if (liff.isInClient()) liff.closeWindow();
+                } else { alert("❌ 簽核失敗：" + data.error); btn.innerText = "✅ 確認覆核並結案"; btn.disabled = false; }
+            }).catch(e => { alert("❌ 網路連線錯誤"); btn.innerText = "✅ 確認覆核並結案"; btn.disabled = false; });
+        };
+
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
+                const reader = new FileReader(); reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error);
             });
         }
+
+
+        // ==========================================
+        // 模塊 2：圖紙模式邏輯 (沿用，稍作精簡整理)
+        // ==========================================
+        const floorPlanDB = {
+            "98工地": { "全區配置圖": "/98地號/98_1F.png", "1F": "/98地號/98_1F.png" },
+            "99工地": { "全區配置圖": "/99地號/99_1F.png", "1F": "/99地號/99_1F.png" },
+            "95工地": { "全區配置圖": "/95地號/95_1F.png", "1F": "/95地號/95_1F.png" }
+            // ... 這裡保留你原本完整的 floorPlanDB 配置 ...
+        };
+
+        function initMapMode(site, floor, viewX, viewY, focusId) {
+            const canvas = document.getElementById('floorPlan');
+            const ctx = canvas.getContext('2d');
+            const img = new Image(); img.crossOrigin = "Anonymous";
+            
+            let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
+            if (floorPlanDB[site] && floorPlanDB[site][floor]) {
+                targetImgUrl = githubPagesUrl + floorPlanDB[site][floor];
+            }
+            img.src = targetImgUrl;
+
+            img.onload = () => {
+                canvas.width = img.width; canvas.height = img.height; 
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                if (currentMode === 'view' && !focusId) {
+                    document.getElementById('hintText').innerText = "📍 請點選缺失發生位置";
+                    if(viewX && viewY) drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, '待改善', null, ctx, canvas);
+                } else if (currentMode === 'overview' && apiBaseUrl) {
+                    if(!focusId) document.getElementById('filterContainer').style.display = 'block';
+                    document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
+                    
+                    fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, { headers: { "ngrok-skip-browser-warning": "true" } })
+                    .then(res => res.json())
+                    .then(json => {
+                        if (json.success && json.data.length > 0) {
+                            defectsList = json.data;
+                            
+                            let deptSelect = document.getElementById('deptFilter');
+                            let uniqueDepts = [...new Set(defectsList.map(d => d.Dept))];
+                            uniqueDepts.forEach(dept => { if(dept) { let opt = document.createElement('option'); opt.value = dept; opt.innerText = "🛠️ " + dept; deptSelect.appendChild(opt); } });
+
+                            window.drawAllPins = function() {
+                                let filterStatus = document.getElementById('statusFilter').value;
+                                let filterDept = document.getElementById('deptFilter').value;
+                                defectsList.forEach(d => {
+                                    if (!focusId && filterStatus !== 'ALL' && !d.Status.includes(filterStatus)) return;
+                                    if (!focusId && filterDept !== 'ALL' && !d.Dept.includes(filterDept)) return;
+                                    let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                                    if (match) {
+                                        d.px = (parseInt(match[1]) / 100) * canvas.width;
+                                        d.py = (parseInt(match[2]) / 100) * canvas.height;
+                                        drawSinglePin(d.px, d.py, d.Status, d.ID, ctx, canvas);
+                                    }
+                                });
+                            };
+                            window.applyFilter = function() {
+                                ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                drawAllPins(); document.getElementById('defectInfoCard').style.display = 'none';
+                            };
+
+                            drawAllPins();
+
+                            if (focusId) {
+                                let focusDefect = defectsList.find(d => d.ID.toString() === focusId);
+                                if (focusDefect) { document.getElementById('hintText').innerText = `📍 缺失 #${focusId} 位置`; showDefectCard(focusDefect); } 
+                                else { document.getElementById('hintText').innerText = "⚠️ 找不到該筆缺失資料"; }
+                            } else { document.getElementById('hintText').innerText = `📍 點擊圖釘查看詳細 (共 ${defectsList.length} 筆)`; }
+                        } else { document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄"; }
+                    }).catch(err => { document.getElementById('hintText').innerText = "❌ 資料載入失敗"; });
+                }
+            };
+
+            // 圖紙點擊事件
+            canvas.addEventListener('click', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;  
+                const clickX = (e.clientX - rect.left) * scaleX; const clickY = (e.clientY - rect.top) * scaleY;
+
+                if (currentMode === 'overview') {
+                    let clickedDefect = null; let threshold = Math.max(canvas.width * 0.04, 30); 
+                    for (let d of defectsList) {
+                        if (d.px && d.py && Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2)) <= threshold) {
+                            clickedDefect = d; break; 
+                        }
+                    }
+                    if (clickedDefect) showDefectCard(clickedDefect);
+                    else document.getElementById('defectInfoCard').style.display = 'none';
+                    return; 
+                }
+
+                if (currentMode === 'view') return; 
+                // 新增打點
+                selectedX = clickX; selectedY = clickY;
+                ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                drawSinglePin(selectedX, selectedY, '待改善', null, ctx, canvas);
+                isSelected = true; document.getElementById('sendBtn').style.display = 'block';
+            });
+        }
+
+        // 畫單顆圖釘
+        function drawSinglePin(px, py, status, textId, ctx, canvas) {
+            let size = Math.max(canvas.width * 0.007, 5); ctx.lineWidth = 2; ctx.strokeStyle = '#fff';
+            if (status.includes('待驗收')) { ctx.beginPath(); ctx.arc(px, py, size, 0, 2 * Math.PI); ctx.fillStyle = '#007bff'; ctx.fill(); ctx.stroke(); } 
+            else if (status.includes('已改善')) { ctx.beginPath(); ctx.rect(px - size, py - size, size * 2, size * 2); ctx.fillStyle = '#1DB446'; ctx.fill(); ctx.stroke(); } 
+            else { ctx.beginPath(); ctx.moveTo(px, py - size * 1.3); ctx.lineTo(px + size * 1.2, py + size * 1.1); ctx.lineTo(px - size * 1.2, py + size * 1.1); ctx.closePath(); ctx.fillStyle = '#dc3545'; ctx.fill(); ctx.stroke(); }
+            if (textId) {
+                let fontSize = Math.max(canvas.width * 0.016, 12); ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.strokeText("#" + textId, px + size * 1.2, py - size * 0.5);
+                ctx.fillStyle = status.includes('待驗收') ? '#0056b3' : (status.includes('已改善') ? '#127a2c' : '#a71d2a');
+                ctx.fillText("#" + textId, px + size * 1.2, py - size * 0.5);
+            }
+        }
+
+        // 顯示缺失卡片 (包含 Before/After 與 歷程)
+        function showDefectCard(defectData) {
+            currentLogId = defectData.ID; 
+            let cCard = document.getElementById('defectInfoCard');
+            let color = defectData.Status.includes('待驗收') ? '#007bff' : (defectData.Status.includes('已改善') ? '#1DB446' : '#dc3545');
+            cCard.style.borderLeftColor = color;
+            document.getElementById('infoStatus').innerText = `狀態：${defectData.Status} (#${defectData.ID})`;
+            document.getElementById('infoStatus').style.color = color;
+            document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${defectData.Dept} | 回報：${defectData.UserName}`;
+            document.getElementById('infoDesc').innerText = defectData.Description || "無備註說明";
+            document.getElementById('historyContainer').style.display = 'none';
+
+            let isFixedPhase = defectData.Status.includes('待驗收') || defectData.Status.includes('已改善');
+            if (isFixedPhase) { document.getElementById('imgToggleTabs').style.display = 'flex'; switchImg('fixed'); } 
+            else { document.getElementById('imgToggleTabs').style.display = 'none'; switchImg('original'); }
+            cCard.style.display = 'block';
+        }
+
+        window.switchImg = function(type) {
+            document.getElementById('btnAfter').classList.remove('active'); document.getElementById('btnBefore').classList.remove('active');
+            if(type === 'fixed') document.getElementById('btnAfter').classList.add('active');
+            if(type === 'original') document.getElementById('btnBefore').classList.add('active');
+            document.getElementById('infoImg').style.display = 'none'; document.getElementById('imgLoading').style.display = 'block';
+            
+            fetch(`${apiBaseUrl}/image/${currentLogId}/${type}?cb=${new Date().getTime()}`, { headers: { "ngrok-skip-browser-warning": "true" } })
+            .then(r => { if(r.ok) return r.blob(); throw new Error(); })
+            .then(blob => {
+                let objectURL = URL.createObjectURL(blob); let imgEle = document.getElementById('infoImg');
+                imgEle.src = objectURL; document.getElementById('imgLoading').style.display = 'none'; imgEle.style.display = 'block';
+                imgEle.onclick = () => { document.getElementById('fullscreenImg').src = objectURL; document.getElementById('fullscreenModal').style.display = 'flex'; };
+            }).catch(e => { document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片"; });
+        };
+
+        window.toggleHistory = function() {
+            let container = document.getElementById('historyContainer');
+            if (container.style.display === 'block') { container.style.display = 'none'; return; }
+            container.style.display = 'block'; container.innerHTML = '<div class="loader"></div> 載入中...';
+            
+            fetch(`${apiBaseUrl}/defect-history/${currentLogId}`, { method: 'GET', headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" } })
+            .then(r => r.json()).then(res => {
+                if (res.success && res.data.length > 0) {
+                    let html = ""; res.data.forEach(log => { html += `<div class="history-item"><div class="history-time">${log.OpTimeStr}</div><b>${log.OpUser}</b>: <span style="color:#888;">${log.OldStatus}</span> ➡️ <b>${log.NewStatus}</b></div>`; });
+                    container.innerHTML = html;
+                } else { container.innerHTML = "📝 尚無狀態變更紀錄"; }
+            }).catch(e => container.innerHTML = "❌ 載入失敗");
+        };
+
+        function closeFullscreen() { document.getElementById('fullscreenModal').style.display = 'none'; }
     </script>
 </body>
 </html>
