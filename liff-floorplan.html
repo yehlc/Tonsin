@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>平面圖定位</title>
+    <title>平面圖總覽</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { margin: 0; padding: 0; text-align: center; background: #f0f0f0; font-family: sans-serif; }
         .header { background: #007bff; color: white; padding: 12px; font-size: 18px; font-weight: bold; }
-        .hint { padding: 10px; font-size: 14px; color: #555; }
+        .hint { padding: 8px; font-size: 14px; color: #555; }
         
         #canvas-container { position: relative; width: 100%; display: flex; justify-content: center; }
         canvas { border: 2px solid #ccc; width: 95%; height: auto; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
@@ -18,42 +18,34 @@
             background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; 
             cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        #sendBtn:active { background: #179038; }
-
+        
         /* 懸浮資訊卡片 */
         #defectInfoCard {
             display: none; position: fixed; bottom: 20px; left: 5%; width: 90%;
             background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px;
             box-shadow: 0 6px 16px rgba(0,0,0,0.2); text-align: left; z-index: 100;
-            box-sizing: border-box; border-left: 6px solid #ff9800; 
-            max-height: 85vh; overflow-y: auto;
+            box-sizing: border-box; border-left: 6px solid #ff9800; max-height: 85vh; overflow-y: auto;
         }
         #infoImg { width: 100%; max-height: 250px; height: auto; object-fit: contain; border-radius: 8px; margin-bottom: 5px; background-color: #111; cursor: zoom-in; }
         .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
         
         /* 載入動畫 */
-        .loader {
-            border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%;
-            width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; margin-right: 10px; vertical-align: middle;
-        }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; margin-right: 10px; vertical-align: middle; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* 全螢幕看圖模式 */
-        #fullscreenModal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;
-        }
+        #fullscreenModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
         #fullscreenImg { max-width: 95%; max-height: 90%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px; }
         .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none; }
 
-        /* ★ 新增：篩選器下拉選單樣式 */
+        /* ★ 新增：篩選器容器 (雙排) */
         #filterContainer {
-            display: none; position: fixed; top: 60px; right: 15px; z-index: 50;
+            display: none; padding: 5px 10px; text-align: center;
+            background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px;
         }
-        #statusFilter {
-            padding: 8px 12px; font-size: 14px; font-weight: bold; border-radius: 8px;
-            border: 2px solid #007bff; background: rgba(255,255,255,0.95);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; color: #333;
+        .filter-select {
+            padding: 6px 10px; font-size: 14px; font-weight: bold; border-radius: 6px;
+            border: 1px solid #007bff; background: #fff; color: #333; width: 45%; margin: 2px;
         }
     </style>
 </head>
@@ -62,11 +54,14 @@
     <div class="hint" id="hintText">連線環境建立中...</div>
     
     <div id="filterContainer">
-        <select id="statusFilter" onchange="applyFilter()">
-            <option value="ALL">🔍 顯示全部</option>
-            <option value="待改善">🔺 待改善 (紅)</option>
-            <option value="待驗收">🔵 待驗收 (藍)</option>
-            <option value="已改善">🟩 已改善 (綠)</option>
+        <select id="deptFilter" class="filter-select" onchange="applyFilter()">
+            <option value="ALL">🛠️ 所有工種</option>
+        </select>
+        <select id="statusFilter" class="filter-select" onchange="applyFilter()">
+            <option value="ALL">🔍 所有狀態</option>
+            <option value="待改善">🔺 待改善</option>
+            <option value="待驗收">🔵 待驗收</option>
+            <option value="已改善">🟩 已改善</option>
         </select>
     </div>
 
@@ -94,6 +89,7 @@
         const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
         const defaultImg = "98_1F.jpg"; 
 
+        // 圖庫設定 (保持不變)
         const floorPlanDB = {
             "98工地": {
                 "全區配置圖": "98_siteplan.jpg", "戶外周邊": defaultImg, "屋頂外觀": defaultImg, "地工階段": defaultImg,
@@ -129,70 +125,66 @@
         let isSelected = false;
         let defectsList = [];
 
-        // ★ 修改：色弱友善的「形狀+顏色」繪製邏輯
-        function drawSinglePin(px, py, status) {
-            let size = Math.max(canvas.width * 0.007, 5); // 控制圖示大小
+        // ★ 修改：加入文字編號 (ID) 的繪製
+        function drawSinglePin(px, py, status, textId) {
+            let size = Math.max(canvas.width * 0.007, 5); 
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#fff';
 
+            // 畫圖形
             if (status.includes('待驗收')) {
-                // 🔵 藍色圓形 (待驗收)
-                ctx.beginPath();
-                ctx.arc(px, py, size, 0, 2 * Math.PI);
-                ctx.fillStyle = '#007bff';
-                ctx.fill();
-                ctx.stroke();
+                ctx.beginPath(); ctx.arc(px, py, size, 0, 2 * Math.PI); ctx.fillStyle = '#007bff'; ctx.fill(); ctx.stroke();
             } else if (status.includes('已改善')) {
-                // 🟩 綠色正方形 (已改善)
-                ctx.beginPath();
-                ctx.rect(px - size, py - size, size * 2, size * 2);
-                ctx.fillStyle = '#1DB446';
-                ctx.fill();
-                ctx.stroke();
+                ctx.beginPath(); ctx.rect(px - size, py - size, size * 2, size * 2); ctx.fillStyle = '#1DB446'; ctx.fill(); ctx.stroke();
             } else {
-                // 🔺 紅色三角形 (待改善 / 預設)
-                ctx.beginPath();
-                ctx.moveTo(px, py - size * 1.3);
-                ctx.lineTo(px + size * 1.2, py + size * 1.1);
-                ctx.lineTo(px - size * 1.2, py + size * 1.1);
-                ctx.closePath();
-                ctx.fillStyle = '#dc3545';
-                ctx.fill();
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(px, py - size * 1.3); ctx.lineTo(px + size * 1.2, py + size * 1.1); ctx.lineTo(px - size * 1.2, py + size * 1.1); ctx.closePath(); ctx.fillStyle = '#dc3545'; ctx.fill(); ctx.stroke();
+            }
+
+            // ★ 畫文字編號 (在圖釘右上方)
+            if (textId) {
+                let fontSize = Math.max(canvas.width * 0.016, 12);
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                
+                // 文字外框(防背景干擾)
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+                ctx.strokeText("#" + textId, px + size * 1.2, py - size * 0.5);
+                
+                // 依據狀態給定文字顏色
+                ctx.fillStyle = status.includes('待驗收') ? '#0056b3' : (status.includes('已改善') ? '#127a2c' : '#a71d2a');
+                ctx.fillText("#" + textId, px + size * 1.2, py - size * 0.5);
             }
         }
 
-        // ★ 修改：加入篩選判斷的繪製迴圈
+        // 重新繪製所有符合篩選的圖釘
         function drawAllPins() {
-            let filterValue = document.getElementById('statusFilter').value;
+            let filterStatus = document.getElementById('statusFilter').value;
+            let filterDept = document.getElementById('deptFilter').value;
 
             defectsList.forEach(d => {
-                // 如果不是選 ALL，且狀態不包含選擇的關鍵字，就跳過不畫
-                if (filterValue !== 'ALL' && !d.Status.includes(filterValue)) return;
+                // 雙重篩選判斷
+                if (filterStatus !== 'ALL' && !d.Status.includes(filterStatus)) return;
+                if (filterDept !== 'ALL' && !d.Dept.includes(filterDept)) return;
 
                 let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
                 if (match) {
                     d.px = (parseInt(match[1]) / 100) * canvas.width;
                     d.py = (parseInt(match[2]) / 100) * canvas.height;
-                    drawSinglePin(d.px, d.py, d.Status);
+                    // ★ 傳入 ID 進行繪製
+                    drawSinglePin(d.px, d.py, d.Status, d.ID);
                 }
             });
         }
 
-        // ★ 新增：篩選器觸發事件
+        // 觸發篩選
         function applyFilter() {
-            // 清除畫布並重繪底圖
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            // 重新畫大頭針
             drawAllPins();
-            // 隱藏目前開啟的資訊卡
             document.getElementById('defectInfoCard').style.display = 'none';
         }
 
-        function closeFullscreen() {
-            document.getElementById('fullscreenModal').style.display = 'none';
-        }
+        function closeFullscreen() { document.getElementById('fullscreenModal').style.display = 'none'; }
 
         const myLiffId = "2009287087-4LSCRAq4"; 
         liff.init({ liffId: myLiffId }).then(() => {
@@ -205,11 +197,8 @@
             const apiBaseUrl = urlParams.get('api');
 
             if (site && floor) {
-                document.getElementById('pageTitle').innerText = `${site} - ${floor} 平面圖`;
+                document.getElementById('pageTitle').innerText = `${site} - ${floor} 總覽`;
                 document.getElementById('hintText').innerText = "請在下方平面圖「雙指放大」並「點擊」位置";
-            } else {
-                document.getElementById('pageTitle').innerText = "未指定案場與樓層";
-                document.getElementById('hintText').innerText = "無法載入參數，請重新操作";
             }
 
             let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
@@ -226,11 +215,9 @@
 
                 if (mode === 'view' && viewX && viewY) {
                     document.getElementById('hintText').innerText = "📍 缺失發生位置 (可雙指放大查看細節)";
-                    // 單筆檢視預設畫紅色三角形
-                    drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, '待改善');
+                    drawSinglePin((parseInt(viewX)/100)*canvas.width, (parseInt(viewY)/100)*canvas.height, '待改善', null);
                 } 
                 else if (mode === 'overview' && apiBaseUrl) {
-                    // ★ 總覽模式：顯示篩選器
                     document.getElementById('filterContainer').style.display = 'block';
                     document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
                     
@@ -241,7 +228,20 @@
                     .then(json => {
                         if (json.success && json.data.length > 0) {
                             defectsList = json.data;
-                            document.getElementById('hintText').innerText = `📍 點擊圖示查看內容 (共 ${defectsList.length} 筆)`;
+                            document.getElementById('hintText').innerText = `📍 點擊圖釘查看詳細內容 (共 ${defectsList.length} 筆)`;
+                            
+                            // ★ 動態產生工種(Dept)下拉選單
+                            let deptSelect = document.getElementById('deptFilter');
+                            let uniqueDepts = [...new Set(defectsList.map(d => d.Dept))];
+                            uniqueDepts.forEach(dept => {
+                                if(dept) {
+                                    let opt = document.createElement('option');
+                                    opt.value = dept;
+                                    opt.innerText = "🛠️ " + dept;
+                                    deptSelect.appendChild(opt);
+                                }
+                            });
+
                             drawAllPins();
                         } else {
                             document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄";
@@ -251,11 +251,7 @@
                 }
             };
 
-            img.onerror = () => {
-                ctx.font = "20px Arial";
-                ctx.fillText("找不到平面圖檔", 50, 50);
-            };
-
+            // ... (canvas 點擊事件與 sendCoordinate 保持原本的，只需改下面那行 threshold)
             canvas.addEventListener('click', function(e) {
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width;    
@@ -267,12 +263,14 @@
 
                 if (mode === 'overview') {
                     let clickedDefect = null;
-                    let threshold = Math.max(canvas.width * 0.03, 20); 
-                    let currentFilter = document.getElementById('statusFilter').value;
+                    let threshold = Math.max(canvas.width * 0.04, 30); // 點擊感應範圍加大一點點
+                    let currentStatus = document.getElementById('statusFilter').value;
+                    let currentDept = document.getElementById('deptFilter').value;
                     
                     for (let d of defectsList) {
-                        // 點擊判定時，也要排除已經被篩選隱藏掉的點
-                        if (currentFilter !== 'ALL' && !d.Status.includes(currentFilter)) continue;
+                        // 略過被隱藏的點
+                        if (currentStatus !== 'ALL' && !d.Status.includes(currentStatus)) continue;
+                        if (currentDept !== 'ALL' && !d.Dept.includes(currentDept)) continue;
 
                         if (d.px && d.py) {
                             let dist = Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2));
@@ -290,7 +288,7 @@
                         if (clickedDefect.Status.includes('已改善')) color = '#1DB446';
 
                         cCard.style.borderLeftColor = color;
-                        document.getElementById('infoStatus').innerText = "狀態：" + clickedDefect.Status;
+                        document.getElementById('infoStatus').innerText = "狀態：" + clickedDefect.Status + " (#" + clickedDefect.ID + ")";
                         document.getElementById('infoStatus').style.color = color;
                         
                         document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${clickedDefect.Dept} | 回報：${clickedDefect.UserName}`;
@@ -322,7 +320,7 @@
                             document.getElementById('imgZoomHint').style.display = 'block';
                         })
                         .catch(error => {
-                            document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片 (可能已移除或無權限)";
+                            document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片";
                         });
 
                         cCard.style.display = 'block';
@@ -338,13 +336,11 @@
                 selectedY = clickY;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                // 新增點位時預設畫紅色三角形
-                drawSinglePin(selectedX, selectedY, '待改善');
+                drawSinglePin(selectedX, selectedY, '待改善', null);
 
                 isSelected = true;
                 document.getElementById('sendBtn').style.display = 'block';
             });
-
         }).catch(err => {
             console.error(err);
             document.getElementById('pageTitle').innerText = "LIFF 初始化失敗";
@@ -355,11 +351,8 @@
             const percentX = Math.round((selectedX / canvas.width) * 100);
             const percentY = Math.round((selectedY / canvas.height) * 100);
             const coordText = `[座標] X:${percentX}%, Y:${percentY}%`;
-
             if (liff.isInClient()) {
-                liff.sendMessages([{ 'type': 'text', 'text': coordText }])
-                .then(() => liff.closeWindow())
-                .catch(err => alert('發送失敗: ' + err));
+                liff.sendMessages([{ 'type': 'text', 'text': coordText }]).then(() => liff.closeWindow());
             } else {
                 alert(`測試模式送出：${coordText}`);
             }
