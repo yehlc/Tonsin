@@ -712,6 +712,31 @@ if (val === 'FAIL') { // ★ 移除 && currentMode === 'hse_form' 的限制
                 } else { container.innerHTML = "📝 尚無狀態變更紀錄"; }
             }).catch(e => container.innerHTML = "❌ 載入失敗");
         };
+        // ★ 補回遺失的座標送出函數
+        window.sendCoordinate = function() {
+            if (!isSelected) {
+                alert("請先在地圖上點擊標記位置！");
+                return;
+            }
+            // 計算百分比座標
+            let xPercent = Math.round((selectedX / floorCanvas.width) * 100);
+            let yPercent = Math.round((selectedY / floorCanvas.height) * 100);
+            let coordText = `[座標] X:${xPercent}%, Y:${yPercent}%`;
+
+            // 透過 LIFF 傳送訊息回 LINE 聊天室
+            if (liff.isInClient()) {
+                liff.sendMessages([{
+                    type: 'text',
+                    text: coordText
+                }]).then(() => {
+                    liff.closeWindow(); // 送出後自動關閉視窗
+                }).catch((err) => {
+                    alert("發送失敗：" + err);
+                });
+            } else {
+                alert("請在 LINE App 中操作以傳送座標：" + coordText);
+            }
+        };
 
         function closeFullscreen() { document.getElementById('fullscreenModal').style.display = 'none'; }
     </script>
