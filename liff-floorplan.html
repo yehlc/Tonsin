@@ -206,19 +206,8 @@
         const DEFAULT_TEMPLATE = FORM_TEMPLATES["一般安全檢查表"];
 
         liff.init({ liffId: myLiffId }).then(() => {
-            // ★ 增加解析 liff.state 的防呆機制，確保參數不遺失
-            let searchStr = window.location.search;
-            let urlParams = new URLSearchParams(searchStr);
-            
-            let liffState = urlParams.get('liff.state');
-            if (liffState) {
-                if (liffState.indexOf('?') > -1) {
-                    searchStr = liffState.substring(liffState.indexOf('?'));
-                } else {
-                    searchStr = liffState.startsWith('?') ? liffState : '?' + liffState;
-                }
-                urlParams = new URLSearchParams(searchStr);
-            }
+            // ★ 直接讀取乾淨的網址參數
+            const urlParams = new URLSearchParams(window.location.search);
 
             currentSite = decodeURIComponent(urlParams.get('site') || "").trim(); 
             const floor = decodeURIComponent(urlParams.get('floor') || "").trim().toUpperCase(); 
