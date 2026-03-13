@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>系統載入中...</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f0f0; font-family: sans-serif; }
         .loader { border: 5px solid #ccc; border-top: 5px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
@@ -17,37 +18,30 @@
     </div>
 
     <script>
-        const queryString = window.location.search;
-        const urlParams = new URLSearchParams(queryString);
-        
-        let targetPage = urlParams.get('page');
-        let realQueryString = queryString; // 預設使用原本的 query
+        const myLiffId = "2009287087-4LSCRAq4"; // 你的 LIFF ID
 
-        // ★ 核心修復：解析 LINE LIFF 封裝的 liff.state 參數
-        if (!targetPage) {
-            let liffState = urlParams.get('liff.state');
-            if (liffState) {
-                // liffState 已經是被 URLSearchParams 解碼過的字串，例如 "/?page=task&site=測試工地"
-                if (liffState.indexOf('?') > -1) {
-                    realQueryString = liffState.substring(liffState.indexOf('?'));
+        // ★ 正確做法：讓 LIFF 先初始化。初始化過程中它會自動把 liff.state 轉換為正常的網址參數
+        liff.init({ liffId: myLiffId }).then(() => {
+            
+            // 此時的 window.location.search 已經被 LIFF 淨化過了 (例如變成 ?page=task&site=測試工地)
+            const queryString = window.location.search;
+            const urlParams = new URLSearchParams(queryString);
+            const targetPage = urlParams.get('page');
+
+            // 稍微延遲確保內部狀態寫入完成，然後跳轉
+            setTimeout(() => {
+                if (targetPage === 'task') {
+                    window.location.replace("liff-task.html" + queryString);
                 } else {
-                    realQueryString = liffState.startsWith('?') ? liffState : '?' + liffState;
+                    window.location.replace("liff-floorplan.html" + queryString);
                 }
-                let stateParams = new URLSearchParams(realQueryString);
-                targetPage = stateParams.get('page');
-            }
-        }
+            }, 150);
 
-        // 交通警察邏輯：
-        setTimeout(() => {
-            if (targetPage === 'task') {
-                // 如果參數有標明是要去任務頁面
-                window.location.replace("liff-task.html" + realQueryString);
-            } else {
-                // 預設（包含舊版的表單、圖紙）統統導向 floorplan
-                window.location.replace("liff-floorplan.html" + realQueryString);
-            }
-        }, 100); // 稍微延遲確保轉址順暢
+        }).catch((err) => {
+            console.error("LIFF Init Error", err);
+            // 發生錯誤時的備用跳轉
+            window.location.replace("liff-floorplan.html" + window.location.search);
+        });
     </script>
 </body>
 </html>
