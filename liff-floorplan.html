@@ -330,7 +330,7 @@
                                     
                                     // 載入當時的照片
                                     let previewImg = document.getElementById(`preview_${item.id}`);
-                                    if(previewImg) {
+                                    if(previewImg && matchedDefect.HasImage === 1) { // ★ 加上這行防呆
                                         previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}`;
                                         previewImg.style.display = 'block';
                                     }
