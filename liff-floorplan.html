@@ -345,11 +345,20 @@
                                         // 將正確的 Defect ID 綁定在圖片元素上
                                         previewImg.dataset.defectId = matchedDefect.ID;
                                         
-                                        if (matchedDefect.HasImage === 1) {
-                                            // 確保使用正確的 Defect ID 來抓圖
-                                            previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}&ngrok-skip-browser-warning=true`;
-                                            previewImg.style.display = 'block';
-                                        }
+                                        // ★ 替換為這段：
+if (matchedDefect.HasImage === 1) {
+    previewImg.style.display = 'none'; // 先隱藏，避免閃爍破圖
+    // 改用 fetch 取得 Blob，可以正確帶入 Header，徹底解決 ngrok 阻擋 <img> 標籤的問題
+    fetch(`${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}`, { 
+        headers: { "ngrok-skip-browser-warning": "true" } 
+    })
+    .then(r => { if(r.ok) return r.blob(); throw new Error(); })
+    .then(blob => {
+        previewImg.src = URL.createObjectURL(blob);
+        previewImg.style.display = 'block';
+    })
+    .catch(e => console.warn("載入預覽圖失敗", e));
+}
                                     }
                                 } else {
                                     let descInput = document.getElementById(`desc_${item.id}`);
@@ -488,16 +497,20 @@
                     let val = group.dataset.value || 'PASS'; 
                     formResults[item.text] = val;
 
-                    if (val === 'FAIL' && currentMode === 'hse_form') {
-                        let desc = document.getElementById(`desc_${item.id}`).value;
-                        let fileInput = document.getElementById(`file_${item.id}`);
-                        let base64Img = null;
-                        if (fileInput.files.length > 0) {
-                            let rawBase64 = await fileToBase64(fileInput.files[0]);
-                            base64Img = rawBase64.split(',')[1]; 
-                        }
-                        defectsToUpload.push({ dept: "安衛-" + item.text, desc: desc, imageBase64: base64Img });
-                    }
+                    // 替換這一段
+if (val === 'FAIL') { // ★ 移除 && currentMode === 'hse_form' 的限制
+    let descInput = document.getElementById(`desc_${item.id}`);
+    let desc = descInput ? descInput.value : '';
+    let fileInput = document.getElementById(`file_${item.id}`);
+    let base64Img = null;
+    
+    // 如果有重新上傳照片才轉 Base64，否則保留 null 讓後端不覆蓋舊圖
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        let rawBase64 = await fileToBase64(fileInput.files[0]);
+        base64Img = rawBase64.split(',')[1]; 
+    }
+    defectsToUpload.push({ dept: "安衛-" + item.text, desc: desc, imageBase64: base64Img });
+}
                 }
             }
 
