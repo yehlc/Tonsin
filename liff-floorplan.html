@@ -261,8 +261,8 @@
             });
             container.innerHTML = html;
 
+            // ★ 強化版：明確區分「新增」與「載入(包含編輯/簽核/查詢)」
             if (currentMode === 'hse_form') {
-                // ★ 新增：防重複與編輯機制
                 document.getElementById('pageTitle').innerText = "檢查重複紀錄中...";
                 fetch(`${apiBaseUrl}/check-duplicate-form?site=${encodeURIComponent(currentSite)}&date=${currentDate}&formType=${encodeURIComponent(currentFormType)}`, { headers: { "ngrok-skip-browser-warning": "true" }})
                 .then(r => r.json())
@@ -271,9 +271,9 @@
                         alert("⚠️ 本日已存在此表單，系統自動為您切換至「編輯模式」。");
                         currentMode = 'hse_edit';
                         currentLogId = res.logId;
-                        (template); // 載入舊資料
+                        loadFormDetail(template); // 載入舊資料
                     } else {
-                        // 真正的新增模式
+                        // 真正的新增模式 (空表單)
                         document.getElementById('pageTitle').innerText = currentFormType;
                         document.getElementById('phInspector').style.display = 'none';
                         document.getElementById('boxInspector').style.display = 'block';
@@ -289,7 +289,8 @@
                     initCanvas('sigInspector');
                 });
             } else {
-                // 如果是簽核或歷史查詢，直接載入資料
+                // 如果是 hse_edit (從剛剛的檢查切換過來), hse_approve_safety, hse_approve_director, hse_view
+                // 這些模式統統只要負責「把資料載入畫面」就好
                 loadFormDetail(template);
             }
         }
@@ -316,7 +317,8 @@
                     template.forEach(sec => {
                         sec.items.forEach(item => {
                             let ans = results[item.text] || 'PASS';
-                            selectRadio(item.id, ans, false); 
+                            // ★ 動態套用唯讀屬性
+                            selectRadio(item.id, ans, isQuestionsReadOnly);
                             
                             if (ans === 'FAIL') {
                                 // ★ 關鍵修復：因為資料庫存的 Dept 可能有空白或特殊字元，用 includes 最保險
