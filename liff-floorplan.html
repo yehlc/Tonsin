@@ -13,9 +13,18 @@
 
         /* ================= 圖紙模式樣式 ================= */
         #mapView { display: none; text-align: center; }
-        .hint { padding: 10px; font-size: 14px; color: #555; font-weight: bold; background: #e9ecef; }
-        #canvas-container { position: relative; width: 100%; display: flex; justify-content: center; }
-        #floorPlan { border: 2px solid #ccc; width: 95%; height: auto; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .hint { padding: 10px; font-size: 14px; color: #555; font-weight: bold; background: #e9ecef; z-index: 100; position: relative;}
+        
+        /* ★ 讓容器支援原生滑動拖曳 */
+        #canvas-container { position: relative; width: 100%; height: 70vh; overflow: auto; background: #ccc; touch-action: pan-x pan-y; }
+        
+        /* ★ 設定圖紙縮放基準點 */
+        #floorPlan { transform-origin: top left; transition: transform 0.2s ease-out; background: #fff; cursor: crosshair; }
+        
+        /* ★ 浮動的放大縮小按鈕 */
+        .zoom-controls { position: fixed; bottom: 90px; right: 20px; display: flex; flex-direction: column; gap: 15px; z-index: 50; }
+        .zoom-btn { width: 50px; height: 50px; background: rgba(255,255,255,0.9); border: 2px solid #007bff; border-radius: 50%; font-size: 24px; font-weight: bold; color: #007bff; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .zoom-btn:active { background: #e6f2ff; }
         #sendBtn { display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold; background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
         #filterContainer { display: none; padding: 8px 10px; text-align: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; }
         .filter-select { padding: 8px; font-size: 14px; font-weight: bold; border-radius: 6px; border: 1px solid #007bff; width: 48%; margin: 2px; }
@@ -87,7 +96,15 @@
                 <option value="已改善">🟩 已改善</option>
             </select>
         </div>
-        <div id="canvas-container"><canvas id="floorPlan"></canvas></div>
+        <div id="canvas-container">
+            <canvas id="floorPlan"></canvas>
+        </div>
+        
+        <div class="zoom-controls" id="zoomControls">
+            <div class="zoom-btn" onclick="zoomMap(1.3)">＋</div>
+            <div class="zoom-btn" onclick="zoomMap(0.7)">－</div>
+        </div>
+
         <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
 
         <div id="defectInfoCard">
@@ -170,6 +187,15 @@
         let floorCanvas, floorCtx, floorImg;
         let globalDefectsList = [];
         let selectedX = 0, selectedY = 0, isSelected = false;
+        let currentZoom = 1; // ★ 新增縮放倍率紀錄
+
+        // ★ 新增縮放功能函數
+        window.zoomMap = function(factor) {
+            currentZoom *= factor;
+            if (currentZoom < 0.5) currentZoom = 0.5; // 最小縮放限制
+            if (currentZoom > 4) currentZoom = 4;     // 最大放大限制
+            document.getElementById('floorPlan').style.transform = `scale(${currentZoom})`;
+        };
 
         const FORM_TEMPLATES = {
             "一般安全檢查表": [
@@ -625,29 +651,32 @@ if (val === 'FAIL') { // ★ 移除 && currentMode === 'hse_form' 的限制
                 };
 
                 floorCanvas.addEventListener('click', function(e) {
-                    const rect = floorCanvas.getBoundingClientRect();
-                    const scaleX = floorCanvas.width / rect.width; const scaleY = floorCanvas.height / rect.height;  
-                    const clickX = (e.clientX - rect.left) * scaleX; const clickY = (e.clientY - rect.top) * scaleY;
+            const rect = floorCanvas.getBoundingClientRect();
+            // ★ 關鍵修復：點擊位置必須除以 currentZoom，才能精準對應到原始圖片的像素！
+            const clickX = (e.clientX - rect.left) / currentZoom; 
+            const clickY = (e.clientY - rect.top) / currentZoom;
 
-                    if (currentMode === 'overview') {
-                        let clickedDefect = null; let threshold = Math.max(floorCanvas.width * 0.04, 30); 
-                        for (let d of globalDefectsList) {
-                            if (d.px && d.py && Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2)) <= threshold) {
-                                clickedDefect = d; break; 
-                            }
-                        }
-                        if (clickedDefect) showDefectCard(clickedDefect);
-                        else document.getElementById('defectInfoCard').style.display = 'none';
-                        return; 
+            if (currentMode === 'overview') {
+                let clickedDefect = null; let threshold = Math.max(floorCanvas.width * 0.04, 30); 
+                for (let d of globalDefectsList) {
+                    if (d.px && d.py && Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2)) <= threshold) {
+                        clickedDefect = d; break; 
                     }
+                }
+                if (clickedDefect) showDefectCard(clickedDefect);
+                else document.getElementById('defectInfoCard').style.display = 'none';
+                return; 
+            }
 
-                    if (currentMode === 'view') return; 
-                    selectedX = clickX; selectedY = clickY;
-                    floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height); 
-                    floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
-                    drawSinglePin(selectedX, selectedY, '待改善', null);
-                    isSelected = true; document.getElementById('sendBtn').style.display = 'block';
-                });
+            if (currentMode === 'view') return; 
+            
+            selectedX = clickX; selectedY = clickY;
+            floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height); 
+            floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
+            drawSinglePin(selectedX, selectedY, '待改善', null);
+            isSelected = true; 
+            document.getElementById('sendBtn').style.display = 'block';
+        });
             } catch(e) {
                 document.getElementById('pageTitle').innerText = "圖紙載入發生錯誤";
                 console.error(e);
