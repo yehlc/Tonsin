@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系統載入中...</title>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f0f0; font-family: sans-serif; }
+        .loader { border: 5px solid #ccc; border-top: 5px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <div class="loader" style="margin: 0 auto 15px;"></div>
+        <div style="color: #555; font-weight: bold;">系統路由跳轉中...</div>
+    </div>
+
+    <script>
+        // 抓取網址後方的所有參數
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        
+        // 檢查我們指定的 page 參數
+        const targetPage = urlParams.get('page');
+
+        // 交通警察邏輯：
+        setTimeout(() => {
+            if (targetPage === 'task') {
+                // 如果參數有標明是要去任務頁面
+                window.location.replace("liff-task.html" + queryString);
+            } else {
+                // 預設（包含舊版的表單、圖紙）統統導向 floorplan
+                window.location.replace("liff-floorplan.html" + queryString);
+            }
+        }, 300); // 稍微延遲 0.3 秒確保轉址順暢
+    </script>
+</body>
+</html>
