@@ -181,7 +181,12 @@
             ],
             "模板作業檢查表": [
                 { section: "支撐與組立", items: [ { id: "Q1", text: "模板支撐材料是否有明顯腐朽或變形" }, { id: "Q2", text: "支撐基底是否穩固且無積水" }, { id: "Q3", text: "上下設備(樓梯、爬梯)是否安全牢固" } ]}
-            ]
+            ],
+            // ★ 為您 GAS 裡的其他表單建立基礎範本，避免畫面報錯空白
+            "混凝土澆置檢查表": [ { section: "混凝土作業", items: [ { id: "Q1", text: "澆置前模板內是否清理乾淨" }, { id: "Q2", text: "是否具備足夠照明與安全上下設備" } ]} ],
+            "連續壁作業檢查表": [ { section: "連續壁作業", items: [ { id: "Q1", text: "導溝兩側是否有設置安全護欄" }, { id: "Q2", text: "吊掛鋼筋籠是否由合格起重機手操作" } ]} ],
+            "開挖作業檢查表": [ { section: "開挖作業", items: [ { id: "Q1", text: "開挖面是否有防止土石崩塌之擋土支撐" }, { id: "Q2", text: "怪手等重機具作業半徑內是否禁止人員進入" } ]} ],
+            "施工架作業檢查表": [ { section: "施工架", items: [ { id: "Q1", text: "施工架基礎是否穩固且無下沉" }, { id: "Q2", text: "是否設置交叉拉桿及踏板" } ]} ]
         };
 
         const DEFAULT_TEMPLATE = FORM_TEMPLATES["一般安全檢查表"];
@@ -336,10 +341,10 @@
                                     let descInput = document.getElementById(`desc_${item.id}`);
                                     if(descInput) descInput.value = matchedDefect.Description || "";
                                     
-                                    // 載入當時的照片
+                                    // 載入當時的照片 (★ 加上 ngrok-skip-browser-warning)
                                     let previewImg = document.getElementById(`preview_${item.id}`);
-                                    if(previewImg && matchedDefect.HasImage === 1) { // ★ 加上這行防呆
-                                        previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}`;
+                                    if(previewImg && matchedDefect.HasImage === 1) { 
+                                        previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}&ngrok-skip-browser-warning=true`;
                                         previewImg.style.display = 'block';
                                     }
                                 } else {
@@ -384,7 +389,8 @@
 
         function loadSigImage(type, imgId, phId) {
             let img = document.getElementById(imgId);
-            img.src = `${apiBaseUrl}/image-sig/${currentLogId}/${type}?cb=${new Date().getTime()}`;
+            // ★ 加上 ngrok-skip-browser-warning
+            img.src = `${apiBaseUrl}/image-sig/${currentLogId}/${type}?cb=${new Date().getTime()}&ngrok-skip-browser-warning=true`;
             img.onload = () => { document.getElementById(phId).style.display = 'none'; img.style.display = 'block'; };
         }
 
@@ -495,7 +501,8 @@
                 site: currentSite, date: currentDate, formType: currentFormType,
                 inspector: currentUser, role: currentUserRole, 
                 resultsJson: JSON.stringify(formResults),
-                signature: sigBase64, defects: defectsToUpload 
+                signature: sigBase64, defects: defectsToUpload,
+                apiBaseUrl: apiBaseUrl // ★ 關鍵修復：把網址傳給後端供推播使用
             };
 
             fetch(`${apiBaseUrl}/submit-hse-form`, {
