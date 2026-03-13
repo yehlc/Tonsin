@@ -17,23 +17,37 @@
     </div>
 
     <script>
-        // 抓取網址後方的所有參數
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
         
-        // 檢查我們指定的 page 參數
-        const targetPage = urlParams.get('page');
+        let targetPage = urlParams.get('page');
+        let realQueryString = queryString; // 預設使用原本的 query
+
+        // ★ 核心修復：解析 LINE LIFF 封裝的 liff.state 參數
+        if (!targetPage) {
+            let liffState = urlParams.get('liff.state');
+            if (liffState) {
+                // liffState 已經是被 URLSearchParams 解碼過的字串，例如 "/?page=task&site=測試工地"
+                if (liffState.indexOf('?') > -1) {
+                    realQueryString = liffState.substring(liffState.indexOf('?'));
+                } else {
+                    realQueryString = liffState.startsWith('?') ? liffState : '?' + liffState;
+                }
+                let stateParams = new URLSearchParams(realQueryString);
+                targetPage = stateParams.get('page');
+            }
+        }
 
         // 交通警察邏輯：
         setTimeout(() => {
             if (targetPage === 'task') {
                 // 如果參數有標明是要去任務頁面
-                window.location.replace("liff-task.html" + queryString);
+                window.location.replace("liff-task.html" + realQueryString);
             } else {
                 // 預設（包含舊版的表單、圖紙）統統導向 floorplan
-                window.location.replace("liff-floorplan.html" + queryString);
+                window.location.replace("liff-floorplan.html" + realQueryString);
             }
-        }, 300); // 稍微延遲 0.3 秒確保轉址順暢
+        }, 100); // 稍微延遲確保轉址順暢
     </script>
 </body>
 </html>
