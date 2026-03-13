@@ -317,8 +317,9 @@
                     template.forEach(sec => {
                         sec.items.forEach(item => {
                             let ans = results[item.text] || 'PASS';
-                            // ★ 動態套用唯讀屬性
-                            selectRadio(item.id, ans, isQuestionsReadOnly);
+                            // ★ 關鍵修復：這裡直接傳入 false，讓程式強制更新畫面狀態！
+                            // (不用擔心被亂點，因為若是簽核模式，按鈕本身已經被加上 disabled 無法點擊了)
+                            selectRadio(item.id, ans, false);
                             
                             if (ans === 'FAIL') {
                                 // ★ 關鍵修復：因為資料庫存的 Dept 可能有空白或特殊字元，用 includes 最保險
