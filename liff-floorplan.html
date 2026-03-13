@@ -337,15 +337,19 @@
                                 let matchedDefect = defects.find(d => d.Dept.includes(item.text) || targetDept.includes(d.Dept));
                                 
                                 if (matchedDefect) {
-                                    // 填入當時的理由
                                     let descInput = document.getElementById(`desc_${item.id}`);
                                     if(descInput) descInput.value = matchedDefect.Description || "";
                                     
-                                    // 載入當時的照片 (★ 加上 ngrok-skip-browser-warning)
                                     let previewImg = document.getElementById(`preview_${item.id}`);
-                                    if(previewImg && matchedDefect.HasImage === 1) { 
-                                        previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}&ngrok-skip-browser-warning=true`;
-                                        previewImg.style.display = 'block';
+                                    if(previewImg) {
+                                        // 將正確的 Defect ID 綁定在圖片元素上
+                                        previewImg.dataset.defectId = matchedDefect.ID;
+                                        
+                                        if (matchedDefect.HasImage === 1) {
+                                            // 確保使用正確的 Defect ID 來抓圖
+                                            previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}&ngrok-skip-browser-warning=true`;
+                                            previewImg.style.display = 'block';
+                                        }
                                     }
                                 } else {
                                     let descInput = document.getElementById(`desc_${item.id}`);
