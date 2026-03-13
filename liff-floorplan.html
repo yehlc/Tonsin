@@ -250,26 +250,24 @@
                             <div class="radio-label pass selected ${disabledClass}" onclick="selectRadio('${item.id}', 'PASS', ${isQuestionsReadOnly})">✅ 合格</div>
                             <div class="radio-label fail ${disabledClass}" onclick="selectRadio('${item.id}', 'FAIL', ${isQuestionsReadOnly})">❌ 異常</div>
                         </div>
-                        // 請將原本的 ${!isQuestionsReadOnly ? ... : ''} 區塊替換成這樣：
-
-<div class="fail-inputs" id="failBox_${item.id}">
-    <textarea id="desc_${item.id}" placeholder="請輸入不合格改善措施..." ${isQuestionsReadOnly?'disabled':''}></textarea>
-    
-    ${!isQuestionsReadOnly ? `
-    <div class="camera-btn-wrapper">
-        <span class="camera-btn">📷 點擊拍照佐證</span>
-        <input type="file" id="file_${item.id}" accept="image/*" capture="environment" class="camera-input" onchange="previewImage(this, '${item.id}')">
-    </div>
-    ` : ''}
-    
-    <img id="preview_${item.id}" class="camera-preview" style="width: 100%; margin-top: 10px; border-radius: 8px; display: none;">
-</div>
+                        
+                        <div class="fail-inputs" id="failBox_${item.id}">
+                            <textarea id="desc_${item.id}" placeholder="請輸入不合格改善措施..." ${isQuestionsReadOnly?'disabled':''}></textarea>
+                            
+                            ${!isQuestionsReadOnly ? `
+                            <div class="camera-btn-wrapper">
+                                <span class="camera-btn">📷 點擊拍照佐證</span>
+                                <input type="file" id="file_${item.id}" accept="image/*" capture="environment" class="camera-input" onchange="previewImage(this, '${item.id}')">
+                            </div>
+                            ` : ''}
+                            
+                            <img id="preview_${item.id}" class="camera-preview" style="width: 100%; margin-top: 10px; border-radius: 8px; display: none;">
+                        </div>
                     </div>`;
                 });
                 html += `</div>`;
             });
             container.innerHTML = html;
-
             // ★ 強化版：明確區分「新增」與「載入(包含編輯/簽核/查詢)」
             if (currentMode === 'hse_form') {
                 document.getElementById('pageTitle').innerText = "檢查重複紀錄中...";
