@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>同興營造 - 工程管理系統</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
@@ -15,17 +15,10 @@
         #mapView { display: none; text-align: center; }
         .hint { padding: 10px; font-size: 14px; color: #555; font-weight: bold; background: #e9ecef; z-index: 100; position: relative;}
         
-        /* ★ 讓容器支援原生滑動拖曳 */
-        #canvas-container { position: relative; width: 100%; height: 70vh; overflow: auto; background: #ccc; touch-action: pan-x pan-y; }
+        #canvas-container { position: relative; width: 100%; display: flex; justify-content: center; overflow: auto; background: #ccc;}
+        #floorPlan { width: 100%; height: auto; background: #fff; cursor: crosshair; }
         
-        /* ★ 設定圖紙縮放基準點 */
-        #floorPlan { transform-origin: top left; transition: transform 0.2s ease-out; background: #fff; cursor: crosshair; }
-        
-        /* ★ 浮動的放大縮小按鈕 */
-        .zoom-controls { position: fixed; bottom: 90px; right: 20px; display: flex; flex-direction: column; gap: 15px; z-index: 50; }
-        .zoom-btn { width: 50px; height: 50px; background: rgba(255,255,255,0.9); border: 2px solid #007bff; border-radius: 50%; font-size: 24px; font-weight: bold; color: #007bff; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: flex; justify-content: center; align-items: center; }
-        .zoom-btn:active { background: #e6f2ff; }
-        #sendBtn { display: none; margin: 15px auto; padding: 12px 24px; font-size: 18px; font-weight: bold; background: #1DB446; color: white; border: none; border-radius: 8px; width: 80%; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        #sendBtn { display: none; position: fixed; bottom: 20px; left: 10%; width: 80%; padding: 15px; font-size: 18px; font-weight: bold; background: #1DB446; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 9999;}
         #filterContainer { display: none; padding: 8px 10px; text-align: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; }
         .filter-select { padding: 8px; font-size: 14px; font-weight: bold; border-radius: 6px; border: 1px solid #007bff; width: 48%; margin: 2px; }
         
@@ -96,15 +89,7 @@
                 <option value="已改善">🟩 已改善</option>
             </select>
         </div>
-        <div id="canvas-container">
-            <canvas id="floorPlan"></canvas>
-        </div>
-        
-        <div class="zoom-controls" id="zoomControls">
-            <div class="zoom-btn" onclick="zoomMap(1.3)">＋</div>
-            <div class="zoom-btn" onclick="zoomMap(0.7)">－</div>
-        </div>
-
+        <div id="canvas-container"><canvas id="floorPlan"></canvas></div>
         <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
 
         <div id="defectInfoCard">
@@ -652,9 +637,12 @@ if (val === 'FAIL') { // ★ 移除 && currentMode === 'hse_form' 的限制
 
                 floorCanvas.addEventListener('click', function(e) {
             const rect = floorCanvas.getBoundingClientRect();
-            // ★ 關鍵修復：點擊位置必須除以 currentZoom，才能精準對應到原始圖片的像素！
-            const clickX = (e.clientX - rect.left) / currentZoom; 
-            const clickY = (e.clientY - rect.top) / currentZoom;
+            
+            // ★ 完美支援雙指原生縮放的座標算法
+            const scaleX = floorCanvas.width / rect.width; 
+            const scaleY = floorCanvas.height / rect.height;  
+            const clickX = (e.clientX - rect.left) * scaleX; 
+            const clickY = (e.clientY - rect.top) * scaleY;
 
             if (currentMode === 'overview') {
                 let clickedDefect = null; let threshold = Math.max(floorCanvas.width * 0.04, 30); 
