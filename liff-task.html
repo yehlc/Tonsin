@@ -73,7 +73,21 @@
         document.getElementById('dueDate').value = tomorrow.toISOString().split('T')[0];
 
         liff.init({ liffId: myLiffId }).then(() => {
-            const urlParams = new URLSearchParams(window.location.search);
+            // ★ 增加解析 liff.state 的防呆機制
+            let searchStr = window.location.search;
+            let urlParams = new URLSearchParams(searchStr);
+            
+            let liffState = urlParams.get('liff.state');
+            if (liffState) {
+                if (liffState.indexOf('?') > -1) {
+                    searchStr = liffState.substring(liffState.indexOf('?'));
+                } else {
+                    searchStr = liffState.startsWith('?') ? liffState : '?' + liffState;
+                }
+                urlParams = new URLSearchParams(searchStr);
+            }
+
+            // 這裡就能正確抓到參數了
             currentSite = decodeURIComponent(urlParams.get('site') || "");
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             
