@@ -303,6 +303,11 @@
             .then(res => {
                 if (res.success) {
                     let dbData = res.data;
+                    // ★ 加上這段，用資料庫的資料覆蓋當前的變數
+                    currentSite = dbData.SiteName;
+                    currentFormType = dbData.FormType;
+                    if (currentUserRole === 'safety') currentUserRole = '安衛人員';
+                    if (currentUserRole === 'director') currentUserRole = '工地主任';
                     document.getElementById('pageTitle').innerText = dbData.FormType;
                     document.getElementById('formMeta').innerHTML = `
                         <b>🏢 案場：</b>${dbData.SiteName} <br>
