@@ -310,19 +310,25 @@
                             let ans = results[item.text] || 'PASS';
                             selectRadio(item.id, ans, false); 
                             
-                            // ★ 修改：如果是異常，載入對應的描述與圖片
                             if (ans === 'FAIL') {
-                                // 利用 "安衛-題目名稱" 來對應缺失紀錄
-                                let matchedDefect = defects.find(d => d.Dept === "安衛-" + item.text);
+                                // ★ 關鍵修復：因為資料庫存的 Dept 可能有空白或特殊字元，用 includes 最保險
+                                let targetDept = "安衛-" + item.text;
+                                let matchedDefect = defects.find(d => d.Dept.includes(item.text) || targetDept.includes(d.Dept));
+                                
                                 if (matchedDefect) {
                                     // 填入當時的理由
-                                    document.getElementById(`desc_${item.id}`).value = matchedDefect.Description;
+                                    let descInput = document.getElementById(`desc_${item.id}`);
+                                    if(descInput) descInput.value = matchedDefect.Description || "";
+                                    
                                     // 載入當時的照片
                                     let previewImg = document.getElementById(`preview_${item.id}`);
-                                    previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}`;
-                                    previewImg.style.display = 'block';
+                                    if(previewImg) {
+                                        previewImg.src = `${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}`;
+                                        previewImg.style.display = 'block';
+                                    }
                                 } else {
-                                    document.getElementById(`desc_${item.id}`).value = "未填寫理由";
+                                    let descInput = document.getElementById(`desc_${item.id}`);
+                                    if(descInput) descInput.value = "未填寫理由";
                                 }
                             } 
                         });
