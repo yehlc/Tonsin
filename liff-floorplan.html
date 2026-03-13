@@ -191,7 +191,15 @@
             currentSite = decodeURIComponent(urlParams.get('site') || "").trim(); 
             const floor = decodeURIComponent(urlParams.get('floor') || "").trim().toUpperCase(); 
             currentMode = urlParams.get('mode');
-            apiBaseUrl = decodeURIComponent(urlParams.get('api') || "");
+            
+            // ★ 關鍵修復：給定預設的正確後端網址，避免 URL 截斷導致連線異常
+            let paramApi = urlParams.get('api');
+            if (paramApi && paramApi.includes('ngrok-free.dev')) {
+                apiBaseUrl = decodeURIComponent(paramApi);
+            } else {
+                apiBaseUrl = "https://unpregnant-tonically-caitlyn.ngrok-free.dev";
+            }
+            
             currentDate = urlParams.get('date');
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             currentUserRole = decodeURIComponent(urlParams.get('role') || "檢查人員");
