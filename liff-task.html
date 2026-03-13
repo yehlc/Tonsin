@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>建立專案任務</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; }
+        .header { background: #2d3436; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; position: sticky; top: 0; z-index: 10; }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .form-group { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 16px; font-family: inherit; }
+        textarea { height: 100px; resize: vertical; }
+        .btn-submit { width: 100%; padding: 15px; background: #00b894; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-submit:disabled { background: #b2bec3; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="header" id="headerTitle">新增專案任務</div>
+    <div class="container">
+        <div class="form-group">
+            <label>🏢 任務案場</label>
+            <input type="text" id="siteInput" readonly style="background:#e9ecef; color:#6c757d; font-weight:bold;">
+        </div>
+
+        <div class="form-group">
+            <label>🏷️ 任務分類</label>
+            <select id="taskType">
+                <option value="主管交辦事項">主管交辦事項</option>
+                <option value="業主交辦事項">業主交辦事項</option>
+                <option value="建築送審進度">建築送審進度</option>
+                <option value="機電送審進度">機電送審進度</option>
+                <option value="圖說施工法疑義">圖說施工法疑義 (RFI)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>📌 任務主旨 (摘要)</label>
+            <input type="text" id="title" placeholder="例如：確認排煙窗盒子尺寸">
+        </div>
+
+        <div class="form-group">
+            <label>👤 指派給誰處理？</label>
+            <select id="assignee">
+                <option value="">載入人員名單中...</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>📅 預定完成日 (Deadline)</label>
+            <input type="date" id="dueDate">
+        </div>
+
+        <div class="form-group">
+            <label>📝 詳細說明 (選填)</label>
+            <textarea id="description" placeholder="請輸入任務詳細內容或注意事項..."></textarea>
+        </div>
+
+        <button class="btn-submit" id="submitBtn" onclick="submitTask()">發佈任務並通知負責人</button>
+    </div>
+
+    <script>
+        const myLiffId = "2009287087-4LSCRAq4"; // 你的 LIFF ID
+        let apiBaseUrl = "https://unpregnant-tonically-caitlyn.ngrok-free.dev";
+        let currentSite = "";
+        let currentUser = "";
+
+        // 預設日期為明天
+        let tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('dueDate').value = tomorrow.toISOString().split('T')[0];
+
+        liff.init({ liffId: myLiffId }).then(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentSite = decodeURIComponent(urlParams.get('site') || "");
+            currentUser = decodeURIComponent(urlParams.get('user') || "未知");
+            
+            document.getElementById('siteInput').value = currentSite;
+            loadUsers();
+        });
+
+        function loadUsers() {
+            fetch(`${apiBaseUrl}/users-by-site?site=${encodeURIComponent(currentSite)}`, { headers: { "ngrok-skip-browser-warning": "true" } })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    let select = document.getElementById('assignee');
+                    select.innerHTML = '<option value="">-- 請選擇負責人 --</option>';
+                    data.data.forEach(u => {
+                        select.innerHTML += `<option value="${u.UserID}">${u.UserName} (${u.Role})</option>`;
+                    });
+                }
+            });
+        }
+
+        function submitTask() {
+            let type = document.getElementById('taskType').value;
+            let title = document.getElementById('title').value;
+            let assigneeSelect = document.getElementById('assignee');
+            let assigneeId = assigneeSelect.value;
+            let assigneeName = assigneeSelect.options[assigneeSelect.selectedIndex].text.split(' ')[0]; // 只取名字
+            let date = document.getElementById('dueDate').value;
+            let desc = document.getElementById('description').value;
+
+            if (!title) return alert("請輸入任務主旨！");
+            if (!assigneeId) return alert("請選擇負責人！");
+
+            let btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerText = "發佈中...";
+
+            let payload = {
+                site: currentSite,
+                taskType: type,
+                title: title,
+                description: desc,
+                assigner: currentUser,
+                assigneeId: assigneeId,
+                assigneeName: assigneeName,
+                dueDate: date
+            };
+
+            fetch(`${apiBaseUrl}/create-task`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(res => {
+                if (res.success) {
+                    alert("✅ 任務已發佈！已同步通知負責人。");
+                    liff.closeWindow();
+                } else {
+                    alert("❌ 發佈失敗：" + res.error);
+                    btn.disabled = false;
+                    btn.innerText = "發佈任務並通知負責人";
+                }
+            }).catch(e => { alert("連線錯誤"); });
+        }
+    </script>
+</body>
+</html>
