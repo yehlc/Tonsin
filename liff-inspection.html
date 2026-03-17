@@ -13,26 +13,23 @@
         .main-title { font-size: 18px; font-weight: bold; }
         .sub-title { font-size: 12px; opacity: 0.8; }
         
-        .tabs { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 56px; z-index: 99;}
-        .tab { flex: 1; text-align: center; padding: 12px 5px; font-weight: bold; font-size: 14px; color: #555; cursor: pointer; }
+        .tabs { display: flex; background: white; border-bottom: 1px solid #ddd; }
+        .tab { flex: 1; text-align: center; padding: 12px; font-weight: bold; color: #555; cursor: pointer; font-size: 14px; }
         .tab.active { color: #8e44ad; border-bottom: 3px solid #8e44ad; }
         
         .toolbar { padding: 10px; background: white; border-bottom: 1px solid #ddd; }
         select { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ced4da; border-radius: 6px; background: #f8f9fa; font-weight: bold; }
         
-        .swipe-area { width: 100%; }
+        .swipe-area { width: 100%; transition: transform 0.3s; }
 
-        /* 圖紙區域 */
         .map-container { position: relative; width: 100%; display: flex; justify-content: center; overflow: auto; background: #ccc; border-bottom: 3px solid #8e44ad; }
         #floorPlan { width: 100%; height: auto; background: #fff; cursor: crosshair; display: block; }
         .hint-bar { position: absolute; top: 0; left: 0; right: 0; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; z-index: 10; pointer-events: none; }
         
-        /* 表單區域 */
-        #addSection { padding: 15px; background: white; display: block; }
-        .form-container { width: 100%; }
+        .form-container { padding: 15px; background: white; display: none; }
         .form-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
         .form-header h3 { margin: 0; color: #2d3436; font-size: 16px; }
-        .btn-reset-form { background: #eee; color: #555; border: none; padding: 5px 10px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .btn-close-form { background: #ffeaa7; color: #d63031; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436; font-size: 14px; }
@@ -49,10 +46,8 @@
         .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 20px; }
         .btn-export { width: 100%; padding: 15px; background: #007bff; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-top: 15px; }
         
-        #mapSection { display: none; }
-        #overviewSection { display: none; padding: 15px; }
-        
-        .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; }
+        #listSection { display: none; padding: 15px; }
+        .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; cursor: pointer; border-left: 4px solid #8e44ad; }
         .defect-card img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; background: #eee; }
         .defect-info { flex: 1; }
         .defect-tag { display: inline-block; background: #ffeaa7; color: #d63031; font-size: 12px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-bottom: 4px; }
@@ -75,33 +70,36 @@
 
     <div class="tabs">
         <div class="tab active" id="tabAdd" onclick="switchTab('add')">✍️ 新增缺失</div>
-        <div class="tab" id="tabMap" onclick="switchTab('map')">🗺️ 缺失總覽</div>
-        <div class="tab" id="tabOverview" onclick="switchTab('overview')">📋 清單總覽</div>
+        <div class="tab" id="tabMap" onclick="switchTab('map')">🗺️ 總覽(圖面)</div>
+        <div class="tab" id="tabList" onclick="switchTab('list')">📋 清單總覽</div>
     </div>
 
     <div class="swipe-area" id="swipeArea">
         
-        <div id="addSection">
-            <div class="form-container">
+        <div id="sharedMapSection">
+            <div class="toolbar">
+                <select id="drawingType" onchange="updateDrawingImage()">
+                    <option value="1.建築客變圖">1. 建築客變圖</option>
+                    <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
+                    <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
+                </select>
+            </div>
+            
+            <div class="map-container" id="canvas-container">
+                <div class="hint-bar" id="mapHint">📍 點擊標記位置</div>
+                <canvas id="floorPlan"></canvas>
+            </div>
+
+            <div class="form-container" id="formContainer">
                 <div class="form-header">
                     <h3 id="formTitle">✍️ 填寫缺失資訊</h3>
-                    <button class="btn-reset-form" onclick="enterAddMode()">🔄 清空重填</button>
+                    <button class="btn-close-form" onclick="cancelInspection()">✖</button>
                 </div>
                 <input type="hidden" id="editDefectId" value="">
 
                 <div style="display:flex; gap:10px; margin-bottom:20px;">
-                    <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存此筆缺失</button>
+                    <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存</button>
                     <button id="deleteBtn" onclick="deleteInspection()" style="flex:1; background:#d63031; color:white; font-size:16px; font-weight:bold; border:none; border-radius:8px; display:none;">🗑️ 刪除</button>
-                </div>
-
-                <div class="form-group">
-                    <label>📂 關聯圖面 (立體缺失可選「無」)</label>
-                    <select id="formDrawingType">
-                        <option value="無">無 (不標記於平面圖)</option>
-                        <option value="1.建築客變圖">1. 建築客變圖</option>
-                        <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
-                        <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
-                    </select>
                 </div>
 
                 <div class="form-group">
@@ -139,26 +137,10 @@
                     </div>
                     <textarea id="descriptionInput" placeholder="可點擊上方快速標籤，或手動輸入說明..."></textarea>
                 </div>
-                <button class="btn-submit" onclick="submitInspection()">📤 儲存此筆缺失</button>
             </div>
         </div>
 
-        <div id="mapSection">
-            <div class="toolbar">
-                <select id="drawingType" onchange="updateDrawingImage()">
-                    <option value="1.建築客變圖">1. 建築客變圖</option>
-                    <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
-                    <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
-                </select>
-            </div>
-            
-            <div class="map-container" id="canvas-container">
-                <div class="hint-bar" id="mapHint">📍 點選空白處新增標記，或點選圖釘編輯</div>
-                <canvas id="floorPlan"></canvas>
-            </div>
-        </div>
-
-        <div id="overviewSection">
+        <div id="listSection">
             <h3 style="color:#2d3436; margin-top:0;">📋 本戶缺失清單</h3>
             <div id="defectList">載入中...</div>
             <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋修繕單 (Excel)</button>
@@ -166,7 +148,7 @@
 
     </div>
 
-    <div id="toastMsg" class="toast">✅ 缺失新增成功！</div>
+    <div id="toastMsg" class="toast">✅ 狀態更新成功！</div>
 
     <script>
         const myLiffId = "2009287087-4LSCRAq4";
@@ -191,7 +173,8 @@
         let isSelected = false;
 
         let globalRoomDefects = []; 
-        
+        let currentTabMode = 'add'; // 'add', 'map', 'list'
+
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
@@ -203,36 +186,9 @@
             buildFlatRoomList(initialRoom);
             initCanvas();
             updateUI(); 
+            switchTab('add'); // 預設進入新增模式
         });
 
-        // ====== UI 切換與 Tab 邏輯 ======
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById('addSection').style.display = 'none';
-            document.getElementById('mapSection').style.display = 'none';
-            document.getElementById('overviewSection').style.display = 'none';
-
-            if (tab === 'add') {
-                document.getElementById('tabAdd').classList.add('active');
-                document.getElementById('addSection').style.display = 'block';
-            } else if (tab === 'map') {
-                document.getElementById('tabMap').classList.add('active');
-                document.getElementById('mapSection').style.display = 'block';
-                renderCanvas(); // 切換過來時重繪圖紙以防變形
-            } else {
-                document.getElementById('tabOverview').classList.add('active');
-                document.getElementById('overviewSection').style.display = 'block';
-            }
-        }
-
-        // 如果在新增表單把圖紙類型改回「無」，清除座標綁定
-        document.getElementById('formDrawingType').addEventListener('change', function() {
-            if (this.value === '無') {
-                isSelected = false;
-            }
-        });
-
-        // ====== 1. 跨樓層戶別跳轉邏輯 ======
         function buildFlatRoomList(initialRoom) {
             flatRoomList = [];
             if (ROOM_CONFIG[currentSite]) {
@@ -243,9 +199,8 @@
                     }
                 }
             } else {
-                flatRoomList.push({ floor: currentFloor, room: "A1戶" }); 
+                flatRoomList.push({ floor: currentFloor, room: "A1戶" });
             }
-
             currentFlatIndex = flatRoomList.findIndex(item => item.floor === currentFloor && item.room === initialRoom);
             if (currentFlatIndex === -1) currentFlatIndex = 0;
             currentFloor = flatRoomList[currentFlatIndex].floor;
@@ -260,11 +215,41 @@
             currentFloor = flatRoomList[currentFlatIndex].floor;
             currentRoom = flatRoomList[currentFlatIndex].room;
             
-            enterAddMode(); // 換戶別時重置表單狀態
             updateUI();
         }
 
-        // ====== 2. 資料撈取與清單渲染 ======
+        // ================= Tab 控制邏輯 =================
+        function switchTab(tab) {
+            currentTabMode = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            if (tab === 'add') {
+                document.getElementById('tabAdd').classList.add('active');
+                document.getElementById('sharedMapSection').style.display = 'block';
+                document.getElementById('listSection').style.display = 'none';
+                cancelInspection(); // 進入時抹除未儲存的圖釘
+                document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
+                document.getElementById('mapHint').style.color = "#d63031";
+                document.getElementById('mapHint').innerText = "📍 點擊標記位置 (新增模式不顯示其他缺失，避免重疊)";
+            } 
+            else if (tab === 'map') {
+                document.getElementById('tabMap').classList.add('active');
+                document.getElementById('sharedMapSection').style.display = 'block';
+                document.getElementById('listSection').style.display = 'none';
+                cancelInspection(); // 隱藏表單
+                document.getElementById('mapHint').style.backgroundColor = "rgba(52, 152, 219, 0.9)";
+                document.getElementById('mapHint').style.color = "#fff";
+                document.getElementById('mapHint').innerText = "🗺️ 圖面總覽 (可點擊藍色圖釘編輯)";
+            } 
+            else if (tab === 'list') {
+                document.getElementById('tabList').classList.add('active');
+                document.getElementById('sharedMapSection').style.display = 'none';
+                document.getElementById('listSection').style.display = 'block';
+                cancelInspection(); // 隱藏表單
+            }
+            renderCanvas();
+        }
+
         function loadRoomDefects() {
             let container = document.getElementById('defectList');
             container.innerHTML = "載入中...";
@@ -273,18 +258,19 @@
             }).then(r => r.json()).then(res => {
                 if (res.success) {
                     globalRoomDefects = res.data;
-                    renderCanvas(); 
+                    renderCanvas(); // 更新圖釘
                     
+                    // 渲染清單
                     if (res.data.length > 0) {
                         let html = "";
                         res.data.forEach(d => {
                             html += `
-                            <div class="defect-card" onclick="editDefect(${d.ID})" style="cursor:pointer; border-left:4px solid #8e44ad;">
+                            <div class="defect-card" onclick="editDefect(${d.ID})">
                                 <img src="${apiBaseUrl}${d.ImageUrl}?ngrok-skip-browser-warning=true" alt="照片">
                                 <div class="defect-info">
                                     <span class="defect-tag">${d.Location}</span>
                                     <div style="font-size:14px; font-weight:bold; margin-bottom:5px;">${d.Description}</div>
-                                    <div style="font-size:12px; color:#888;">${d.DrawingType || '未標記圖紙'}</div>
+                                    <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
                                 </div>
                             </div>`;
                         });
@@ -296,7 +282,6 @@
             });
         }
 
-        // ====== 3. 畫布互動與標記 ======
         function initCanvas() {
             floorCanvas = document.getElementById('floorPlan');
             floorCtx = floorCanvas.getContext('2d');
@@ -310,33 +295,42 @@
                 let clickX = (e.offsetX !== undefined) ? e.offsetX * scaleX : (e.clientX - rect.left) * scaleX;
                 let clickY = (e.offsetY !== undefined) ? e.offsetY * scaleY : (e.clientY - rect.top) * scaleY;
 
-                let clickedExisting = null;
-                let threshold = Math.max(floorCanvas.width * 0.04, 30); 
-                let currentDrawing = document.getElementById('drawingType').value;
-                for (let d of globalRoomDefects) {
-                    if (d.DrawingType === currentDrawing && d.px && d.py) {
-                        if (Math.hypot(clickX - d.px, clickY - d.py) <= threshold) {
-                            clickedExisting = d;
-                            break;
-                        }
-                    }
-                }
-
-                if (clickedExisting) {
-                    editDefect(clickedExisting.ID);
-                } else {
-                    // 點擊空白處新增 -> 帶入座標並跳轉去 Tab 1 表單填寫
+                if (currentTabMode === 'add') {
+                    // 新增模式：直接畫紅點，不管藍點(藍點此時也隱藏)
                     enterAddMode();
                     selectedX = clickX; 
                     selectedY = clickY;
                     isSelected = true;
+
+                    document.getElementById('mapHint').style.backgroundColor = "rgba(46, 204, 113, 0.9)";
+                    document.getElementById('mapHint').style.color = "#fff";
+                    document.getElementById('mapHint').innerText = "✅ 已標記新位置 (請在下方填寫資訊)";
                     
-                    // 自動選擇對應的圖紙分類
-                    document.getElementById('formDrawingType').value = currentDrawing;
-                    document.getElementById('formTitle').innerText = "📍 已鎖定圖紙座標，請填寫資訊";
-                    
-                    switchTab('add');
-                    setTimeout(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, 100);
+                    renderCanvas();
+                    let formContainer = document.getElementById('formContainer');
+                    formContainer.style.display = 'block';
+                    setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+
+                } else if (currentTabMode === 'map') {
+                    // 圖面總覽模式：尋找是否有按到藍色圖釘
+                    let clickedExisting = null;
+                    let threshold = Math.max(floorCanvas.width * 0.04, 30); 
+                    let currentDrawing = document.getElementById('drawingType').value;
+
+                    for (let d of globalRoomDefects) {
+                        if (d.DrawingType === currentDrawing && d.px && d.py) {
+                            if (Math.hypot(clickX - d.px, clickY - d.py) <= threshold) {
+                                clickedExisting = d;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (clickedExisting) {
+                        editDefect(clickedExisting.ID);
+                    } else {
+                        showToast("如需新增缺失，請切換至「新增缺失」分頁");
+                    }
                 }
             });
         }
@@ -347,17 +341,42 @@
             floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
             
             let currentDrawing = document.getElementById('drawingType').value;
-            globalRoomDefects.forEach(d => {
-                if (d.DrawingType === currentDrawing && d.XY_Coord) {
-                    let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
-                    if (match) {
-                        let px = (parseInt(match[1]) / 100) * floorCanvas.width;
-                        let py = (parseInt(match[2]) / 100) * floorCanvas.height;
-                        drawExistingPin(px, py, d.ID);
-                        d.px = px; d.py = py; 
+            let currentlyEditingId = document.getElementById('editDefectId').value;
+
+            // 只有在「總覽模式」或「正在編輯」的情況下，才把藍色圖釘畫出來
+            if (currentTabMode === 'map' || currentlyEditingId !== "") {
+                globalRoomDefects.forEach(d => {
+                    if (d.DrawingType === currentDrawing && d.XY_Coord) {
+                        let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                        if (match) {
+                            let px = (parseInt(match[1]) / 100) * floorCanvas.width;
+                            let py = (parseInt(match[2]) / 100) * floorCanvas.height;
+                            
+                            // 若是正在編輯的那一顆圖釘，就跳過不畫藍色 (等一下讓下方 drawSinglePin 畫成紅色)
+                            if (d.ID.toString() === currentlyEditingId) {
+                                d.px = px; d.py = py;
+                            } else {
+                                drawExistingPin(px, py, d.ID);
+                                d.px = px; d.py = py; 
+                            }
+                        }
                     }
-                }
-            });
+                });
+            }
+
+            // 畫出正在操作的紅圖釘 (新增或編輯時)
+            if (isSelected) drawSinglePin(selectedX, selectedY);
+        }
+
+        function drawSinglePin(px, py) {
+            let size = Math.max(floorCanvas.width * 0.008, 6); 
+            floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
+            floorCtx.beginPath(); floorCtx.moveTo(px, py); 
+            floorCtx.lineTo(px - size, py - size * 2); floorCtx.lineTo(px + size, py - size * 2); 
+            floorCtx.closePath(); floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke();
+            
+            floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
+            floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke();
         }
 
         function drawExistingPin(px, py, id) {
@@ -378,6 +397,8 @@
             let drawingType = document.getElementById('drawingType').value;
             const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
             let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.png`;
+            
+            cancelInspection();
 
             floorImg.onload = () => {
                 floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; 
@@ -390,50 +411,84 @@
             floorImg.src = targetImgSrc;
         }
 
-        // ====== 4. 編輯與刪除邏輯 ======
+        // ================= 編輯與刪除 =================
         window.editDefect = function(id) {
             let d = globalRoomDefects.find(x => x.ID === id);
             if(!d) return;
 
-            switchTab('add');
+            // 確保 UI 切換到 Map 模式，讓用戶看到圖釘脈絡
+            currentTabMode = 'map';
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tabMap').classList.add('active');
+            document.getElementById('sharedMapSection').style.display = 'block';
+            document.getElementById('listSection').style.display = 'none';
+
+            // 若目前圖紙分類不同，自動切過去
+            if (document.getElementById('drawingType').value !== d.DrawingType) {
+                document.getElementById('drawingType').value = d.DrawingType;
+                updateDrawingImage(); 
+            }
 
             document.getElementById('editDefectId').value = d.ID;
             document.getElementById('formTitle').innerText = `✏️ 編輯缺失 #${d.ID}`;
-            document.querySelectorAll('#submitBtn').forEach(btn => btn.innerText = "🔄 更新此筆資料");
+            document.getElementById('submitBtn').innerText = "🔄 更新此筆資料";
             document.getElementById('deleteBtn').style.display = "block";
 
             document.getElementById('locationSelect').value = d.Location || "客餐廳";
             document.getElementById('descriptionInput').value = d.Description || "";
             
-            let dtSelect = document.getElementById('formDrawingType');
-            if (d.DrawingType && Array.from(dtSelect.options).some(o => o.value === d.DrawingType)) {
-                dtSelect.value = d.DrawingType;
-            } else {
-                dtSelect.value = "無";
-            }
-            
             let previewImg = document.getElementById('previewImg');
             previewImg.src = `${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}&ngrok-skip-browser-warning=true`;
             previewImg.style.display = 'block';
 
-            setTimeout(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, 100);
+            document.getElementById('formContainer').style.display = 'block';
+            setTimeout(() => { document.getElementById('formContainer').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+
+            // 還原紅色標記
+            if (d.XY_Coord) {
+                let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                if (match) {
+                    selectedX = (parseInt(match[1]) / 100) * floorCanvas.width;
+                    selectedY = (parseInt(match[2]) / 100) * floorCanvas.height;
+                    isSelected = true;
+                }
+            }
+            
+            document.getElementById('mapHint').style.backgroundColor = "rgba(0, 123, 255, 0.9)";
+            document.getElementById('mapHint').innerText = `📍 正在編輯缺失 #${d.ID}`;
+            renderCanvas();
         }
 
         window.enterAddMode = function() {
             document.getElementById('editDefectId').value = "";
             document.getElementById('formTitle').innerText = `✍️ 填寫缺失資訊`;
-            document.querySelectorAll('#submitBtn').forEach(btn => btn.innerText = "📤 儲存此筆缺失");
+            document.getElementById('submitBtn').innerText = "📤 儲存";
             document.getElementById('deleteBtn').style.display = "none";
 
             document.getElementById('locationSelect').value = "客餐廳";
-            document.getElementById('formDrawingType').value = "無";
             document.getElementById('descriptionInput').value = "";
             document.getElementById('photoInput').value = "";
             document.getElementById('previewImg').src = "";
             document.getElementById('previewImg').style.display = "none";
-
-            selectedX = 0; selectedY = 0; isSelected = false; 
         }
+
+        // 關閉表單，抹除正在操作的紅色圖釘
+        window.cancelInspection = function() {
+            enterAddMode();
+            isSelected = false;
+            document.getElementById('formContainer').style.display = 'none';
+            
+            if (currentTabMode === 'add') {
+                document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
+                document.getElementById('mapHint').style.color = "#d63031";
+                document.getElementById('mapHint').innerText = "📍 點擊標記位置 (新增模式不顯示其他缺失，避免重疊)";
+            } else if (currentTabMode === 'map') {
+                document.getElementById('mapHint').style.backgroundColor = "rgba(52, 152, 219, 0.9)";
+                document.getElementById('mapHint').style.color = "#fff";
+                document.getElementById('mapHint').innerText = "🗺️ 圖面總覽 (可點擊藍色圖釘編輯)";
+            }
+            renderCanvas(); 
+        };
 
         function appendDesc(text) {
             let input = document.getElementById('descriptionInput');
@@ -444,7 +499,7 @@
             document.getElementById('roomTitle').innerText = currentRoom;
             document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
             updateDrawingImage();
-            loadRoomDefects();
+            loadRoomDefects(); 
         }
 
         function previewPhoto(input) {
@@ -466,8 +521,8 @@
             if (!editId && (!fileInput.files || fileInput.files.length === 0)) return alert("⚠️ 請拍攝缺失照片！");
             if (!desc.trim()) return alert("⚠️ 請輸入或選擇缺失說明！");
 
-            let btns = document.querySelectorAll('#submitBtn');
-            btns.forEach(btn => { btn.disabled = true; btn.innerText = "⏳ 儲存中..."; });
+            let btn = document.getElementById('submitBtn');
+            btn.disabled = true; btn.innerText = "⏳ 儲存中...";
 
             let base64Img = null;
             if (fileInput.files && fileInput.files.length > 0) {
@@ -478,7 +533,7 @@
             
             let payload = {
                 site: currentSite, floor: currentFloor, roomType: currentRoom,
-                drawingType: document.getElementById('formDrawingType').value,
+                drawingType: document.getElementById('drawingType').value,
                 location: document.getElementById('locationSelect').value,
                 description: desc,
                 imageBase64: base64Img, 
@@ -488,13 +543,9 @@
             if (editId) {
                 payload.id = editId; 
             } else {
-                if (isSelected && payload.drawingType !== '無') {
-                    let xPercent = Math.round((selectedX / floorCanvas.width) * 100);
-                    let yPercent = Math.round((selectedY / floorCanvas.height) * 100);
-                    payload.xyCoord = `[座標] X:${xPercent}%, Y:${yPercent}%`;
-                } else {
-                    payload.xyCoord = ""; 
-                }
+                let xPercent = Math.round((selectedX / floorCanvas.width) * 100);
+                let yPercent = Math.round((selectedY / floorCanvas.height) * 100);
+                payload.xyCoord = `[座標] X:${xPercent}%, Y:${yPercent}%`; 
             }
 
             fetch(url, {
@@ -503,12 +554,11 @@
             }).then(r => r.json()).then(res => {
                 if (res.success) { 
                     showToast(editId ? "✅ 缺失更新成功！" : "✅ 缺失新增成功！"); 
-                    enterAddMode(); 
-                    loadRoomDefects();  
-                    switchTab('overview'); // 送出後跳轉至清單供確認
+                    cancelInspection(); 
+                    loadRoomDefects(); 
                 } else { alert("❌ 操作失敗：" + res.error); }
             }).catch(e => alert("❌ 連線異常")).finally(() => {
-                btns.forEach(btn => { btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存此筆缺失"; });
+                btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存";
             });
         }
 
@@ -522,10 +572,9 @@
                 body: JSON.stringify({ id: editId })
             }).then(r => r.json()).then(res => {
                 if (res.success) { 
-                    showToast("🗑️ 缺失已刪除！"); 
-                    enterAddMode();
+                    showToast("🗑️ 缺失已作廢刪除！"); 
+                    cancelInspection();
                     loadRoomDefects(); 
-                    switchTab('overview');
                 } else { alert("❌ 刪除失敗：" + res.error); }
             }).catch(e => alert("❌ 連線異常"));
         }
