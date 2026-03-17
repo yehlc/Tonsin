@@ -22,13 +22,17 @@
         
         .swipe-area { width: 100%; transition: transform 0.3s; }
 
-        /* 修改前：height: 45vh; */
-.map-container { width: 100%; height: 70vh; background: #333; position: relative; border-bottom: 3px solid #8e44ad; display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none;}
-        #floorPlan { display: block; touch-action: none;}
-        .hint-bar { position: absolute; top: 0; left: 0; width: 100%; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 6px 0; font-size: 14px; font-weight: bold; z-index: 10;}
-        
-        /* 新增 display: none; 預設隱藏 */
-.form-container { padding: 15px; background: white; display: none; }
+    /* ★ 替換圖紙與提示條的樣式 (回歸 liff-floorplan 簡單好用的設定) */
+    .hint-bar { background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; border-bottom: 1px solid #ddd; }
+    .map-container { width: 100%; position: relative; border-bottom: 3px solid #8e44ad; display: flex; justify-content: center; background: #ccc; overflow: auto; }
+    #floorPlan { width: 100%; height: auto; background: #fff; cursor: crosshair; display: block; }
+    
+    .form-container { padding: 15px; background: white; display: none; }
+    
+    /* ★ 新增：表單標題與關閉按鈕的樣式 */
+    .form-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+    .form-header h3 { margin: 0; color: #2d3436; font-size: 16px; }
+    .btn-close-form { background: #ffeaa7; color: #d63031; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436; font-size: 14px; }
         textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; height: 80px; resize: vertical; }
@@ -88,6 +92,10 @@
             </div>
 
             <div class="form-container">
+                <div class="form-header">
+                    <h3>✍️ 填寫缺失資訊</h3>
+                    <button class="btn-close-form" onclick="cancelInspection()">✖</button>
+                </div>
                 <div class="form-group">
                     <label>📍 缺失所在空間</label>
                     <select id="locationSelect">
@@ -162,8 +170,6 @@
         let selectedX = 0, selectedY = 0;
         let isSelected = false;
         
-        let scale = 1, panX = 0, panY = 0;
-        let isPanning = false, startX, startY, lastDist = 0, moved = false;
 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -211,103 +217,60 @@
             if (document.getElementById('overviewSection').style.display === 'block') loadDefectsOverview();
         }
 
-        // ====== 2. Canvas 雙指縮放與單指拖曳 ======
+        // ====== 圖紙互動邏輯 (同 liff-floorplan 原生寫法) ======
         function initCanvas() {
             floorCanvas = document.getElementById('floorPlan');
             floorCtx = floorCanvas.getContext('2d');
             floorImg = new Image();
             floorImg.crossOrigin = "Anonymous";
 
-            // 監聽觸控事件
-            floorCanvas.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                if(e.touches.length === 1) {
-                    isPanning = true; moved = false;
-                    startX = e.touches[0].clientX - panX;
-                    startY = e.touches[0].clientY - panY;
-                } else if(e.touches.length === 2) {
-                    isPanning = false;
-                    lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                }
-            }, {passive: false});
+            floorCanvas.addEventListener('click', function(e) {
+                const rect = floorCanvas.getBoundingClientRect();
+                // 完美支援雙指原生縮放的座標算法
+                const scaleX = floorCanvas.width / rect.width; 
+                const scaleY = floorCanvas.height / rect.height;  
+                const clickX = (e.clientX - rect.left) * scaleX; 
+                const clickY = (e.clientY - rect.top) * scaleY;
 
-            floorCanvas.addEventListener('touchmove', function(e) {
-                e.preventDefault();
-                if(e.touches.length === 1 && isPanning) {
-                    moved = true;
-                    panX = e.touches[0].clientX - startX;
-                    panY = e.touches[0].clientY - startY;
-                    renderCanvas();
-                } else if(e.touches.length === 2) {
-                    moved = true;
-                    let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    let zoomStep = dist / lastDist;
-                    lastDist = dist;
-                    
-                    let centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                    let centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                    let rect = floorCanvas.getBoundingClientRect();
-                    let canvasCenterX = centerX - rect.left;
-                    let canvasCenterY = centerY - rect.top;
+                selectedX = clickX; 
+                selectedY = clickY;
+                isSelected = true;
 
-                    panX = canvasCenterX - (canvasCenterX - panX) * zoomStep;
-                    panY = canvasCenterY - (canvasCenterY - panY) * zoomStep;
-                    scale *= zoomStep;
+                document.getElementById('mapHint').style.backgroundColor = "rgba(46, 204, 113, 0.9)";
+                document.getElementById('mapHint').style.color = "#fff";
+                document.getElementById('mapHint').innerText = "✅ 已標記位置 (請在下方填寫資訊)";
+                
+                renderCanvas();
 
-                    // 限制最大最小縮放
-                    if(scale < 0.2) scale = 0.2; if(scale > 5) scale = 5;
-                    renderCanvas();
-                }
-            }, {passive: false});
-
-            floorCanvas.addEventListener('touchend', function(e) {
-    if(!moved && e.changedTouches.length === 1) {
-        // Click! 標記圖釘
-        let pt = getCanvasPoint(e.changedTouches[0]);
-        selectedX = pt.x; selectedY = pt.y;
-        isSelected = true;
-        
-        document.getElementById('mapHint').style.backgroundColor = "rgba(46, 204, 113, 0.9)";
-        document.getElementById('mapHint').style.color = "#fff";
-        document.getElementById('mapHint').innerText = "✅ 已標記位置 (請往下填寫缺失資訊)";
-        renderCanvas();
-
-        // ======= 加入以下這段 =======
-        let formContainer = document.querySelector('.form-container');
-        formContainer.style.display = 'block'; // 顯示表單
-        // 延遲一點點讓畫面渲染後，平滑捲動到表單位置
-        setTimeout(() => {
-            formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-        // ============================
-    }
-    if(e.touches.length < 2) isPanning = false;
-});
+                // 顯示表單並往下平滑捲動
+                let formContainer = document.querySelector('.form-container');
+                formContainer.style.display = 'block';
+                setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+            });
         }
 
         function renderCanvas() {
             if(!floorImg.complete || !floorImg.src) return;
+            // 清空並重繪原圖
             floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height);
+            floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
             
-            floorCtx.save();
-            floorCtx.translate(panX, panY);
-            floorCtx.scale(scale, scale);
-            floorCtx.drawImage(floorImg, 0, 0);
-            
-            if (isSelected) {
-                let pinSize = Math.max(floorImg.width * 0.015, 10) / scale; // 保持圖釘視覺大小
-                floorCtx.lineWidth = 2 / scale; 
-                floorCtx.strokeStyle = '#fff';
-                floorCtx.beginPath(); 
-                floorCtx.moveTo(selectedX, selectedY - pinSize * 1.3); 
-                floorCtx.lineTo(selectedX + pinSize * 1.2, selectedY + pinSize * 1.1); 
-                floorCtx.lineTo(selectedX - pinSize * 1.2, selectedY + pinSize * 1.1); 
-                floorCtx.closePath(); 
-                floorCtx.fillStyle = '#dc3545'; 
-                floorCtx.fill(); 
-                floorCtx.stroke();
-            }
-            floorCtx.restore();
+            // 畫出圖釘
+            if (isSelected) drawSinglePin(selectedX, selectedY);
+        }
+        // 畫出大小適中的三角形圖釘
+        function drawSinglePin(px, py) {
+            let size = Math.max(floorCanvas.width * 0.007, 5); 
+            floorCtx.lineWidth = 2; 
+            floorCtx.strokeStyle = '#fff';
+            floorCtx.beginPath(); 
+            floorCtx.moveTo(px, py - size * 1.3); 
+            floorCtx.lineTo(px + size * 1.2, py + size * 1.1); 
+            floorCtx.lineTo(px - size * 1.2, py + size * 1.1); 
+            floorCtx.closePath(); 
+            floorCtx.fillStyle = '#dc3545'; 
+            floorCtx.fill(); 
+            floorCtx.stroke();
         }
 
         function getCanvasPoint(touch) {
@@ -321,31 +284,17 @@
         function updateDrawingImage() {
             let drawingType = document.getElementById('drawingType').value;
             const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
+            let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.jpg`;
             
-            let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.png`;
-            
-            // 重置標記狀態
-            isSelected = false;
-            document.querySelector('.form-container').style.display = 'none'; // 切換圖紙時隱藏表單
-            document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
-            document.getElementById('mapHint').style.color = "#d63031";
-            document.getElementById('mapHint').innerText = "📍 點擊標記位置 (支援雙指縮放 / 單指拖曳)";
+            cancelInspection(); // 切換圖紙時自動清除標記與表單
 
             let tempImg = new Image();
             tempImg.onload = () => {
                 floorImg.src = targetImgSrc;
                 setTimeout(() => {
-                    let container = document.getElementById('canvas-container');
-                    floorCanvas.width = container.clientWidth;
-                    floorCanvas.height = container.clientHeight; 
-
-                    // 自動置中與滿版適應 (解決平板看圖太小的問題)
-                    let scaleX = floorCanvas.width / floorImg.width;
-                    let scaleY = floorCanvas.height / floorImg.height;
-                    scale = Math.min(scaleX, scaleY) * 0.95;
-                    panX = (floorCanvas.width - floorImg.width * scale) / 2;
-                    panY = (floorCanvas.height - floorImg.height * scale) / 2;
-
+                    // 將 Canvas 大小設為原圖解析度，靠 CSS width: 100% 來適應螢幕
+                    floorCanvas.width = floorImg.width;
+                    floorCanvas.height = floorImg.height; 
                     renderCanvas();
                 }, 100);
             };
@@ -353,11 +302,20 @@
                 floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=無【${drawingType}】圖檔`;
                 setTimeout(() => {
                     floorCanvas.width = 800; floorCanvas.height = 400;
-                    scale = 1; panX = 0; panY = 0; renderCanvas();
+                    renderCanvas();
                 }, 100);
             };
             tempImg.src = targetImgSrc;
         }
+        // ★ 新增：按下 X 或重置時，隱藏表單並移除圖釘
+        window.cancelInspection = function() {
+            isSelected = false;
+            document.querySelector('.form-container').style.display = 'none';
+            document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
+            document.getElementById('mapHint').style.color = "#d63031";
+            document.getElementById('mapHint').innerText = "📍 點擊標記位置 (支援雙指縮放)";
+            renderCanvas(); // 重新渲染畫布(圖釘會消失)
+        };
 
         // ====== 3. 快速選單邏輯 ======
         function appendDesc(text) {
@@ -412,9 +370,9 @@
 
             let base64Img = await fileToBase64(fileInput.files[0]);
             
-            // 計算基於原圖大小的百分比座標存入資料庫
-            let xPercent = Math.round((selectedX / floorImg.width) * 100);
-            let yPercent = Math.round((selectedY / floorImg.height) * 100);
+            // 改成這樣：
+let xPercent = Math.round((selectedX / floorCanvas.width) * 100);
+let yPercent = Math.round((selectedY / floorCanvas.height) * 100);
             let coordStr = `[座標] X:${xPercent}%, Y:${yPercent}%`;
 
             let payload = {
