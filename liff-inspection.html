@@ -22,12 +22,13 @@
         
         .swipe-area { width: 100%; transition: transform 0.3s; }
 
-        /* ★ 畫布與圖面容器：設定 touch-action: none 避免瀏覽器原生滑動干擾 */
-        .map-container { width: 100%; height: 45vh; background: #333; position: relative; border-bottom: 3px solid #8e44ad; display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none;}
+        /* 修改前：height: 45vh; */
+.map-container { width: 100%; height: 70vh; background: #333; position: relative; border-bottom: 3px solid #8e44ad; display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none;}
         #floorPlan { display: block; touch-action: none;}
         .hint-bar { position: absolute; top: 0; left: 0; width: 100%; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 6px 0; font-size: 14px; font-weight: bold; z-index: 10;}
         
-        .form-container { padding: 15px; background: white; }
+        /* 新增 display: none; 預設隱藏 */
+.form-container { padding: 15px; background: white; display: none; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436; font-size: 14px; }
         textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; height: 80px; resize: vertical; }
@@ -260,19 +261,28 @@
             }, {passive: false});
 
             floorCanvas.addEventListener('touchend', function(e) {
-                if(!moved && e.changedTouches.length === 1) {
-                    // Click! 標記圖釘
-                    let pt = getCanvasPoint(e.changedTouches[0]);
-                    selectedX = pt.x; selectedY = pt.y;
-                    isSelected = true;
-                    
-                    document.getElementById('mapHint').style.backgroundColor = "rgba(46, 204, 113, 0.9)";
-                    document.getElementById('mapHint').style.color = "#fff";
-                    document.getElementById('mapHint').innerText = "✅ 已標記位置 (可拖曳移動圖面 / 雙指縮放)";
-                    renderCanvas();
-                }
-                if(e.touches.length < 2) isPanning = false;
-            });
+    if(!moved && e.changedTouches.length === 1) {
+        // Click! 標記圖釘
+        let pt = getCanvasPoint(e.changedTouches[0]);
+        selectedX = pt.x; selectedY = pt.y;
+        isSelected = true;
+        
+        document.getElementById('mapHint').style.backgroundColor = "rgba(46, 204, 113, 0.9)";
+        document.getElementById('mapHint').style.color = "#fff";
+        document.getElementById('mapHint').innerText = "✅ 已標記位置 (請往下填寫缺失資訊)";
+        renderCanvas();
+
+        // ======= 加入以下這段 =======
+        let formContainer = document.querySelector('.form-container');
+        formContainer.style.display = 'block'; // 顯示表單
+        // 延遲一點點讓畫面渲染後，平滑捲動到表單位置
+        setTimeout(() => {
+            formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+        // ============================
+    }
+    if(e.touches.length < 2) isPanning = false;
+});
         }
 
         function renderCanvas() {
@@ -316,6 +326,7 @@
             
             // 重置標記狀態
             isSelected = false;
+            document.querySelector('.form-container').style.display = 'none'; // 切換圖紙時隱藏表單
             document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
             document.getElementById('mapHint').style.color = "#d63031";
             document.getElementById('mapHint').innerText = "📍 點擊標記位置 (支援雙指縮放 / 單指拖曳)";
@@ -428,12 +439,13 @@
         }
 
         function resetForm() {
-            document.getElementById('descriptionInput').value = "";
-            document.getElementById('photoInput').value = "";
-            document.getElementById('previewImg').src = "";
-            document.getElementById('previewImg').style.display = "none";
-            updateDrawingImage(); // 重置標記
-        }
+    document.getElementById('descriptionInput').value = "";
+    document.getElementById('photoInput').value = "";
+    document.getElementById('previewImg').src = "";
+    document.getElementById('previewImg').style.display = "none";
+    document.querySelector('.form-container').style.display = 'none'; // 送出成功後隱藏表單
+    updateDrawingImage(); // 重置標記
+}
 
         function loadDefectsOverview() {
             let container = document.getElementById('defectList');
