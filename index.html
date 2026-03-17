@@ -32,6 +32,9 @@
             setTimeout(() => {
                 if (targetPage === 'task') {
                     window.location.replace("liff-task.html" + queryString);
+                } else if (targetPage === 'inspection') {
+                    // ★ 新增這行：跳轉到專屬的驗屋頁面
+                    window.location.replace("liff-inspection.html" + queryString);
                 } else {
                     window.location.replace("liff-floorplan.html" + queryString);
                 }
