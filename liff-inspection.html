@@ -6,7 +6,7 @@
     <title>驗屋系統</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; overflow-x: hidden; }
+        body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; overflow-x: hidden; touch-action: manipulation; }
         .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
         .title-box { text-align: center; }
@@ -22,10 +22,10 @@
         
         .swipe-area { width: 100%; transition: transform 0.3s; }
 
-        /* ★ 畫布與圖面容器 (加大了高度，支援手勢) */
-        .map-container { width: 100%; height: 55vh; background: #ddd; position: relative; border-bottom: 3px solid #8e44ad; overflow: hidden; touch-action: none;}
-        #floorPlan { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; background: #fff; transform-origin: 0 0;}
-        .hint-bar { position: absolute; top: 0; left: 0; width: 100%; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 5px 0; font-size: 14px; font-weight: bold; z-index: 10;}
+        /* ★ 畫布與圖面容器：設定 touch-action: none 避免瀏覽器原生滑動干擾 */
+        .map-container { width: 100%; height: 45vh; background: #333; position: relative; border-bottom: 3px solid #8e44ad; display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none;}
+        #floorPlan { display: block; touch-action: none;}
+        .hint-bar { position: absolute; top: 0; left: 0; width: 100%; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 6px 0; font-size: 14px; font-weight: bold; z-index: 10;}
         
         .form-container { padding: 15px; background: white; }
         .form-group { margin-bottom: 15px; }
@@ -71,6 +71,7 @@
     </div>
 
     <div class="swipe-area" id="swipeArea">
+        
         <div id="addSection">
             <div class="toolbar">
                 <select id="drawingType" onchange="updateDrawingImage()">
@@ -81,7 +82,7 @@
             </div>
             
             <div class="map-container" id="canvas-container">
-                <div class="hint-bar" id="mapHint">📍 雙指可縮放圖面，點擊「標記缺失」</div>
+                <div class="hint-bar" id="mapHint">📍 點擊標記位置 (支援雙指縮放 / 單指拖曳)</div>
                 <canvas id="floorPlan"></canvas>
             </div>
 
@@ -130,6 +131,7 @@
             <div id="defectList">載入中...</div>
             <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋修繕單 (Excel)</button>
         </div>
+
     </div>
 
     <div id="toastMsg" class="toast">✅ 缺失新增成功！</div>
@@ -139,10 +141,10 @@
         let apiBaseUrl = "";
         let currentSite = "";
         let currentFloor = "";
-        let currentRoom = "A1戶";
+        let currentRoom = "";
         let currentUser = "";
         
-        // 戶別設定表
+        // 戶別設定表 (包含全案場跨樓層的資訊)
         const ROOM_CONFIG = {
             "鼎隆大苑": {
                 "2F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶", "B3戶"],
@@ -150,14 +152,17 @@
             }
         };
         
-        // ★ 扁平化陣列 (實現跨樓層切換)
+        // 用來實作「跨樓層跳轉」的扁平化陣列
         let flatRoomList = [];
         let currentFlatIndex = 0;
 
-        // ★ Canvas 變數 (包含縮放)
+        // ★ Canvas 變數 (支援雙指縮放)
         let floorCanvas, floorCtx, floorImg;
-        let selectedX = 0, selectedY = 0, isSelected = false;
+        let selectedX = 0, selectedY = 0;
+        let isSelected = false;
+        
         let scale = 1, panX = 0, panY = 0;
+        let isPanning = false, startX, startY, lastDist = 0, moved = false;
 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -165,37 +170,35 @@
             currentFloor = decodeURIComponent(urlParams.get('floor') || "");
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
+            let initialRoom = decodeURIComponent(urlParams.get('room') || "A1戶");
 
-            buildFlatRoomList();
-            
-            let qRoom = decodeURIComponent(urlParams.get('room') || "");
-            currentFlatIndex = flatRoomList.findIndex(item => item.floor === currentFloor && item.room === qRoom);
-            if (currentFlatIndex === -1) currentFlatIndex = 0;
-            
-            currentFloor = flatRoomList[currentFlatIndex].floor;
-            currentRoom = flatRoomList[currentFlatIndex].room;
-
+            buildFlatRoomList(initialRoom);
             initCanvas();
-            initPinchZoom();
             updateUI();
-            initSwipe();
         });
 
-        // ====== 跨樓層陣列邏輯 ======
-        function buildFlatRoomList() {
+        // ====== 1. 跨樓層戶別跳轉邏輯 ======
+        function buildFlatRoomList(initialRoom) {
             flatRoomList = [];
-            if (!ROOM_CONFIG[currentSite]) {
-                flatRoomList.push({ floor: currentFloor, room: "A1戶" });
-                return;
+            if (ROOM_CONFIG[currentSite]) {
+                let floors = Object.keys(ROOM_CONFIG[currentSite]);
+                for (let f of floors) {
+                    for (let r of ROOM_CONFIG[currentSite][f]) {
+                        flatRoomList.push({ floor: f, room: r });
+                    }
+                }
+            } else {
+                flatRoomList.push({ floor: currentFloor, room: "A1戶" }); // 備用方案
             }
-            for (let floor in ROOM_CONFIG[currentSite]) {
-                let rooms = ROOM_CONFIG[currentSite][floor];
-                for (let r of rooms) flatRoomList.push({ floor: floor, room: r });
-            }
+
+            // 尋找初始進入的樓層與戶別位置
+            currentFlatIndex = flatRoomList.findIndex(item => item.floor === currentFloor && item.room === initialRoom);
+            if (currentFlatIndex === -1) currentFlatIndex = 0;
+            currentFloor = flatRoomList[currentFlatIndex].floor;
+            currentRoom = flatRoomList[currentFlatIndex].room;
         }
 
         function changeRoom(direction) {
-            if (flatRoomList.length === 0) return;
             currentFlatIndex += direction;
             if (currentFlatIndex < 0) currentFlatIndex = flatRoomList.length - 1;
             if (currentFlatIndex >= flatRoomList.length) currentFlatIndex = 0;
@@ -203,142 +206,156 @@
             currentFloor = flatRoomList[currentFlatIndex].floor;
             currentRoom = flatRoomList[currentFlatIndex].room;
             
-            let sa = document.getElementById('swipeArea');
-            sa.style.transform = direction > 0 ? "translateX(-20px)" : "translateX(20px)";
-            sa.style.opacity = 0.5;
-            setTimeout(() => { sa.style.transform = "translateX(0)"; sa.style.opacity = 1; }, 200);
-
             updateUI();
             if (document.getElementById('overviewSection').style.display === 'block') loadDefectsOverview();
         }
 
-        function appendDesc(text) {
-            let input = document.getElementById('descriptionInput');
-            input.value = input.value ? input.value + "，" + text : text;
-        }
-
-        // ====== Canvas 圖面與標記邏輯 ======
+        // ====== 2. Canvas 雙指縮放與單指拖曳 ======
         function initCanvas() {
             floorCanvas = document.getElementById('floorPlan');
             floorCtx = floorCanvas.getContext('2d');
             floorImg = new Image();
             floorImg.crossOrigin = "Anonymous";
 
-            // 點擊新增圖釘 (精準計算縮放後的座標)
-            floorCanvas.addEventListener('click', function(e) {
-                const rect = floorCanvas.getBoundingClientRect();
-                const scaleX = floorCanvas.width / rect.width; 
-                const scaleY = floorCanvas.height / rect.height;  
-                selectedX = (e.clientX - rect.left) * scaleX; 
-                selectedY = (e.clientY - rect.top) * scaleY;
-
-                isSelected = true;
-                document.getElementById('mapHint').style.backgroundColor = "rgba(46, 204, 113, 0.9)";
-                document.getElementById('mapHint').style.color = "#fff";
-                document.getElementById('mapHint').innerText = "✅ 已標記位置 (可重新點擊修改)";
-
-                floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height); 
-                floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
-                drawPin(selectedX, selectedY);
-            });
-        }
-
-        // ★ 雙指縮放與單指拖曳 (Google Map 體驗)
-        function initPinchZoom() {
-            const container = document.getElementById('canvas-container');
-            let startDistance = 0, startScale = 1;
-            let isDragging = false, startX = 0, startY = 0, initialPanX = 0, initialPanY = 0;
-
-            container.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 2) {
-                    startDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    startScale = scale;
-                } else if (e.touches.length === 1) {
-                    isDragging = true;
-                    startX = e.touches[0].clientX;
-                    startY = e.touches[0].clientY;
-                    initialPanX = panX;
-                    initialPanY = panY;
+            // 監聽觸控事件
+            floorCanvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if(e.touches.length === 1) {
+                    isPanning = true; moved = false;
+                    startX = e.touches[0].clientX - panX;
+                    startY = e.touches[0].clientY - panY;
+                } else if(e.touches.length === 2) {
+                    isPanning = false;
+                    lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 }
             }, {passive: false});
 
-            container.addEventListener('touchmove', (e) => {
-                e.preventDefault(); // 防止畫面跟著滾動
-                if (e.touches.length === 2) {
-                    const currentDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    scale = Math.max(1, Math.min(startScale * (currentDistance / startDistance), 5)); // 限制 1x ~ 5x
-                    updateCanvasTransform();
-                } else if (e.touches.length === 1 && isDragging && scale > 1) {
-                    panX = initialPanX + (e.touches[0].clientX - startX);
-                    panY = initialPanY + (e.touches[0].clientY - startY);
-                    updateCanvasTransform();
+            floorCanvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                if(e.touches.length === 1 && isPanning) {
+                    moved = true;
+                    panX = e.touches[0].clientX - startX;
+                    panY = e.touches[0].clientY - startY;
+                    renderCanvas();
+                } else if(e.touches.length === 2) {
+                    moved = true;
+                    let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    let zoomStep = dist / lastDist;
+                    lastDist = dist;
+                    
+                    let centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    let centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    let rect = floorCanvas.getBoundingClientRect();
+                    let canvasCenterX = centerX - rect.left;
+                    let canvasCenterY = centerY - rect.top;
+
+                    panX = canvasCenterX - (canvasCenterX - panX) * zoomStep;
+                    panY = canvasCenterY - (canvasCenterY - panY) * zoomStep;
+                    scale *= zoomStep;
+
+                    // 限制最大最小縮放
+                    if(scale < 0.2) scale = 0.2; if(scale > 5) scale = 5;
+                    renderCanvas();
                 }
             }, {passive: false});
 
-            container.addEventListener('touchend', (e) => {
-                if (e.touches.length < 2) startDistance = 0;
-                if (e.touches.length === 0) isDragging = false;
+            floorCanvas.addEventListener('touchend', function(e) {
+                if(!moved && e.changedTouches.length === 1) {
+                    // Click! 標記圖釘
+                    let pt = getCanvasPoint(e.changedTouches[0]);
+                    selectedX = pt.x; selectedY = pt.y;
+                    isSelected = true;
+                    
+                    document.getElementById('mapHint').style.backgroundColor = "rgba(46, 204, 113, 0.9)";
+                    document.getElementById('mapHint').style.color = "#fff";
+                    document.getElementById('mapHint').innerText = "✅ 已標記位置 (可拖曳移動圖面 / 雙指縮放)";
+                    renderCanvas();
+                }
+                if(e.touches.length < 2) isPanning = false;
             });
         }
 
-        function updateCanvasTransform() {
-            if (scale === 1) { panX = 0; panY = 0; }
-            floorCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        function renderCanvas() {
+            if(!floorImg.complete || !floorImg.src) return;
+            floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height);
+            
+            floorCtx.save();
+            floorCtx.translate(panX, panY);
+            floorCtx.scale(scale, scale);
+            floorCtx.drawImage(floorImg, 0, 0);
+            
+            if (isSelected) {
+                let pinSize = Math.max(floorImg.width * 0.015, 10) / scale; // 保持圖釘視覺大小
+                floorCtx.lineWidth = 2 / scale; 
+                floorCtx.strokeStyle = '#fff';
+                floorCtx.beginPath(); 
+                floorCtx.moveTo(selectedX, selectedY - pinSize * 1.3); 
+                floorCtx.lineTo(selectedX + pinSize * 1.2, selectedY + pinSize * 1.1); 
+                floorCtx.lineTo(selectedX - pinSize * 1.2, selectedY + pinSize * 1.1); 
+                floorCtx.closePath(); 
+                floorCtx.fillStyle = '#dc3545'; 
+                floorCtx.fill(); 
+                floorCtx.stroke();
+            }
+            floorCtx.restore();
         }
 
-        function drawPin(px, py) {
-            let size = Math.max(floorCanvas.width * 0.01, 8); 
-            floorCtx.lineWidth = 2; 
-            floorCtx.strokeStyle = '#fff';
-            floorCtx.beginPath(); 
-            floorCtx.moveTo(px, py - size * 1.3); 
-            floorCtx.lineTo(px + size * 1.2, py + size * 1.1); 
-            floorCtx.lineTo(px - size * 1.2, py + size * 1.1); 
-            floorCtx.closePath(); 
-            floorCtx.fillStyle = '#dc3545'; 
-            floorCtx.fill(); 
-            floorCtx.stroke();
+        function getCanvasPoint(touch) {
+            let rect = floorCanvas.getBoundingClientRect();
+            return {
+                x: (touch.clientX - rect.left - panX) / scale,
+                y: (touch.clientY - rect.top - panY) / scale
+            };
         }
 
         function updateDrawingImage() {
             let drawingType = document.getElementById('drawingType').value;
             const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
             
-            let safeSite = encodeURIComponent(currentSite);
-            let safeFloor = encodeURIComponent(currentFloor);
-            let safeRoom = encodeURIComponent(currentRoom);
-            let safeType = encodeURIComponent(drawingType);
+            let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.jpg`;
             
-            let targetImgSrc = `${baseImgUrl}/${safeSite}/${safeFloor}/${safeRoom}_${safeType}.jpg`;
-            
-            // 復原縮放與標記
-            scale = 1; panX = 0; panY = 0; updateCanvasTransform();
+            // 重置標記狀態
             isSelected = false;
             document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
             document.getElementById('mapHint').style.color = "#d63031";
-            document.getElementById('mapHint').innerText = "📍 雙指可縮放圖面，點擊「標記缺失」";
+            document.getElementById('mapHint').innerText = "📍 點擊標記位置 (支援雙指縮放 / 單指拖曳)";
 
             let tempImg = new Image();
             tempImg.onload = () => {
                 floorImg.src = targetImgSrc;
                 setTimeout(() => {
-                    floorCanvas.width = floorImg.width; 
-                    floorCanvas.height = floorImg.height;
-                    floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
+                    let container = document.getElementById('canvas-container');
+                    floorCanvas.width = container.clientWidth;
+                    floorCanvas.height = container.clientHeight; 
+
+                    // 自動置中與滿版適應 (解決平板看圖太小的問題)
+                    let scaleX = floorCanvas.width / floorImg.width;
+                    let scaleY = floorCanvas.height / floorImg.height;
+                    scale = Math.min(scaleX, scaleY) * 0.95;
+                    panX = (floorCanvas.width - floorImg.width * scale) / 2;
+                    panY = (floorCanvas.height - floorImg.height * scale) / 2;
+
+                    renderCanvas();
                 }, 100);
             };
             tempImg.onerror = () => {
-                floorImg.src = `https://via.placeholder.com/800x600/ffeaa7/d63031?text=無【${drawingType}】圖檔`;
+                floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=無【${drawingType}】圖檔`;
                 setTimeout(() => {
-                    floorCanvas.width = floorImg.width; 
-                    floorCanvas.height = floorImg.height;
-                    floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
+                    floorCanvas.width = 800; floorCanvas.height = 400;
+                    scale = 1; panX = 0; panY = 0; renderCanvas();
                 }, 100);
             };
             tempImg.src = targetImgSrc;
         }
 
-        // ====== UI 切換 ======
+        // ====== 3. 快速選單邏輯 ======
+        function appendDesc(text) {
+            let input = document.getElementById('descriptionInput');
+            if (input.value) { input.value += "，" + text; } 
+            else { input.value = text; }
+        }
+
+        // ====== UI 切換與表單邏輯 ======
         function switchTab(tab) {
             document.getElementById('tabAdd').classList.remove('active');
             document.getElementById('tabOverview').classList.remove('active');
@@ -361,24 +378,6 @@
             updateDrawingImage();
         }
 
-        function initSwipe() {
-            let touchstartX = 0;
-            let touchendX = 0;
-            const sa = document.getElementById('swipeArea');
-            sa.addEventListener('touchstart', e => { 
-                // 確保在圖面上滑動時，不會觸發換房
-                if (e.target.id === 'floorPlan' || e.target.closest('#canvas-container')) return;
-                touchstartX = e.changedTouches[0].screenX; 
-            });
-            sa.addEventListener('touchend', e => {
-                if (e.target.id === 'floorPlan' || e.target.closest('#canvas-container')) return;
-                touchendX = e.changedTouches[0].screenX;
-                if (touchendX < touchstartX - 70) changeRoom(1); 
-                if (touchendX > touchstartX + 70) changeRoom(-1); 
-            });
-        }
-
-        // ====== 表單操作 ======
         function previewPhoto(input) {
             if (input.files && input.files[0]) {
                 let reader = new FileReader();
@@ -401,16 +400,20 @@
             btn.disabled = true; btn.innerText = "⏳ 儲存中...";
 
             let base64Img = await fileToBase64(fileInput.files[0]);
-            let xPercent = Math.round((selectedX / floorCanvas.width) * 100);
-            let yPercent = Math.round((selectedY / floorCanvas.height) * 100);
+            
+            // 計算基於原圖大小的百分比座標存入資料庫
+            let xPercent = Math.round((selectedX / floorImg.width) * 100);
+            let yPercent = Math.round((selectedY / floorImg.height) * 100);
             let coordStr = `[座標] X:${xPercent}%, Y:${yPercent}%`;
 
             let payload = {
                 site: currentSite, floor: currentFloor, roomType: currentRoom,
                 drawingType: document.getElementById('drawingType').value,
                 location: document.getElementById('locationSelect').value,
-                description: desc, imageBase64: base64Img, 
-                inspector: currentUser, xyCoord: coordStr
+                description: desc,
+                imageBase64: base64Img, 
+                inspector: currentUser,
+                xyCoord: coordStr
             };
 
             fetch(`${apiBaseUrl}/submit-inspection`, {
@@ -429,14 +432,12 @@
             document.getElementById('photoInput').value = "";
             document.getElementById('previewImg').src = "";
             document.getElementById('previewImg').style.display = "none";
-            updateDrawingImage();
+            updateDrawingImage(); // 重置標記
         }
 
-        // ====== 總覽與匯出 ======
         function loadDefectsOverview() {
             let container = document.getElementById('defectList');
             container.innerHTML = "載入中...";
-            
             fetch(`${apiBaseUrl}/room-defects?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`, {
                 headers: { "ngrok-skip-browser-warning": "true" }
             }).then(r => r.json()).then(res => {
