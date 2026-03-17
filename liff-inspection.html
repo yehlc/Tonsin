@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>驗屋系統</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; }
+        .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .title-box { text-align: center; }
+        .title-box .main-title { font-size: 18px; font-weight: bold; }
+        .title-box .sub-title { font-size: 12px; opacity: 0.8; }
+        
+        .toolbar { padding: 10px; background: white; border-bottom: 1px solid #ddd; }
+        select { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ced4da; border-radius: 6px; background: #f8f9fa; font-weight: bold; }
+        
+        .map-container { width: 100%; height: 40vh; background: #ddd; overflow: hidden; position: relative; border-bottom: 3px solid #8e44ad; }
+        #floorPlanImg { width: 100%; height: 100%; object-fit: contain; }
+        
+        .form-container { padding: 15px; background: white; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436; font-size: 14px; }
+        textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 16px; height: 80px; resize: vertical; }
+        
+        .camera-btn { display: block; width: 100%; padding: 12px; background: #fff; border: 2px dashed #8e44ad; color: #8e44ad; font-weight: bold; border-radius: 6px; text-align: center; position: relative; overflow: hidden; margin-bottom: 10px;}
+        .camera-input { position: absolute; top: 0; left: 0; font-size: 100px; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        #previewImg { width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; display: none; margin-bottom: 10px; border: 1px solid #ddd; }
+
+        .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-submit:disabled { background: #b2bec3; }
+        
+        .toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 16px; font-weight: bold;}
+        .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="nav-btn" onclick="changeRoom(-1)">◀ 上一戶</button>
+        <div class="title-box">
+            <div class="main-title" id="roomTitle">A3戶</div>
+            <div class="sub-title" id="siteFloorTitle">載入中...</div>
+        </div>
+        <button class="nav-btn" onclick="changeRoom(1)">下一戶 ▶</button>
+    </div>
+
+    <div class="toolbar">
+        <select id="drawingType" onchange="updateDrawingImage()">
+            <option value="1.建築客變圖">1. 建築客變圖</option>
+            <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
+            <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
+        </select>
+    </div>
+
+    <div class="map-container">
+        <img id="floorPlanImg" src="https://via.placeholder.com/800x600?text=請選擇圖面" alt="驗屋圖面">
+    </div>
+
+    <div class="form-container">
+        <div class="form-group">
+            <label>📍 缺失位置</label>
+            <select id="locationSelect">
+                <option value="客餐廳">客餐廳</option>
+                <option value="主臥室">主臥室</option>
+                <option value="次臥(一)">次臥(一)</option>
+                <option value="次臥(二)">次臥(二)</option>
+                <option value="廚房">廚房</option>
+                <option value="主衛浴">主衛浴</option>
+                <option value="客衛浴">客衛浴</option>
+                <option value="陽台">陽台</option>
+                <option value="工作陽台">工作陽台</option>
+                <option value="輕隔間">輕隔間</option>
+                <option value="玄關">玄關</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <div class="camera-btn">
+                📸 點擊拍攝缺失照片
+                <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="previewPhoto(this)">
+            </div>
+            <img id="previewImg" src="">
+        </div>
+
+        <div class="form-group">
+            <label>📝 缺失說明</label>
+            <textarea id="descriptionInput" placeholder="請描述缺失狀況（例如：插座位置與圖面不符、油漆剝落...）"></textarea>
+        </div>
+
+        <button class="btn-submit" id="submitBtn" onclick="submitInspection()">📤 新增此筆缺失</button>
+    </div>
+
+    <div id="toastMsg" class="toast">✅ 缺失新增成功！請繼續作業。</div>
+
+    <script>
+        const myLiffId = "2009287087-4LSCRAq4";
+        let apiBaseUrl = "";
+        let currentSite = "";
+        let currentFloor = "";
+        let currentRoom = "";
+        let currentUser = "";
+        
+        // 房間陣列 (可從後端或 URL 傳入，這裡做範例)
+        const roomList = ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶"];
+        let roomIndex = 2; // 預設 A3戶 (index 2)
+
+        liff.init({ liffId: myLiffId }).then(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentSite = decodeURIComponent(urlParams.get('site') || "");
+            currentFloor = decodeURIComponent(urlParams.get('floor') || "");
+            currentRoom = decodeURIComponent(urlParams.get('room') || "A3戶");
+            currentUser = decodeURIComponent(urlParams.get('user') || "未知");
+            apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
+
+            // 同步目前的房間 Index
+            let foundIndex = roomList.indexOf(currentRoom);
+            if (foundIndex > -1) roomIndex = foundIndex;
+
+            updateUI();
+        });
+
+        function changeRoom(direction) {
+            roomIndex += direction;
+            if (roomIndex < 0) roomIndex = roomList.length - 1;
+            if (roomIndex >= roomList.length) roomIndex = 0;
+            currentRoom = roomList[roomIndex];
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('roomTitle').innerText = currentRoom;
+            document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
+            updateDrawingImage();
+        }
+
+        function updateDrawingImage() {
+            let drawingType = document.getElementById('drawingType').value;
+            // 這裡可以依據您實際放在 Server 上的圖檔路徑做動態組裝
+            // 範例：https://您的網域.com/images/鼎隆大苑/2F/A3戶/1.建築客變圖.jpg
+            // 為了示範，這裡用 placeholder 加上文字辨識
+            let encodedText = encodeURIComponent(`${currentSite} ${currentFloor} ${currentRoom} \n ${drawingType}`);
+            let imgSrc = `https://via.placeholder.com/800x600/e9ecef/8e44ad?text=${encodedText}`;
+            
+            document.getElementById('floorPlanImg').src = imgSrc;
+        }
+
+        function previewPhoto(input) {
+            if (input.files && input.files[0]) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImg').src = e.target.result;
+                    document.getElementById('previewImg').style.display = 'block';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function submitInspection() {
+            let drawingType = document.getElementById('drawingType').value;
+            let location = document.getElementById('locationSelect').value;
+            let description = document.getElementById('descriptionInput').value;
+            let fileInput = document.getElementById('photoInput');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                return alert("⚠️ 請務必拍攝缺失照片！");
+            }
+
+            let btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerText = "⏳ 儲存中...";
+
+            let base64Img = await fileToBase64(fileInput.files[0]);
+
+            let payload = {
+                site: currentSite,
+                floor: currentFloor,
+                roomType: currentRoom,
+                drawingType: drawingType,
+                location: location,
+                description: description,
+                imageBase64: base64Img,
+                inspector: currentUser
+            };
+
+            fetch(`${apiBaseUrl}/submit-inspection`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(res => {
+                if (res.success) {
+                    showToast();
+                    resetForm(); // ★ 核心：清空表單但不跳轉，繼續作業
+                } else {
+                    alert("❌ 新增失敗：" + res.error);
+                }
+            }).catch(e => {
+                alert("❌ 連線異常");
+            }).finally(() => {
+                btn.disabled = false;
+                btn.innerText = "📤 新增此筆缺失";
+            });
+        }
+
+        function resetForm() {
+            // 清空照片與說明，保留目前選擇的 圖面與位置
+            document.getElementById('descriptionInput').value = "";
+            document.getElementById('photoInput').value = "";
+            document.getElementById('previewImg').src = "";
+            document.getElementById('previewImg').style.display = "none";
+        }
+
+        function showToast() {
+            var x = document.getElementById("toastMsg");
+            x.className = "toast show";
+            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader(); 
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result); 
+                reader.onerror = error => reject(error);
+            });
+        }
+    </script>
+</body>
+</html>
