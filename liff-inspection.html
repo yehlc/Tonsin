@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>驗屋系統</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
@@ -22,10 +22,10 @@
         
         .swipe-area { width: 100%; transition: transform 0.3s; }
 
-    /* ★ 替換圖紙與提示條的樣式 (回歸 liff-floorplan 簡單好用的設定) */
-    .hint-bar { background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; border-bottom: 1px solid #ddd; }
-    .map-container { width: 100%; position: relative; border-bottom: 3px solid #8e44ad; display: flex; justify-content: center; background: #ccc; overflow: auto; }
+    /* ★ 替換圖紙與提示條的樣式 (回歸 liff-floorplan 完美排版) */
+    .map-container { position: relative; width: 100%; display: flex; justify-content: center; overflow: auto; background: #ccc; border-bottom: 3px solid #8e44ad; }
     #floorPlan { width: 100%; height: auto; background: #fff; cursor: crosshair; display: block; }
+    .hint-bar { position: absolute; top: 0; left: 0; right: 0; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; z-index: 10; pointer-events: none; }
     
     .form-container { padding: 15px; background: white; display: none; }
     
@@ -217,7 +217,7 @@
             if (document.getElementById('overviewSection').style.display === 'block') loadDefectsOverview();
         }
 
-        // ====== 圖紙互動邏輯 (同 liff-floorplan 原生寫法) ======
+        // ====== 圖紙互動邏輯 ======
         function initCanvas() {
             floorCanvas = document.getElementById('floorPlan');
             floorCtx = floorCanvas.getContext('2d');
@@ -226,11 +226,12 @@
 
             floorCanvas.addEventListener('click', function(e) {
                 const rect = floorCanvas.getBoundingClientRect();
-                // 完美支援雙指原生縮放的座標算法
                 const scaleX = floorCanvas.width / rect.width; 
                 const scaleY = floorCanvas.height / rect.height;  
-                const clickX = (e.clientX - rect.left) * scaleX; 
-                const clickY = (e.clientY - rect.top) * scaleY;
+
+                // ★ 修正：優先使用 offsetX/Y (最精準不受排版影響)，若無則用 clientX 備用計算
+                let clickX = (e.offsetX !== undefined) ? e.offsetX * scaleX : (e.clientX - rect.left) * scaleX;
+                let clickY = (e.offsetY !== undefined) ? e.offsetY * scaleY : (e.clientY - rect.top) * scaleY;
 
                 selectedX = clickX; 
                 selectedY = clickY;
@@ -251,25 +252,33 @@
 
         function renderCanvas() {
             if(!floorImg.complete || !floorImg.src) return;
-            // 清空並重繪原圖
             floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height);
             floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
             
             // 畫出圖釘
             if (isSelected) drawSinglePin(selectedX, selectedY);
         }
-        // 畫出大小適中的三角形圖釘
+        // ★ 修正：畫出一個精準「尖端朝下」且會指在點擊位置的標記
         function drawSinglePin(px, py) {
-            let size = Math.max(floorCanvas.width * 0.007, 5); 
-            floorCtx.lineWidth = 2; 
+            let size = Math.max(floorCanvas.width * 0.008, 6); 
+            floorCtx.lineWidth = 3; 
             floorCtx.strokeStyle = '#fff';
+            
+            // 畫倒三角形 (下半部尖端)
             floorCtx.beginPath(); 
-            floorCtx.moveTo(px, py - size * 1.3); 
-            floorCtx.lineTo(px + size * 1.2, py + size * 1.1); 
-            floorCtx.lineTo(px - size * 1.2, py + size * 1.1); 
+            floorCtx.moveTo(px, py); // 尖端精準貼齊你點擊的點
+            floorCtx.lineTo(px - size, py - size * 2); 
+            floorCtx.lineTo(px + size, py - size * 2); 
             floorCtx.closePath(); 
             floorCtx.fillStyle = '#dc3545'; 
             floorCtx.fill(); 
+            floorCtx.stroke();
+            
+            // 畫圓形 (上半部圓頭)
+            floorCtx.beginPath();
+            floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
+            floorCtx.fillStyle = '#dc3545';
+            floorCtx.fill();
             floorCtx.stroke();
         }
 
@@ -281,31 +290,33 @@
             };
         }
 
+        // ★ 修正：確保圖片載入完成 (onload) 後才觸發渲染，解決換戶別變白畫面的 Bug
         function updateDrawingImage() {
             let drawingType = document.getElementById('drawingType').value;
             const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
             let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.jpg`;
             
-            cancelInspection(); // 切換圖紙時自動清除標記與表單
+            cancelInspection(); // 切換圖紙時自動清除標記與隱藏表單
 
-            let tempImg = new Image();
-            tempImg.onload = () => {
-                floorImg.src = targetImgSrc;
-                setTimeout(() => {
-                    // 將 Canvas 大小設為原圖解析度，靠 CSS width: 100% 來適應螢幕
+            // 直接綁定 onload，確保圖片「下載完成」後才設定 Canvas 大小並繪製
+            floorImg.onload = () => {
+                floorCanvas.width = floorImg.width;
+                floorCanvas.height = floorImg.height; 
+                renderCanvas();
+            };
+            
+            floorImg.onerror = () => {
+                // 若找不到圖片，載入替代圖片
+                floorImg.onload = () => {
                     floorCanvas.width = floorImg.width;
                     floorCanvas.height = floorImg.height; 
                     renderCanvas();
-                }, 100);
+                };
+                floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=No+Image`;
             };
-            tempImg.onerror = () => {
-                floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=無【${drawingType}】圖檔`;
-                setTimeout(() => {
-                    floorCanvas.width = 800; floorCanvas.height = 400;
-                    renderCanvas();
-                }, 100);
-            };
-            tempImg.src = targetImgSrc;
+
+            // 觸發載入
+            floorImg.src = targetImgSrc;
         }
         // ★ 新增：按下 X 或重置時，隱藏表單並移除圖釘
         window.cancelInspection = function() {
