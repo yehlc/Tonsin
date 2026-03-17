@@ -13,25 +13,33 @@
         .title-box .main-title { font-size: 18px; font-weight: bold; }
         .title-box .sub-title { font-size: 12px; opacity: 0.8; }
         
+        .tabs { display: flex; background: white; border-bottom: 2px solid #ddd; }
+        .tab { flex: 1; text-align: center; padding: 12px; font-weight: bold; color: #555; cursor: pointer; }
+        .tab.active { color: #8e44ad; border-bottom: 3px solid #8e44ad; }
+
         .toolbar { padding: 10px; background: white; border-bottom: 1px solid #ddd; }
-        select { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ced4da; border-radius: 6px; background: #f8f9fa; font-weight: bold; }
+        select, textarea { width: 100%; box-sizing: border-box; padding: 10px; font-size: 16px; border: 1px solid #ced4da; border-radius: 6px; }
         
-        .map-container { width: 100%; height: 40vh; background: #ddd; overflow: hidden; position: relative; border-bottom: 3px solid #8e44ad; }
+        .map-container { width: 100%; height: 35vh; background: #ddd; overflow: hidden; position: relative; border-bottom: 3px solid #8e44ad; }
         #floorPlanImg { width: 100%; height: 100%; object-fit: contain; }
         
-        .form-container { padding: 15px; background: white; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436; font-size: 14px; }
-        textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 16px; height: 80px; resize: vertical; }
+        .panel { display: none; padding: 15px; background: white; min-height: 50vh; }
+        .panel.active { display: block; }
         
+        /* 總覽卡片樣式 */
+        .defect-card { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #dc3545;}
+        .defect-card img { width: 100%; height: 150px; object-fit: cover; border-radius: 6px; margin-top: 8px; }
+        .defect-header { font-weight: bold; color: #333; font-size: 15px; display: flex; justify-content: space-between; }
+        .defect-desc { color: #555; font-size: 14px; margin-top: 5px; }
+
         .camera-btn { display: block; width: 100%; padding: 12px; background: #fff; border: 2px dashed #8e44ad; color: #8e44ad; font-weight: bold; border-radius: 6px; text-align: center; position: relative; overflow: hidden; margin-bottom: 10px;}
         .camera-input { position: absolute; top: 0; left: 0; font-size: 100px; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
         #previewImg { width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; display: none; margin-bottom: 10px; border: 1px solid #ddd; }
 
-        .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn-submit:disabled { background: #b2bec3; }
+        .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px;}
+        .btn-export { background: #2980b9; margin-bottom: 15px; }
         
-        .toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 16px; font-weight: bold;}
+        .toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: bold;}
         .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
@@ -47,6 +55,11 @@
         <button class="nav-btn" onclick="changeRoom(1)">下一戶 ▶</button>
     </div>
 
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('addPanel', this)">➕ 新增缺失</div>
+        <div class="tab" onclick="switchTab('overviewPanel', this); fetchOverview();">📋 戶別總覽</div>
+    </div>
+
     <div class="toolbar">
         <select id="drawingType" onchange="updateDrawingImage()">
             <option value="1.建築客變圖">1. 建築客變圖</option>
@@ -54,30 +67,21 @@
             <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
         </select>
     </div>
-
     <div class="map-container">
-        <img id="floorPlanImg" src="https://via.placeholder.com/800x600?text=請選擇圖面" alt="驗屋圖面">
+        <img id="floorPlanImg" src="https://via.placeholder.com/800x600?text=載入圖面中..." alt="驗屋圖面">
     </div>
 
-    <div class="form-container">
+    <div id="addPanel" class="panel active">
         <div class="form-group">
             <label>📍 缺失位置</label>
             <select id="locationSelect">
                 <option value="客餐廳">客餐廳</option>
                 <option value="主臥室">主臥室</option>
-                <option value="次臥(一)">次臥(一)</option>
-                <option value="次臥(二)">次臥(二)</option>
                 <option value="廚房">廚房</option>
-                <option value="主衛浴">主衛浴</option>
-                <option value="客衛浴">客衛浴</option>
+                <option value="衛浴">衛浴</option>
                 <option value="陽台">陽台</option>
-                <option value="工作陽台">工作陽台</option>
-                <option value="輕隔間">輕隔間</option>
-                <option value="玄關">玄關</option>
-                <option value="其他">其他</option>
             </select>
         </div>
-
         <div class="form-group">
             <div class="camera-btn">
                 📸 點擊拍攝缺失照片
@@ -85,16 +89,19 @@
             </div>
             <img id="previewImg" src="">
         </div>
-
         <div class="form-group">
             <label>📝 缺失說明</label>
-            <textarea id="descriptionInput" placeholder="請描述缺失狀況（例如：插座位置與圖面不符、油漆剝落...）"></textarea>
+            <textarea id="descriptionInput" placeholder="請描述缺失狀況..."></textarea>
         </div>
-
         <button class="btn-submit" id="submitBtn" onclick="submitInspection()">📤 新增此筆缺失</button>
     </div>
 
-    <div id="toastMsg" class="toast">✅ 缺失新增成功！請繼續作業。</div>
+    <div id="overviewPanel" class="panel">
+        <button class="btn-submit btn-export" onclick="exportWord()">📥 匯出本戶修繕單 (Word)</button>
+        <div id="overviewList">載入中...</div>
+    </div>
+
+    <div id="toastMsg" class="toast">✅ 作業成功！</div>
 
     <script>
         const myLiffId = "2009287087-4LSCRAq4";
@@ -104,108 +111,73 @@
         let currentRoom = "";
         let currentUser = "";
         
-        // 房間陣列 (可從後端或 URL 傳入，這裡做範例)
-        const roomList = ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶"];
-        let roomIndex = 2; // 預設 A3戶 (index 2)
+        // 假資料，可動態寫入
+        const ROOM_CONFIG = {
+            "鼎隆大苑": { "2F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶"] }
+        };
+        let roomIndex = 0;
 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
             currentFloor = decodeURIComponent(urlParams.get('floor') || "");
-            currentRoom = decodeURIComponent(urlParams.get('room') || "A3戶");
+            currentRoom = decodeURIComponent(urlParams.get('room') || "A1戶");
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
-
-            // 同步目前的房間 Index
-            let foundIndex = roomList.indexOf(currentRoom);
-            if (foundIndex > -1) roomIndex = foundIndex;
 
             updateUI();
         });
 
-        // --- 1. 定義案場與樓層的戶別對應表 (可視情況移至後端 API 或寫死在前端) ---
-const ROOM_CONFIG = {
-    "鼎隆大苑": {
-        "2F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶", "B3戶"],
-        "3F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶", "B3戶"],
-        "R1F": ["公共區域", "管委會空間"]
-    },
-    "測試工地": {
-        "1F": ["大廳", "交誼廳"],
-        "2F": ["A戶", "B戶", "C戶"]
-    }
-};
+        function switchTab(panelId, element) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(panelId).classList.add('active');
+            element.classList.add('active');
+        }
 
         function changeRoom(direction) {
-    let availableRooms = ["未設定戶別"];
-    if (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) {
-        availableRooms = ROOM_CONFIG[currentSite][currentFloor];
-    }
+            let availableRooms = ["A1戶", "A2戶", "A3戶", "B1戶"];
+            if (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) {
+                availableRooms = ROOM_CONFIG[currentSite][currentFloor];
+            }
+            
+            roomIndex += direction;
+            if (roomIndex < 0) roomIndex = availableRooms.length - 1;
+            if (roomIndex >= availableRooms.length) roomIndex = 0;
+            
+            currentRoom = availableRooms[roomIndex];
+            updateUI();
 
-    roomIndex += direction;
-    if (roomIndex < 0) roomIndex = availableRooms.length - 1;
-    if (roomIndex >= availableRooms.length) roomIndex = 0;
-    
-    currentRoom = availableRooms[roomIndex];
-    updateUI();
-}
+            // 若目前在總覽模式，換房間時自動重抓資料
+            if (document.getElementById('overviewPanel').classList.contains('active')) {
+                fetchOverview();
+            }
+        }
 
-        // --- 2. 初始化與更新 UI ---
-function updateUI() {
-    // 動態取得該樓層的戶別清單
-    let availableRooms = ["未設定戶別"];
-    if (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) {
-        availableRooms = ROOM_CONFIG[currentSite][currentFloor];
-    }
-    
-    // 確保目前的 roomIndex 不會超出陣列範圍
-    if (roomIndex >= availableRooms.length) roomIndex = 0;
-    currentRoom = availableRooms[roomIndex];
+        function updateUI() {
+            document.getElementById('roomTitle').innerText = currentRoom;
+            document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
+            updateDrawingImage();
+        }
 
-    document.getElementById('roomTitle').innerText = currentRoom;
-    document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
-    
-    // 呼叫圖面更新
-    updateDrawingImage();
-}
-
-        // --- 3. 核心：動態載入圖面與防呆機制 ---
-function updateDrawingImage() {
-    let drawingType = document.getElementById('drawingType').value;
-    let imgElement = document.getElementById('floorPlanImg');
-    
-    // 基礎網域 (請替換為您實際存放圖檔的伺服器或 GitHub Pages 網址)
-    const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
-    
-    // 處理網址編碼，避免中文路徑造成 404 錯誤
-    let safeSite = encodeURIComponent(currentSite);
-    let safeFloor = encodeURIComponent(currentFloor);
-    let safeRoom = encodeURIComponent(currentRoom);
-    let safeType = encodeURIComponent(drawingType);
-
-    // 組合目標路徑: /驗屋圖資/鼎隆大苑/2F/A3戶_1.建築客變圖.jpg
-    let targetImgSrc = `${baseImgUrl}/${safeSite}/${safeFloor}/${safeRoom}_${safeType}.jpg`;
-    
-    // 步驟 A: 先顯示載入中提示，避免切換時看到上一戶的舊圖
-    imgElement.src = "https://via.placeholder.com/800x600/e9ecef/8e44ad?text=載入圖面中...";
-    
-    // 步驟 B: 建立隱藏的 Image 物件預先載入
-    let tempImg = new Image();
-    
-    tempImg.onload = function() {
-        // 如果伺服器有這張圖，就正式替換顯示
-        imgElement.src = targetImgSrc; 
-    };
-    
-    tempImg.onerror = function() {
-        // 如果找不到圖 (例如還沒上傳)，顯示紅色警告底圖
-        let errorText = encodeURIComponent(`${currentSite} ${currentFloor} ${currentRoom}\n欠缺【${drawingType}】圖檔`);
-        imgElement.src = `https://via.placeholder.com/800x600/ffeaa7/d63031?text=${errorText}`;
-    };
-    
-    // 觸發載入
-    tempImg.src = targetImgSrc;
-}
+        function updateDrawingImage() {
+            let drawingType = document.getElementById('drawingType').value;
+            let imgElement = document.getElementById('floorPlanImg');
+            const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
+            
+            let safeSite = encodeURIComponent(currentSite);
+            let safeFloor = encodeURIComponent(currentFloor);
+            let safeRoom = encodeURIComponent(currentRoom);
+            let safeType = encodeURIComponent(drawingType);
+            let targetImgSrc = `${baseImgUrl}/${safeSite}/${safeFloor}/${safeRoom}_${safeType}.jpg`;
+            
+            let tempImg = new Image();
+            tempImg.onload = function() { imgElement.src = targetImgSrc; };
+            tempImg.onerror = function() { 
+                imgElement.src = `https://via.placeholder.com/800x600/ffeaa7/d63031?text=找不到圖檔`; 
+            };
+            tempImg.src = targetImgSrc;
+        }
 
         function previewPhoto(input) {
             if (input.files && input.files[0]) {
@@ -219,71 +191,80 @@ function updateDrawingImage() {
         }
 
         async function submitInspection() {
-            let drawingType = document.getElementById('drawingType').value;
-            let location = document.getElementById('locationSelect').value;
-            let description = document.getElementById('descriptionInput').value;
             let fileInput = document.getElementById('photoInput');
-            
-            if (!fileInput.files || fileInput.files.length === 0) {
-                return alert("⚠️ 請務必拍攝缺失照片！");
-            }
+            if (!fileInput.files || fileInput.files.length === 0) return alert("⚠️ 請拍攝缺失照片！");
 
             let btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerText = "⏳ 儲存中...";
+            btn.disabled = true; btn.innerText = "⏳ 儲存中...";
 
             let base64Img = await fileToBase64(fileInput.files[0]);
-
             let payload = {
-                site: currentSite,
-                floor: currentFloor,
-                roomType: currentRoom,
-                drawingType: drawingType,
-                location: location,
-                description: description,
-                imageBase64: base64Img,
-                inspector: currentUser
+                site: currentSite, floor: currentFloor, roomType: currentRoom,
+                drawingType: document.getElementById('drawingType').value,
+                location: document.getElementById('locationSelect').value,
+                description: document.getElementById('descriptionInput').value,
+                imageBase64: base64Img, inspector: currentUser
             };
 
             fetch(`${apiBaseUrl}/submit-inspection`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             }).then(r => r.json()).then(res => {
                 if (res.success) {
                     showToast();
-                    resetForm(); // ★ 核心：清空表單但不跳轉，繼續作業
-                } else {
-                    alert("❌ 新增失敗：" + res.error);
-                }
-            }).catch(e => {
-                alert("❌ 連線異常");
+                    document.getElementById('descriptionInput').value = "";
+                    document.getElementById('photoInput').value = "";
+                    document.getElementById('previewImg').style.display = "none";
+                } else alert("❌ 新增失敗");
             }).finally(() => {
-                btn.disabled = false;
-                btn.innerText = "📤 新增此筆缺失";
+                btn.disabled = false; btn.innerText = "📤 新增此筆缺失";
             });
         }
 
-        function resetForm() {
-            // 清空照片與說明，保留目前選擇的 圖面與位置
-            document.getElementById('descriptionInput').value = "";
-            document.getElementById('photoInput').value = "";
-            document.getElementById('previewImg').src = "";
-            document.getElementById('previewImg').style.display = "none";
+        // --- 讀取戶別總覽資料 ---
+        function fetchOverview() {
+            let list = document.getElementById('overviewList');
+            list.innerHTML = "🔄 讀取資料中...";
+            
+            fetch(`${apiBaseUrl}/inspection-defects?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.success && res.data.length > 0) {
+                    let html = "";
+                    res.data.forEach(d => {
+                        html += `
+                        <div class="defect-card">
+                            <div class="defect-header">
+                                <span>📍 ${d.Location} (${d.DrawingType})</span>
+                                <span style="color:#d63031;">${d.Status}</span>
+                            </div>
+                            <div class="defect-desc">📝 ${d.Description}</div>
+                            <img src="${apiBaseUrl}${d.ImageUrl}&ngrok-skip-browser-warning=true" onerror="this.style.display='none'">
+                        </div>`;
+                    });
+                    list.innerHTML = html;
+                } else {
+                    list.innerHTML = "✅ 本戶目前無任何缺失紀錄。";
+                }
+            });
+        }
+
+        // --- 匯出 Word ---
+        function exportWord() {
+            let url = `${apiBaseUrl}/export-inspection-word?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`;
+            window.location.href = url; // 觸發瀏覽器下載
         }
 
         function showToast() {
             var x = document.getElementById("toastMsg");
             x.className = "toast show";
-            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
         }
 
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
-                const reader = new FileReader(); 
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result); 
-                reader.onerror = error => reject(error);
+                const r = new FileReader(); r.readAsDataURL(file);
+                r.onload = () => resolve(r.result); r.onerror = e => reject(e);
             });
         }
     </script>
