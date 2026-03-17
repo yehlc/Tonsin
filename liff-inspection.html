@@ -123,30 +123,89 @@
             updateUI();
         });
 
+        // --- 1. 定義案場與樓層的戶別對應表 (可視情況移至後端 API 或寫死在前端) ---
+const ROOM_CONFIG = {
+    "鼎隆大苑": {
+        "2F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶", "B3戶"],
+        "3F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶", "B3戶"],
+        "R1F": ["公共區域", "管委會空間"]
+    },
+    "測試工地": {
+        "1F": ["大廳", "交誼廳"],
+        "2F": ["A戶", "B戶", "C戶"]
+    }
+};
+
         function changeRoom(direction) {
-            roomIndex += direction;
-            if (roomIndex < 0) roomIndex = roomList.length - 1;
-            if (roomIndex >= roomList.length) roomIndex = 0;
-            currentRoom = roomList[roomIndex];
-            updateUI();
-        }
+    let availableRooms = ["未設定戶別"];
+    if (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) {
+        availableRooms = ROOM_CONFIG[currentSite][currentFloor];
+    }
 
-        function updateUI() {
-            document.getElementById('roomTitle').innerText = currentRoom;
-            document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
-            updateDrawingImage();
-        }
+    roomIndex += direction;
+    if (roomIndex < 0) roomIndex = availableRooms.length - 1;
+    if (roomIndex >= availableRooms.length) roomIndex = 0;
+    
+    currentRoom = availableRooms[roomIndex];
+    updateUI();
+}
 
-        function updateDrawingImage() {
-            let drawingType = document.getElementById('drawingType').value;
-            // 這裡可以依據您實際放在 Server 上的圖檔路徑做動態組裝
-            // 範例：https://您的網域.com/images/鼎隆大苑/2F/A3戶/1.建築客變圖.jpg
-            // 為了示範，這裡用 placeholder 加上文字辨識
-            let encodedText = encodeURIComponent(`${currentSite} ${currentFloor} ${currentRoom} \n ${drawingType}`);
-            let imgSrc = `https://via.placeholder.com/800x600/e9ecef/8e44ad?text=${encodedText}`;
-            
-            document.getElementById('floorPlanImg').src = imgSrc;
-        }
+        // --- 2. 初始化與更新 UI ---
+function updateUI() {
+    // 動態取得該樓層的戶別清單
+    let availableRooms = ["未設定戶別"];
+    if (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) {
+        availableRooms = ROOM_CONFIG[currentSite][currentFloor];
+    }
+    
+    // 確保目前的 roomIndex 不會超出陣列範圍
+    if (roomIndex >= availableRooms.length) roomIndex = 0;
+    currentRoom = availableRooms[roomIndex];
+
+    document.getElementById('roomTitle').innerText = currentRoom;
+    document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
+    
+    // 呼叫圖面更新
+    updateDrawingImage();
+}
+
+        // --- 3. 核心：動態載入圖面與防呆機制 ---
+function updateDrawingImage() {
+    let drawingType = document.getElementById('drawingType').value;
+    let imgElement = document.getElementById('floorPlanImg');
+    
+    // 基礎網域 (請替換為您實際存放圖檔的伺服器或 GitHub Pages 網址)
+    const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
+    
+    // 處理網址編碼，避免中文路徑造成 404 錯誤
+    let safeSite = encodeURIComponent(currentSite);
+    let safeFloor = encodeURIComponent(currentFloor);
+    let safeRoom = encodeURIComponent(currentRoom);
+    let safeType = encodeURIComponent(drawingType);
+
+    // 組合目標路徑: /驗屋圖資/鼎隆大苑/2F/A3戶_1.建築客變圖.jpg
+    let targetImgSrc = `${baseImgUrl}/${safeSite}/${safeFloor}/${safeRoom}_${safeType}.jpg`;
+    
+    // 步驟 A: 先顯示載入中提示，避免切換時看到上一戶的舊圖
+    imgElement.src = "https://via.placeholder.com/800x600/e9ecef/8e44ad?text=載入圖面中...";
+    
+    // 步驟 B: 建立隱藏的 Image 物件預先載入
+    let tempImg = new Image();
+    
+    tempImg.onload = function() {
+        // 如果伺服器有這張圖，就正式替換顯示
+        imgElement.src = targetImgSrc; 
+    };
+    
+    tempImg.onerror = function() {
+        // 如果找不到圖 (例如還沒上傳)，顯示紅色警告底圖
+        let errorText = encodeURIComponent(`${currentSite} ${currentFloor} ${currentRoom}\n欠缺【${drawingType}】圖檔`);
+        imgElement.src = `https://via.placeholder.com/800x600/ffeaa7/d63031?text=${errorText}`;
+    };
+    
+    // 觸發載入
+    tempImg.src = targetImgSrc;
+}
 
         function previewPhoto(input) {
             if (input.files && input.files[0]) {
