@@ -22,9 +22,9 @@
         
         .swipe-area { width: 100%; transition: transform 0.3s; }
 
-        /* ★ 畫布與圖面容器 */
-        .map-container { width: 100%; height: 40vh; background: #ddd; position: relative; border-bottom: 3px solid #8e44ad; display: flex; justify-content: center; overflow: hidden;}
-        #floorPlan { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; background: #fff;}
+        /* ★ 畫布與圖面容器 (加大了高度，支援手勢) */
+        .map-container { width: 100%; height: 55vh; background: #ddd; position: relative; border-bottom: 3px solid #8e44ad; overflow: hidden; touch-action: none;}
+        #floorPlan { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; background: #fff; transform-origin: 0 0;}
         .hint-bar { position: absolute; top: 0; left: 0; width: 100%; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 5px 0; font-size: 14px; font-weight: bold; z-index: 10;}
         
         .form-container { padding: 15px; background: white; }
@@ -32,7 +32,6 @@
         label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436; font-size: 14px; }
         textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; height: 80px; resize: vertical; }
         
-        /* ★ 快速選單標籤 */
         .quick-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;}
         .q-tag { background: #f0f0f0; color: #8e44ad; border: 1px solid #8e44ad; padding: 6px 12px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: 0.2s;}
         .q-tag:active { background: #8e44ad; color: white; }
@@ -72,7 +71,6 @@
     </div>
 
     <div class="swipe-area" id="swipeArea">
-        
         <div id="addSection">
             <div class="toolbar">
                 <select id="drawingType" onchange="updateDrawingImage()">
@@ -83,7 +81,7 @@
             </div>
             
             <div class="map-container" id="canvas-container">
-                <div class="hint-bar" id="mapHint">📍 請在下方圖面點擊「標記缺失位置」</div>
+                <div class="hint-bar" id="mapHint">📍 雙指可縮放圖面，點擊「標記缺失」</div>
                 <canvas id="floorPlan"></canvas>
             </div>
 
@@ -132,7 +130,6 @@
             <div id="defectList">載入中...</div>
             <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋修繕單 (Excel)</button>
         </div>
-
     </div>
 
     <div id="toastMsg" class="toast">✅ 缺失新增成功！</div>
@@ -152,12 +149,15 @@
                 "3F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶", "B3戶"]
             }
         };
-        let roomIndex = 0;
+        
+        // ★ 扁平化陣列 (實現跨樓層切換)
+        let flatRoomList = [];
+        let currentFlatIndex = 0;
 
-        // ★ Canvas 變數
+        // ★ Canvas 變數 (包含縮放)
         let floorCanvas, floorCtx, floorImg;
-        let selectedX = 0, selectedY = 0;
-        let isSelected = false;
+        let selectedX = 0, selectedY = 0, isSelected = false;
+        let scale = 1, panX = 0, panY = 0;
 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -166,25 +166,55 @@
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
 
-            let availableRooms = (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) ? ROOM_CONFIG[currentSite][currentFloor] : ["A1戶"];
+            buildFlatRoomList();
+            
             let qRoom = decodeURIComponent(urlParams.get('room') || "");
-            let fIdx = availableRooms.indexOf(qRoom);
-            if (fIdx > -1) roomIndex = fIdx;
-            currentRoom = availableRooms[roomIndex];
+            currentFlatIndex = flatRoomList.findIndex(item => item.floor === currentFloor && item.room === qRoom);
+            if (currentFlatIndex === -1) currentFlatIndex = 0;
+            
+            currentFloor = flatRoomList[currentFlatIndex].floor;
+            currentRoom = flatRoomList[currentFlatIndex].room;
 
             initCanvas();
+            initPinchZoom();
             updateUI();
             initSwipe();
         });
 
-        // ====== 快速選單邏輯 ======
+        // ====== 跨樓層陣列邏輯 ======
+        function buildFlatRoomList() {
+            flatRoomList = [];
+            if (!ROOM_CONFIG[currentSite]) {
+                flatRoomList.push({ floor: currentFloor, room: "A1戶" });
+                return;
+            }
+            for (let floor in ROOM_CONFIG[currentSite]) {
+                let rooms = ROOM_CONFIG[currentSite][floor];
+                for (let r of rooms) flatRoomList.push({ floor: floor, room: r });
+            }
+        }
+
+        function changeRoom(direction) {
+            if (flatRoomList.length === 0) return;
+            currentFlatIndex += direction;
+            if (currentFlatIndex < 0) currentFlatIndex = flatRoomList.length - 1;
+            if (currentFlatIndex >= flatRoomList.length) currentFlatIndex = 0;
+            
+            currentFloor = flatRoomList[currentFlatIndex].floor;
+            currentRoom = flatRoomList[currentFlatIndex].room;
+            
+            let sa = document.getElementById('swipeArea');
+            sa.style.transform = direction > 0 ? "translateX(-20px)" : "translateX(20px)";
+            sa.style.opacity = 0.5;
+            setTimeout(() => { sa.style.transform = "translateX(0)"; sa.style.opacity = 1; }, 200);
+
+            updateUI();
+            if (document.getElementById('overviewSection').style.display === 'block') loadDefectsOverview();
+        }
+
         function appendDesc(text) {
             let input = document.getElementById('descriptionInput');
-            if (input.value) {
-                input.value += "，" + text;
-            } else {
-                input.value = text;
-            }
+            input.value = input.value ? input.value + "，" + text : text;
         }
 
         // ====== Canvas 圖面與標記邏輯 ======
@@ -194,7 +224,7 @@
             floorImg = new Image();
             floorImg.crossOrigin = "Anonymous";
 
-            // 監聽點擊事件
+            // 點擊新增圖釘 (精準計算縮放後的座標)
             floorCanvas.addEventListener('click', function(e) {
                 const rect = floorCanvas.getBoundingClientRect();
                 const scaleX = floorCanvas.width / rect.width; 
@@ -207,11 +237,53 @@
                 document.getElementById('mapHint').style.color = "#fff";
                 document.getElementById('mapHint').innerText = "✅ 已標記位置 (可重新點擊修改)";
 
-                // 重繪圖面與圖釘
                 floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height); 
                 floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
                 drawPin(selectedX, selectedY);
             });
+        }
+
+        // ★ 雙指縮放與單指拖曳 (Google Map 體驗)
+        function initPinchZoom() {
+            const container = document.getElementById('canvas-container');
+            let startDistance = 0, startScale = 1;
+            let isDragging = false, startX = 0, startY = 0, initialPanX = 0, initialPanY = 0;
+
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    startDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    startScale = scale;
+                } else if (e.touches.length === 1) {
+                    isDragging = true;
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                    initialPanX = panX;
+                    initialPanY = panY;
+                }
+            }, {passive: false});
+
+            container.addEventListener('touchmove', (e) => {
+                e.preventDefault(); // 防止畫面跟著滾動
+                if (e.touches.length === 2) {
+                    const currentDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    scale = Math.max(1, Math.min(startScale * (currentDistance / startDistance), 5)); // 限制 1x ~ 5x
+                    updateCanvasTransform();
+                } else if (e.touches.length === 1 && isDragging && scale > 1) {
+                    panX = initialPanX + (e.touches[0].clientX - startX);
+                    panY = initialPanY + (e.touches[0].clientY - startY);
+                    updateCanvasTransform();
+                }
+            }, {passive: false});
+
+            container.addEventListener('touchend', (e) => {
+                if (e.touches.length < 2) startDistance = 0;
+                if (e.touches.length === 0) isDragging = false;
+            });
+        }
+
+        function updateCanvasTransform() {
+            if (scale === 1) { panX = 0; panY = 0; }
+            floorCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
         }
 
         function drawPin(px, py) {
@@ -239,11 +311,12 @@
             
             let targetImgSrc = `${baseImgUrl}/${safeSite}/${safeFloor}/${safeRoom}_${safeType}.jpg`;
             
-            // 重置標記狀態
+            // 復原縮放與標記
+            scale = 1; panX = 0; panY = 0; updateCanvasTransform();
             isSelected = false;
             document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
             document.getElementById('mapHint').style.color = "#d63031";
-            document.getElementById('mapHint').innerText = "📍 請在下方圖面點擊「標記缺失位置」";
+            document.getElementById('mapHint').innerText = "📍 雙指可縮放圖面，點擊「標記缺失」";
 
             let tempImg = new Image();
             tempImg.onload = () => {
@@ -265,7 +338,7 @@
             tempImg.src = targetImgSrc;
         }
 
-        // ====== UI 切換與滑動邏輯 ======
+        // ====== UI 切換 ======
         function switchTab(tab) {
             document.getElementById('tabAdd').classList.remove('active');
             document.getElementById('tabOverview').classList.remove('active');
@@ -282,22 +355,6 @@
             }
         }
 
-        function changeRoom(direction) {
-            let availableRooms = (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) ? ROOM_CONFIG[currentSite][currentFloor] : ["A1戶"];
-            roomIndex += direction;
-            if (roomIndex < 0) roomIndex = availableRooms.length - 1;
-            if (roomIndex >= availableRooms.length) roomIndex = 0;
-            currentRoom = availableRooms[roomIndex];
-            
-            let sa = document.getElementById('swipeArea');
-            sa.style.transform = direction > 0 ? "translateX(-20px)" : "translateX(20px)";
-            sa.style.opacity = 0.5;
-            setTimeout(() => { sa.style.transform = "translateX(0)"; sa.style.opacity = 1; }, 200);
-
-            updateUI();
-            if (document.getElementById('overviewSection').style.display === 'block') loadDefectsOverview();
-        }
-
         function updateUI() {
             document.getElementById('roomTitle').innerText = currentRoom;
             document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
@@ -308,8 +365,13 @@
             let touchstartX = 0;
             let touchendX = 0;
             const sa = document.getElementById('swipeArea');
-            sa.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; });
+            sa.addEventListener('touchstart', e => { 
+                // 確保在圖面上滑動時，不會觸發換房
+                if (e.target.id === 'floorPlan' || e.target.closest('#canvas-container')) return;
+                touchstartX = e.changedTouches[0].screenX; 
+            });
             sa.addEventListener('touchend', e => {
+                if (e.target.id === 'floorPlan' || e.target.closest('#canvas-container')) return;
                 touchendX = e.changedTouches[0].screenX;
                 if (touchendX < touchstartX - 70) changeRoom(1); 
                 if (touchendX > touchstartX + 70) changeRoom(-1); 
@@ -329,14 +391,9 @@
         }
 
         async function submitInspection() {
-            // 防呆 1：檢查是否標記座標
             if (!isSelected) return alert("⚠️ 請先在上方圖面「點擊標記」缺失位置！");
-
-            // 防呆 2：檢查是否拍照
             let fileInput = document.getElementById('photoInput');
             if (!fileInput.files || fileInput.files.length === 0) return alert("⚠️ 請拍攝缺失照片！");
-
-            // 防呆 3：檢查說明
             let desc = document.getElementById('descriptionInput').value;
             if (!desc.trim()) return alert("⚠️ 請輸入或選擇缺失說明！");
 
@@ -344,8 +401,6 @@
             btn.disabled = true; btn.innerText = "⏳ 儲存中...";
 
             let base64Img = await fileToBase64(fileInput.files[0]);
-            
-            // 計算百分比座標存入資料庫
             let xPercent = Math.round((selectedX / floorCanvas.width) * 100);
             let yPercent = Math.round((selectedY / floorCanvas.height) * 100);
             let coordStr = `[座標] X:${xPercent}%, Y:${yPercent}%`;
@@ -354,10 +409,8 @@
                 site: currentSite, floor: currentFloor, roomType: currentRoom,
                 drawingType: document.getElementById('drawingType').value,
                 location: document.getElementById('locationSelect').value,
-                description: desc,
-                imageBase64: base64Img, 
-                inspector: currentUser,
-                xyCoord: coordStr
+                description: desc, imageBase64: base64Img, 
+                inspector: currentUser, xyCoord: coordStr
             };
 
             fetch(`${apiBaseUrl}/submit-inspection`, {
@@ -376,7 +429,6 @@
             document.getElementById('photoInput').value = "";
             document.getElementById('previewImg').src = "";
             document.getElementById('previewImg').style.display = "none";
-            // 重新載入一次圖面以清空圖釘
             updateDrawingImage();
         }
 
