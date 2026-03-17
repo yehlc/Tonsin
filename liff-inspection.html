@@ -6,38 +6,45 @@
     <title>驗屋系統</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; }
-        .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; overflow-x: hidden; }
+        .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
         .title-box { text-align: center; }
-        .title-box .main-title { font-size: 18px; font-weight: bold; }
-        .title-box .sub-title { font-size: 12px; opacity: 0.8; }
+        .main-title { font-size: 18px; font-weight: bold; }
+        .sub-title { font-size: 12px; opacity: 0.8; }
         
-        .tabs { display: flex; background: white; border-bottom: 2px solid #ddd; }
+        /* 頁籤設計 */
+        .tabs { display: flex; background: white; border-bottom: 1px solid #ddd; }
         .tab { flex: 1; text-align: center; padding: 12px; font-weight: bold; color: #555; cursor: pointer; }
         .tab.active { color: #8e44ad; border-bottom: 3px solid #8e44ad; }
-
-        .toolbar { padding: 10px; background: white; border-bottom: 1px solid #ddd; }
-        select, textarea { width: 100%; box-sizing: border-box; padding: 10px; font-size: 16px; border: 1px solid #ced4da; border-radius: 6px; }
         
-        .map-container { width: 100%; height: 35vh; background: #ddd; overflow: hidden; position: relative; border-bottom: 3px solid #8e44ad; }
+        .toolbar { padding: 10px; background: white; border-bottom: 1px solid #ddd; }
+        select { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ced4da; border-radius: 6px; background: #f8f9fa; font-weight: bold; }
+        
+        /* 滑動感應區 */
+        .swipe-area { width: 100%; transition: transform 0.3s; }
+
+        .map-container { width: 100%; height: 40vh; background: #ddd; position: relative; border-bottom: 3px solid #8e44ad; }
         #floorPlanImg { width: 100%; height: 100%; object-fit: contain; }
         
-        .panel { display: none; padding: 15px; background: white; min-height: 50vh; }
-        .panel.active { display: block; }
+        .form-container { padding: 15px; background: white; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436; font-size: 14px; }
+        textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; height: 80px; resize: vertical; }
         
-        /* 總覽卡片樣式 */
-        .defect-card { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #dc3545;}
-        .defect-card img { width: 100%; height: 150px; object-fit: cover; border-radius: 6px; margin-top: 8px; }
-        .defect-header { font-weight: bold; color: #333; font-size: 15px; display: flex; justify-content: space-between; }
-        .defect-desc { color: #555; font-size: 14px; margin-top: 5px; }
-
-        .camera-btn { display: block; width: 100%; padding: 12px; background: #fff; border: 2px dashed #8e44ad; color: #8e44ad; font-weight: bold; border-radius: 6px; text-align: center; position: relative; overflow: hidden; margin-bottom: 10px;}
-        .camera-input { position: absolute; top: 0; left: 0; font-size: 100px; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        .camera-btn { display: block; width: 100%; padding: 12px; background: #fff; border: 2px dashed #8e44ad; color: #8e44ad; font-weight: bold; border-radius: 6px; text-align: center; position: relative; margin-bottom: 10px;}
+        .camera-input { position: absolute; top: 0; left: 0; opacity: 0; width: 100%; height: 100%; }
         #previewImg { width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; display: none; margin-bottom: 10px; border: 1px solid #ddd; }
 
-        .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px;}
-        .btn-export { background: #2980b9; margin-bottom: 15px; }
+        .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 20px; }
+        .btn-export { width: 100%; padding: 15px; background: #007bff; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-top: 15px; }
+        
+        /* 總覽列表 */
+        #overviewSection { display: none; padding: 15px; }
+        .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; }
+        .defect-card img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; background: #eee; }
+        .defect-info { flex: 1; }
+        .defect-tag { display: inline-block; background: #ffeaa7; color: #d63031; font-size: 12px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-bottom: 4px; }
         
         .toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: bold;}
         .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
@@ -49,71 +56,84 @@
     <div class="header">
         <button class="nav-btn" onclick="changeRoom(-1)">◀ 上一戶</button>
         <div class="title-box">
-            <div class="main-title" id="roomTitle">A3戶</div>
+            <div class="main-title" id="roomTitle">A1戶</div>
             <div class="sub-title" id="siteFloorTitle">載入中...</div>
         </div>
         <button class="nav-btn" onclick="changeRoom(1)">下一戶 ▶</button>
     </div>
 
     <div class="tabs">
-        <div class="tab active" onclick="switchTab('addPanel', this)">➕ 新增缺失</div>
-        <div class="tab" onclick="switchTab('overviewPanel', this); fetchOverview();">📋 戶別總覽</div>
+        <div class="tab active" id="tabAdd" onclick="switchTab('add')">✍️ 新增缺失</div>
+        <div class="tab" id="tabOverview" onclick="switchTab('overview')">📊 本戶總覽</div>
     </div>
 
-    <div class="toolbar">
-        <select id="drawingType" onchange="updateDrawingImage()">
-            <option value="1.建築客變圖">1. 建築客變圖</option>
-            <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
-            <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
-        </select>
-    </div>
-    <div class="map-container">
-        <img id="floorPlanImg" src="https://via.placeholder.com/800x600?text=載入圖面中..." alt="驗屋圖面">
-    </div>
-
-    <div id="addPanel" class="panel active">
-        <div class="form-group">
-            <label>📍 缺失位置</label>
-            <select id="locationSelect">
-                <option value="客餐廳">客餐廳</option>
-                <option value="主臥室">主臥室</option>
-                <option value="廚房">廚房</option>
-                <option value="衛浴">衛浴</option>
-                <option value="陽台">陽台</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <div class="camera-btn">
-                📸 點擊拍攝缺失照片
-                <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="previewPhoto(this)">
+    <div class="swipe-area" id="swipeArea">
+        
+        <div id="addSection">
+            <div class="toolbar">
+                <select id="drawingType" onchange="updateDrawingImage()">
+                    <option value="1.建築客變圖">1. 建築客變圖</option>
+                    <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
+                    <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
+                </select>
             </div>
-            <img id="previewImg" src="">
+            <div class="map-container">
+                <img id="floorPlanImg" src="" alt="驗屋圖面">
+            </div>
+            <div class="form-container">
+                <div class="form-group">
+                    <label>📍 缺失位置</label>
+                    <select id="locationSelect">
+                        <option value="客餐廳">客餐廳</option>
+                        <option value="主臥室">主臥室</option>
+                        <option value="次臥(一)">次臥(一)</option>
+                        <option value="次臥(二)">次臥(二)</option>
+                        <option value="廚房">廚房</option>
+                        <option value="主衛浴">主衛浴</option>
+                        <option value="客衛浴">客衛浴</option>
+                        <option value="陽台">陽台</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div class="camera-btn">
+                        📸 點擊拍攝缺失照片
+                        <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="previewPhoto(this)">
+                    </div>
+                    <img id="previewImg" src="">
+                </div>
+                <div class="form-group">
+                    <label>📝 缺失說明</label>
+                    <textarea id="descriptionInput" placeholder="請描述缺失狀況..."></textarea>
+                </div>
+                <button class="btn-submit" id="submitBtn" onclick="submitInspection()">📤 新增此筆缺失</button>
+            </div>
         </div>
-        <div class="form-group">
-            <label>📝 缺失說明</label>
-            <textarea id="descriptionInput" placeholder="請描述缺失狀況..."></textarea>
+
+        <div id="overviewSection">
+            <h3 style="color:#2d3436; margin-top:0;">📋 本戶缺失清單</h3>
+            <div id="defectList">載入中...</div>
+            <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋修繕單 (Excel)</button>
         </div>
-        <button class="btn-submit" id="submitBtn" onclick="submitInspection()">📤 新增此筆缺失</button>
+
     </div>
 
-    <div id="overviewPanel" class="panel">
-        <button class="btn-submit btn-export" onclick="exportWord()">📥 匯出本戶修繕單 (Word)</button>
-        <div id="overviewList">載入中...</div>
-    </div>
-
-    <div id="toastMsg" class="toast">✅ 作業成功！</div>
+    <div id="toastMsg" class="toast">✅ 缺失新增成功！</div>
 
     <script>
         const myLiffId = "2009287087-4LSCRAq4";
         let apiBaseUrl = "";
         let currentSite = "";
         let currentFloor = "";
-        let currentRoom = "";
+        let currentRoom = "A1戶";
         let currentUser = "";
         
-        // 假資料，可動態寫入
+        // 戶別設定表
         const ROOM_CONFIG = {
-            "鼎隆大苑": { "2F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶"] }
+            "鼎隆大苑": {
+                "2F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶", "B3戶"],
+                "3F": ["A1戶", "A2戶", "A3戶", "B1戶", "B2戶", "B3戶"]
+            }
         };
         let roomIndex = 0;
 
@@ -121,37 +141,52 @@
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
             currentFloor = decodeURIComponent(urlParams.get('floor') || "");
-            currentRoom = decodeURIComponent(urlParams.get('room') || "A1戶");
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
 
+            // 同步初始房間
+            let availableRooms = (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) ? ROOM_CONFIG[currentSite][currentFloor] : ["A1戶"];
+            let qRoom = decodeURIComponent(urlParams.get('room') || "");
+            let fIdx = availableRooms.indexOf(qRoom);
+            if (fIdx > -1) roomIndex = fIdx;
+            currentRoom = availableRooms[roomIndex];
+
             updateUI();
+            initSwipe();
         });
 
-        function switchTab(panelId, element) {
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(panelId).classList.add('active');
-            element.classList.add('active');
+        // ====== UI 切換與滑動邏輯 ======
+        function switchTab(tab) {
+            document.getElementById('tabAdd').classList.remove('active');
+            document.getElementById('tabOverview').classList.remove('active');
+            document.getElementById('addSection').style.display = 'none';
+            document.getElementById('overviewSection').style.display = 'none';
+            
+            if (tab === 'add') {
+                document.getElementById('tabAdd').classList.add('active');
+                document.getElementById('addSection').style.display = 'block';
+            } else {
+                document.getElementById('tabOverview').classList.add('active');
+                document.getElementById('overviewSection').style.display = 'block';
+                loadDefectsOverview(); // 載入清單
+            }
         }
 
         function changeRoom(direction) {
-            let availableRooms = ["A1戶", "A2戶", "A3戶", "B1戶"];
-            if (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) {
-                availableRooms = ROOM_CONFIG[currentSite][currentFloor];
-            }
-            
+            let availableRooms = (ROOM_CONFIG[currentSite] && ROOM_CONFIG[currentSite][currentFloor]) ? ROOM_CONFIG[currentSite][currentFloor] : ["A1戶"];
             roomIndex += direction;
             if (roomIndex < 0) roomIndex = availableRooms.length - 1;
             if (roomIndex >= availableRooms.length) roomIndex = 0;
-            
             currentRoom = availableRooms[roomIndex];
-            updateUI();
+            
+            // 視覺特效
+            let sa = document.getElementById('swipeArea');
+            sa.style.transform = direction > 0 ? "translateX(-20px)" : "translateX(20px)";
+            sa.style.opacity = 0.5;
+            setTimeout(() => { sa.style.transform = "translateX(0)"; sa.style.opacity = 1; }, 200);
 
-            // 若目前在總覽模式，換房間時自動重抓資料
-            if (document.getElementById('overviewPanel').classList.contains('active')) {
-                fetchOverview();
-            }
+            updateUI();
+            if (document.getElementById('overviewSection').style.display === 'block') loadDefectsOverview();
         }
 
         function updateUI() {
@@ -160,6 +195,21 @@
             updateDrawingImage();
         }
 
+        // ====== 滑動偵測 ======
+        function initSwipe() {
+            let touchstartX = 0;
+            let touchendX = 0;
+            const sa = document.getElementById('swipeArea');
+            
+            sa.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; });
+            sa.addEventListener('touchend', e => {
+                touchendX = e.changedTouches[0].screenX;
+                if (touchendX < touchstartX - 70) changeRoom(1); // 往左滑 -> 下一戶
+                if (touchendX > touchstartX + 70) changeRoom(-1); // 往右滑 -> 上一戶
+            });
+        }
+
+        // ====== 動態圖面載入 ======
         function updateDrawingImage() {
             let drawingType = document.getElementById('drawingType').value;
             let imgElement = document.getElementById('floorPlanImg');
@@ -169,20 +219,22 @@
             let safeFloor = encodeURIComponent(currentFloor);
             let safeRoom = encodeURIComponent(currentRoom);
             let safeType = encodeURIComponent(drawingType);
+            
+            // 路徑: /驗屋圖資/鼎隆大苑/2F/A1戶_1.建築客變圖.jpg
             let targetImgSrc = `${baseImgUrl}/${safeSite}/${safeFloor}/${safeRoom}_${safeType}.jpg`;
             
+            imgElement.src = "https://via.placeholder.com/800x400/e9ecef/8e44ad?text=載入圖面中...";
             let tempImg = new Image();
-            tempImg.onload = function() { imgElement.src = targetImgSrc; };
-            tempImg.onerror = function() { 
-                imgElement.src = `https://via.placeholder.com/800x600/ffeaa7/d63031?text=找不到圖檔`; 
-            };
+            tempImg.onload = () => imgElement.src = targetImgSrc;
+            tempImg.onerror = () => imgElement.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=無【${drawingType}】圖檔`;
             tempImg.src = targetImgSrc;
         }
 
+        // ====== 表單操作 ======
         function previewPhoto(input) {
             if (input.files && input.files[0]) {
                 let reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = e => {
                     document.getElementById('previewImg').src = e.target.result;
                     document.getElementById('previewImg').style.display = 'block';
                 }
@@ -207,65 +259,67 @@
             };
 
             fetch(`${apiBaseUrl}/submit-inspection`, {
-                method: "POST", headers: { "Content-Type": "application/json" },
+                method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify(payload)
             }).then(r => r.json()).then(res => {
-                if (res.success) {
-                    showToast();
-                    document.getElementById('descriptionInput').value = "";
-                    document.getElementById('photoInput').value = "";
-                    document.getElementById('previewImg').style.display = "none";
-                } else alert("❌ 新增失敗");
-            }).finally(() => {
+                if (res.success) { showToast(); resetForm(); } 
+                else { alert("❌ 新增失敗：" + res.error); }
+            }).catch(e => alert("❌ 連線異常")).finally(() => {
                 btn.disabled = false; btn.innerText = "📤 新增此筆缺失";
             });
         }
 
-        // --- 讀取戶別總覽資料 ---
-        function fetchOverview() {
-            let list = document.getElementById('overviewList');
-            list.innerHTML = "🔄 讀取資料中...";
+        function resetForm() {
+            document.getElementById('descriptionInput').value = "";
+            document.getElementById('photoInput').value = "";
+            document.getElementById('previewImg').src = "";
+            document.getElementById('previewImg').style.display = "none";
+        }
+
+        // ====== 總覽與匯出 ======
+        function loadDefectsOverview() {
+            let container = document.getElementById('defectList');
+            container.innerHTML = "載入中...";
             
-            fetch(`${apiBaseUrl}/inspection-defects?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`)
-            .then(r => r.json())
-            .then(res => {
+            fetch(`${apiBaseUrl}/room-defects?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`, {
+                headers: { "ngrok-skip-browser-warning": "true" }
+            }).then(r => r.json()).then(res => {
                 if (res.success && res.data.length > 0) {
                     let html = "";
                     res.data.forEach(d => {
                         html += `
                         <div class="defect-card">
-                            <div class="defect-header">
-                                <span>📍 ${d.Location} (${d.DrawingType})</span>
-                                <span style="color:#d63031;">${d.Status}</span>
+                            <img src="${apiBaseUrl}${d.ImageUrl}?ngrok-skip-browser-warning=true" alt="照片">
+                            <div class="defect-info">
+                                <span class="defect-tag">${d.Location}</span>
+                                <div style="font-size:14px; font-weight:bold; margin-bottom:5px;">${d.Description}</div>
+                                <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
                             </div>
-                            <div class="defect-desc">📝 ${d.Description}</div>
-                            <img src="${apiBaseUrl}${d.ImageUrl}&ngrok-skip-browser-warning=true" onerror="this.style.display='none'">
                         </div>`;
                     });
-                    list.innerHTML = html;
+                    container.innerHTML = html;
                 } else {
-                    list.innerHTML = "✅ 本戶目前無任何缺失紀錄。";
+                    container.innerHTML = "<div style='text-align:center; padding:20px; color:#888;'>✅ 本戶目前無缺失</div>";
                 }
             });
         }
 
-        // --- 匯出 Word ---
-        function exportWord() {
-            let url = `${apiBaseUrl}/export-inspection-word?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`;
-            window.location.href = url; // 觸發瀏覽器下載
-        }
-
-        function showToast() {
-            var x = document.getElementById("toastMsg");
-            x.className = "toast show";
-            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
+        function exportExcel() {
+            let url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`;
+            window.open(url, '_blank');
         }
 
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
-                const r = new FileReader(); r.readAsDataURL(file);
-                r.onload = () => resolve(r.result); r.onerror = e => reject(e);
+                const reader = new FileReader(); reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error);
             });
+        }
+        
+        function showToast() {
+            var x = document.getElementById("toastMsg");
+            x.className = "toast show";
+            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
         }
     </script>
 </body>
