@@ -78,7 +78,7 @@
         
         <div id="sharedMapSection">
             <div class="toolbar">
-                <select id="drawingType" onchange="updateDrawingImage()">
+                <select id="drawingType" onchange="onDrawingTypeChange()">
                     <option value="1.建築客變圖">1. 建築客變圖</option>
                     <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
                     <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
@@ -173,7 +173,7 @@
         let isSelected = false;
 
         let globalRoomDefects = []; 
-        let currentTabMode = 'add'; // 'add', 'map', 'list'
+        let currentTabMode = 'add'; 
 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -186,7 +186,7 @@
             buildFlatRoomList(initialRoom);
             initCanvas();
             updateUI(); 
-            switchTab('add'); // 預設進入新增模式
+            switchTab('add'); 
         });
 
         function buildFlatRoomList(initialRoom) {
@@ -218,7 +218,6 @@
             updateUI();
         }
 
-        // ================= Tab 控制邏輯 =================
         function switchTab(tab) {
             currentTabMode = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -227,7 +226,7 @@
                 document.getElementById('tabAdd').classList.add('active');
                 document.getElementById('sharedMapSection').style.display = 'block';
                 document.getElementById('listSection').style.display = 'none';
-                cancelInspection(); // 進入時抹除未儲存的圖釘
+                cancelInspection(); 
                 document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
                 document.getElementById('mapHint').style.color = "#d63031";
                 document.getElementById('mapHint').innerText = "📍 點擊標記位置 (新增模式不顯示其他缺失，避免重疊)";
@@ -236,7 +235,7 @@
                 document.getElementById('tabMap').classList.add('active');
                 document.getElementById('sharedMapSection').style.display = 'block';
                 document.getElementById('listSection').style.display = 'none';
-                cancelInspection(); // 隱藏表單
+                cancelInspection(); 
                 document.getElementById('mapHint').style.backgroundColor = "rgba(52, 152, 219, 0.9)";
                 document.getElementById('mapHint').style.color = "#fff";
                 document.getElementById('mapHint').innerText = "🗺️ 圖面總覽 (可點擊藍色圖釘編輯)";
@@ -245,7 +244,7 @@
                 document.getElementById('tabList').classList.add('active');
                 document.getElementById('sharedMapSection').style.display = 'none';
                 document.getElementById('listSection').style.display = 'block';
-                cancelInspection(); // 隱藏表單
+                cancelInspection(); 
             }
             renderCanvas();
         }
@@ -258,9 +257,8 @@
             }).then(r => r.json()).then(res => {
                 if (res.success) {
                     globalRoomDefects = res.data;
-                    renderCanvas(); // 更新圖釘
+                    renderCanvas(); 
                     
-                    // 渲染清單
                     if (res.data.length > 0) {
                         let html = "";
                         res.data.forEach(d => {
@@ -296,7 +294,6 @@
                 let clickY = (e.offsetY !== undefined) ? e.offsetY * scaleY : (e.clientY - rect.top) * scaleY;
 
                 if (currentTabMode === 'add') {
-                    // 新增模式：直接畫紅點，不管藍點(藍點此時也隱藏)
                     enterAddMode();
                     selectedX = clickX; 
                     selectedY = clickY;
@@ -307,12 +304,12 @@
                     document.getElementById('mapHint').innerText = "✅ 已標記新位置 (請在下方填寫資訊)";
                     
                     renderCanvas();
-                    let formContainer = document.getElementById('formContainer');
-                    formContainer.style.display = 'block';
-                    setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+                    document.getElementById('formContainer').style.display = 'block';
+                    
+                    // 手機版：新增時稍微滾動以露出表單，但不至於遮住地圖
+                    setTimeout(() => { document.getElementById('formContainer').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
 
                 } else if (currentTabMode === 'map') {
-                    // 圖面總覽模式：尋找是否有按到藍色圖釘
                     let clickedExisting = null;
                     let threshold = Math.max(floorCanvas.width * 0.04, 30); 
                     let currentDrawing = document.getElementById('drawingType').value;
@@ -343,7 +340,6 @@
             let currentDrawing = document.getElementById('drawingType').value;
             let currentlyEditingId = document.getElementById('editDefectId').value;
 
-            // 只有在「總覽模式」或「正在編輯」的情況下，才把藍色圖釘畫出來
             if (currentTabMode === 'map' || currentlyEditingId !== "") {
                 globalRoomDefects.forEach(d => {
                     if (d.DrawingType === currentDrawing && d.XY_Coord) {
@@ -352,7 +348,6 @@
                             let px = (parseInt(match[1]) / 100) * floorCanvas.width;
                             let py = (parseInt(match[2]) / 100) * floorCanvas.height;
                             
-                            // 若是正在編輯的那一顆圖釘，就跳過不畫藍色 (等一下讓下方 drawSinglePin 畫成紅色)
                             if (d.ID.toString() === currentlyEditingId) {
                                 d.px = px; d.py = py;
                             } else {
@@ -364,7 +359,6 @@
                 });
             }
 
-            // 畫出正在操作的紅圖釘 (新增或編輯時)
             if (isSelected) drawSinglePin(selectedX, selectedY);
         }
 
@@ -393,70 +387,92 @@
             floorCtx.fillText(id, px + size, py - size*2.5);
         }
 
-        function updateDrawingImage() {
-            let drawingType = document.getElementById('drawingType').value;
+        // 獨立出載入圖紙的共用函數
+        function loadFloorPlan(drawingType, callback) {
             const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
             let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.png`;
             
-            cancelInspection();
-
             floorImg.onload = () => {
                 floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; 
-                renderCanvas(); 
+                if (callback) callback();
             };
             floorImg.onerror = () => {
-                floorImg.onload = () => { floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; renderCanvas(); };
+                floorImg.onload = () => { floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; if (callback) callback(); };
                 floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=No+Image`;
             };
             floorImg.src = targetImgSrc;
         }
 
-        // ================= 編輯與刪除 =================
+        // 使用者手動切換下拉選單時
+        window.onDrawingTypeChange = function() {
+            cancelInspection(); 
+            let drawingType = document.getElementById('drawingType').value;
+            loadFloorPlan(drawingType, () => {
+                renderCanvas();
+            });
+        };
+
         window.editDefect = function(id) {
             let d = globalRoomDefects.find(x => x.ID === id);
             if(!d) return;
 
-            // 確保 UI 切換到 Map 模式，讓用戶看到圖釘脈絡
+            // 確保 UI 切換到 Map 模式
             currentTabMode = 'map';
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.getElementById('tabMap').classList.add('active');
             document.getElementById('sharedMapSection').style.display = 'block';
             document.getElementById('listSection').style.display = 'none';
 
-            // 若目前圖紙分類不同，自動切過去
-            if (document.getElementById('drawingType').value !== d.DrawingType) {
-                document.getElementById('drawingType').value = d.DrawingType;
-                updateDrawingImage(); 
+            let drawingTypeSelect = document.getElementById('drawingType');
+            let needLoadImage = (drawingTypeSelect.value !== d.DrawingType);
+            
+            // 若圖紙不同，同步下拉選單的值
+            if (needLoadImage) {
+                drawingTypeSelect.value = d.DrawingType;
             }
 
             document.getElementById('editDefectId').value = d.ID;
             document.getElementById('formTitle').innerText = `✏️ 編輯缺失 #${d.ID}`;
             document.getElementById('submitBtn').innerText = "🔄 更新此筆資料";
             document.getElementById('deleteBtn').style.display = "block";
-
             document.getElementById('locationSelect').value = d.Location || "客餐廳";
             document.getElementById('descriptionInput').value = d.Description || "";
             
+            // 處理圖片破圖防呆
             let previewImg = document.getElementById('previewImg');
+            previewImg.style.display = 'none'; // 先隱藏
+            previewImg.onerror = function() { this.style.display = 'none'; }; // 404讀不到就不顯示破圖
+            previewImg.onload = function() { this.style.display = 'block'; }; // 讀到才顯示
             previewImg.src = `${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}&ngrok-skip-browser-warning=true`;
-            previewImg.style.display = 'block';
 
             document.getElementById('formContainer').style.display = 'block';
-            setTimeout(() => { document.getElementById('formContainer').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
 
-            // 還原紅色標記
-            if (d.XY_Coord) {
-                let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
-                if (match) {
-                    selectedX = (parseInt(match[1]) / 100) * floorCanvas.width;
-                    selectedY = (parseInt(match[2]) / 100) * floorCanvas.height;
-                    isSelected = true;
+            // 定義座標定位與重繪流程
+            const applyPinAndRender = () => {
+                if (d.XY_Coord) {
+                    let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                    if (match) {
+                        selectedX = (parseInt(match[1]) / 100) * floorCanvas.width;
+                        selectedY = (parseInt(match[2]) / 100) * floorCanvas.height;
+                        isSelected = true;
+                    }
                 }
+                document.getElementById('mapHint').style.backgroundColor = "rgba(0, 123, 255, 0.9)";
+                document.getElementById('mapHint').style.color = "#fff";
+                document.getElementById('mapHint').innerText = `📍 正在編輯缺失 #${d.ID}`;
+                renderCanvas();
+
+                // ★ 關鍵修正：讓手機畫面強制回到最頂部，確保使用者一定看得到地圖
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            // 如果圖紙不同，等待新圖紙載入完畢再畫圖釘；否則直接畫
+            if (needLoadImage) {
+                loadFloorPlan(d.DrawingType, applyPinAndRender);
+            } else {
+                // 給予瀏覽器 50ms 反應時間套用 display:block 以確保 Canvas 正確計算高寬
+                setTimeout(applyPinAndRender, 50);
             }
-            
-            document.getElementById('mapHint').style.backgroundColor = "rgba(0, 123, 255, 0.9)";
-            document.getElementById('mapHint').innerText = `📍 正在編輯缺失 #${d.ID}`;
-            renderCanvas();
         }
 
         window.enterAddMode = function() {
@@ -464,7 +480,6 @@
             document.getElementById('formTitle').innerText = `✍️ 填寫缺失資訊`;
             document.getElementById('submitBtn').innerText = "📤 儲存";
             document.getElementById('deleteBtn').style.display = "none";
-
             document.getElementById('locationSelect').value = "客餐廳";
             document.getElementById('descriptionInput').value = "";
             document.getElementById('photoInput').value = "";
@@ -472,7 +487,6 @@
             document.getElementById('previewImg').style.display = "none";
         }
 
-        // 關閉表單，抹除正在操作的紅色圖釘
         window.cancelInspection = function() {
             enterAddMode();
             isSelected = false;
@@ -498,8 +512,12 @@
         function updateUI() {
             document.getElementById('roomTitle').innerText = currentRoom;
             document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
-            updateDrawingImage();
-            loadRoomDefects(); 
+            
+            cancelInspection(); 
+            let drawingType = document.getElementById('drawingType').value;
+            loadFloorPlan(drawingType, () => {
+                loadRoomDefects(); 
+            });
         }
 
         function previewPhoto(input) {
