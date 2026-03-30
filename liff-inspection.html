@@ -58,9 +58,19 @@
         .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        
+        /* ★ 新增：塗鴉工具與 Canvas 樣式 */
+        .draw-tools { display: none; gap: 10px; margin-bottom: 10px; justify-content: center; }
+        .tool-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid #ccc; background: white; font-size: 13px; cursor: pointer; transition: 0.2s;}
+        .tool-btn.active { background: #2d3436; color: white; border-color: #2d3436; }
+        #drawCanvas { width: 100%; border: 1px solid #ddd; border-radius: 6px; display: none; touch-action: none; background: #eee; cursor: crosshair; }
+        
+        /* ★ 新增：離線狀態橫幅 */
+        #offlineBanner { display: none; background: #e17055; color: white; padding: 12px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 1001; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
     </style>
 </head>
 <body>
+    <div id="offlineBanner" onclick="syncOfflineData()">⚠️ 目前無網路連線，資料將暫存於手機</div>
     <div class="header">
         <button class="nav-btn" onclick="changeRoom(-1)">◀ 上一戶</button>
         <div class="title-box">
@@ -119,7 +129,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label>📍 缺失所在空間</label>
+                    <label style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>📍 缺失所在空間</span>
+                        <span style="font-size:12px; font-weight:normal; color:#555;">
+                            <input type="checkbox" id="stickyLocation" checked> 連續新增保留選項
+                        </span>
+                    </label>
                     <select id="locationSelect">
                         <option value="客餐廳">客餐廳</option>
                         <option value="主臥室">主臥室</option>
@@ -138,9 +153,16 @@
                 <div class="form-group">
                     <div class="camera-btn">
                         📸 點擊拍攝缺失照片
-                        <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="previewPhoto(this)">
+                        <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="loadPhotoToCanvas(this)">
                     </div>
-                    <img id="previewImg" src="">
+                    <img id="previewImg" src="" style="display:none; width:100%; border-radius:6px; margin-bottom:10px;">
+                    
+                    <div class="draw-tools" id="drawTools">
+                        <button type="button" class="tool-btn active" onclick="setBrushColor('red', this)">🔴 紅筆</button>
+                        <button type="button" class="tool-btn" onclick="setBrushColor('yellow', this)">🟡 黃筆</button>
+                        <button type="button" class="tool-btn" onclick="clearDrawCanvas()">🗑️ 復原重畫</button>
+                    </div>
+                    <canvas id="drawCanvas"></canvas>
                 </div>
                 
                 <div class="form-group">
@@ -193,6 +215,11 @@
         let globalRoomDefects = []; 
         let currentTabMode = 'add';
 
+        let drawCanvas, drawCtx;
+        let isDrawing = false;
+        let brushColor = 'red';
+        let originalImgData = new Image(); // 用來保存原始乾淨照片以便復原
+
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
@@ -205,6 +232,10 @@
             initCanvas();
             updateUI(); 
             switchTab('add'); 
+            // ★ 新增：初始化離線偵測
+            window.addEventListener('online', checkOfflineData);
+            window.addEventListener('offline', checkOfflineData);
+            checkOfflineData(); // 一進系統先檢查有沒有上次沒傳完的
         });
 
         // 繞過 Ngrok 警告讀取圖片
@@ -578,17 +609,26 @@
         window.enterAddMode = function() {
             document.getElementById('editDefectId').value = "";
             document.getElementById('formTitle').innerText = `✍️ 填寫缺失資訊`;
-            document.getElementById('submitBtn').innerText = "📤 儲存";
+            document.getElementById('submitBtn').innerText = "📤 儲存並送出";
             document.getElementById('deleteBtn').style.display = "none";
             
             document.getElementById('statusGroup').style.display = "none";
             document.getElementById('statusInput').value = "🔴 待改善";
 
-            document.getElementById('locationSelect').value = "客餐廳";
+            // ★ 修改：如果有打勾「保留選項」，就不要清空空間下拉選單
+            if (!document.getElementById('stickyLocation').checked) {
+                document.getElementById('locationSelect').value = "客餐廳";
+            }
+            
             document.getElementById('descriptionInput').value = "";
             document.getElementById('photoInput').value = "";
             document.getElementById('previewImg').src = "";
             document.getElementById('previewImg').style.display = "none";
+            
+            // ★ 清空畫布
+            document.getElementById('drawCanvas').style.display = "none";
+            document.getElementById('drawTools').style.display = "none";
+            if (drawCtx) drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
         }
 
         window.cancelInspection = function() {
@@ -620,30 +660,92 @@
             loadRoomDefects(); 
         }
 
-        function previewPhoto(input) {
+        // ★ 新增：將拍好的照片放上 Canvas 並啟動塗鴉模式
+        window.loadPhotoToCanvas = function(input) {
+            document.getElementById('previewImg').style.display = 'none'; // 隱藏舊的預覽
             if (input.files && input.files[0]) {
                 let reader = new FileReader();
                 reader.onload = e => {
-                    document.getElementById('previewImg').src = e.target.result;
-                    document.getElementById('previewImg').style.display = 'block';
-                }
+                    originalImgData.onload = () => {
+                        drawCanvas = document.getElementById('drawCanvas');
+                        drawCtx = drawCanvas.getContext('2d');
+                        
+                        // 計算縮放比例，讓畫布適應手機寬度
+                        let containerWidth = document.getElementById('formContainer').clientWidth - 30;
+                        let scale = containerWidth / originalImgData.width;
+                        drawCanvas.width = containerWidth;
+                        drawCanvas.height = originalImgData.height * scale;
+                        
+                        drawCtx.drawImage(originalImgData, 0, 0, drawCanvas.width, drawCanvas.height);
+                        
+                        drawCanvas.style.display = 'block';
+                        document.getElementById('drawTools').style.display = 'flex';
+                        initDrawing(); // 綁定手指觸控事件
+                    };
+                    originalImgData.src = e.target.result;
+                };
                 reader.readAsDataURL(input.files[0]);
             }
         }
+
+        function initDrawing() {
+            let getPos = (e) => {
+                let rect = drawCanvas.getBoundingClientRect();
+                let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+
+            let startDraw = (e) => { e.preventDefault(); isDrawing = true; let pos = getPos(e); drawCtx.beginPath(); drawCtx.moveTo(pos.x, pos.y); };
+            let draw = (e) => { e.preventDefault(); if(!isDrawing) return; let pos = getPos(e); drawCtx.strokeStyle = brushColor; drawCtx.lineWidth = Math.max(drawCanvas.width * 0.015, 3); drawCtx.lineCap = 'round'; drawCtx.lineTo(pos.x, pos.y); drawCtx.stroke(); };
+            let endDraw = (e) => { e.preventDefault(); isDrawing = false; };
+
+            drawCanvas.ontouchstart = startDraw; drawCanvas.ontouchmove = draw; drawCanvas.ontouchend = endDraw;
+            drawCanvas.onmousedown = startDraw; drawCanvas.onmousemove = draw; drawCanvas.onmouseup = endDraw;
+        }
+
+        window.setBrushColor = function(color, btn) {
+            brushColor = color;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        };
+
+        window.clearDrawCanvas = function() {
+            if(drawCanvas && drawCtx && originalImgData.src) {
+                drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+                drawCtx.drawImage(originalImgData, 0, 0, drawCanvas.width, drawCanvas.height);
+            }
+        };
 
         async function submitInspection() {
             let editId = document.getElementById('editDefectId').value;
             let fileInput = document.getElementById('photoInput');
             let desc = document.getElementById('descriptionInput').value;
+            let drawCanvas = document.getElementById('drawCanvas');
             
-            if (!editId && (!fileInput.files || fileInput.files.length === 0)) return alert("⚠️ 請拍攝缺失照片！");
-            if (!desc.trim()) return alert("⚠️ 請輸入或選擇缺失說明！");
+            let rawDesc = desc;
+            let inspRound = document.getElementById('inspRound').value;
+            let finalDesc = rawDesc;
+            
+            if (!editId && inspRound !== "初驗") {
+                finalDesc = `[${inspRound}] ` + rawDesc;
+            }
+            
+            // 判斷是否有照片 (如果是編輯模式可以沒照片，新增一定要有)
+            if (!editId && drawCanvas.style.display !== 'block' && (!fileInput.files || fileInput.files.length === 0)) {
+                return alert("⚠️ 請拍攝缺失照片！");
+            }
+            if (!finalDesc.trim()) return alert("⚠️ 請輸入或選擇缺失說明！");
 
             let btn = document.getElementById('submitBtn');
             btn.disabled = true; btn.innerText = "⏳ 儲存中...";
 
+            // ★ 修改：從畫布取得塗鴉後的 base64，如果沒畫布才走原本的 fileToBase64
             let base64Img = null;
-            if (fileInput.files && fileInput.files.length > 0) {
+            if (drawCanvas.style.display === 'block') {
+                // 將塗鴉後的畫布轉成 jpg 格式，品質 0.8 以縮小容量
+                base64Img = drawCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            } else if (fileInput.files && fileInput.files.length > 0) {
                 base64Img = await fileToBase64(fileInput.files[0]);
             }
             
@@ -653,11 +755,11 @@
                 site: currentSite, floor: currentFloor, roomType: currentRoom,
                 drawingType: document.getElementById('drawingType').value,
                 location: document.getElementById('locationSelect').value,
-                description: desc, 
+                description: finalDesc,
                 imageBase64: base64Img, 
                 inspector: currentUser,
                 status: document.getElementById('statusInput').value,
-                phase: document.getElementById('inspRound').value
+                phase: document.getElementById('inspRound').value 
             };
 
             if (editId) {
@@ -668,6 +770,22 @@
                 payload.xyCoord = `[座標] X:${xPercent}%, Y:${yPercent}%`; 
             }
 
+            // ★ 新增：離線模式判斷
+            if (!navigator.onLine) {
+                // 手機無網路時，存入 localStorage
+                let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
+                offlineQueue.push({ url: url, payload: payload, isEdit: !!editId });
+                localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
+                
+                showToast("📶 已離線暫存！恢復網路後點擊上方橘色橫幅上傳");
+                cancelInspection();
+                checkOfflineData(); // 更新橫幅顯示數量
+                
+                btn.disabled = false; btn.innerText = "📤 儲存並送出";
+                return;
+            }
+
+            // 正常有網路時上傳
             fetch(url, {
                 method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify(payload)
@@ -676,13 +794,78 @@
                     showToast(editId ? "✅ 缺失更新成功！" : "✅ 缺失新增成功！"); 
                     cancelInspection(); 
                     loadRoomDefects();
-                    
-                    // ★ 送出完成後，將畫面稍微拉回圖紙，方便繼續點擊
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else { alert("❌ 操作失敗：" + res.error); }
-            }).catch(e => alert("❌ 連線異常")).finally(() => {
-                btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存";
+            }).catch(e => {
+                // 如果連線失敗 (可能伺服器死掉或訊號剛好斷)，也自動幫他存離線
+                let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
+                offlineQueue.push({ url: url, payload: payload, isEdit: !!editId });
+                localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
+                showToast("連線異常，已為您自動切換至離線暫存！");
+                cancelInspection();
+                checkOfflineData();
+            }).finally(() => {
+                btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存並送出";
             });
+        }
+        // ★ 新增：檢查與執行離線資料同步
+        window.checkOfflineData = function() {
+            let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
+            let banner = document.getElementById('offlineBanner');
+            
+            if (!navigator.onLine) {
+                banner.style.display = 'block';
+                banner.style.backgroundColor = '#e17055'; // 紅橘色警告
+                banner.innerText = offlineQueue.length > 0 ? `⚠️ 無網路！目前有 ${offlineQueue.length} 筆暫存資料待上傳` : `⚠️ 目前無網路連線，資料將暫存於手機`;
+            } else if (offlineQueue.length > 0) {
+                banner.style.display = 'block';
+                banner.style.backgroundColor = '#00b894'; // 綠色提醒
+                banner.innerText = `🔄 網路已恢復！有 ${offlineQueue.length} 筆暫存資料，點此立即上傳`;
+            } else {
+                banner.style.display = 'none'; // 有網路且沒資料，隱藏
+            }
+        }
+
+        window.syncOfflineData = async function() {
+            if (!navigator.onLine) return alert("請先確認手機已連上網路 (4G/5G/Wi-Fi)");
+            
+            let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
+            if (offlineQueue.length === 0) return;
+
+            let banner = document.getElementById('offlineBanner');
+            banner.innerText = "⏳ 同步上傳中，請勿關閉畫面...";
+            banner.style.backgroundColor = '#0984e3';
+            banner.onclick = null; // 防連點
+
+            let successCount = 0;
+            let failedQueue = [];
+
+            for (let i = 0; i < offlineQueue.length; i++) {
+                let item = offlineQueue[i];
+                try {
+                    let r = await fetch(item.url, {
+                        method: "POST", 
+                        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                        body: JSON.stringify(item.payload)
+                    });
+                    let res = await r.json();
+                    if (res.success) {
+                        successCount++;
+                    } else {
+                        failedQueue.push(item); // 失敗的留著下次傳
+                    }
+                } catch (e) {
+                    failedQueue.push(item);
+                }
+            }
+
+            // 更新 localStorage (只保留失敗的)
+            localStorage.setItem('tonsin_offline_defects', JSON.stringify(failedQueue));
+            
+            showToast(`✅ 成功同步 ${successCount} 筆資料！`);
+            banner.onclick = syncOfflineData; // 恢復點擊功能
+            checkOfflineData(); // 重新檢查狀態
+            loadRoomDefects(); // 重新讀取圖紙與清單
         }
 
         window.deleteInspection = function() {
