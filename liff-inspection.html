@@ -77,8 +77,13 @@
     <div class="swipe-area" id="swipeArea">
         
         <div id="sharedMapSection">
-            <div class="toolbar">
-                <select id="drawingType" onchange="updateDrawingImage()">
+            <div class="toolbar" style="display: flex; gap: 10px;">
+                <select id="inspRound" style="flex: 1; border-color: #8e44ad; color: #8e44ad; background: #fdfaf6;">
+                    <option value="初驗">1️⃣ 初驗</option>
+                    <option value="二驗">2️⃣ 二驗</option>
+                    <option value="三驗">3️⃣ 三驗</option>
+                </select>
+                <select id="drawingType" onchange="updateDrawingImage()" style="flex: 2;">
                     <option value="1.建築客變圖">1. 建築客變圖</option>
                     <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
                     <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
@@ -98,13 +103,13 @@
                 <input type="hidden" id="editDefectId" value="">
 
                 <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6;">
-    <label>📊 驗屋狀態 (複驗確認)</label>
-    <div style="display: flex; gap: 10px;">
-        <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
-        <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
-    </div>
-    <input type="hidden" id="statusInput" value="🔴 待改善">
-</div>
+                    <label>📊 驗屋狀態 (複驗確認)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
+                        <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
+                    </div>
+                    <input type="hidden" id="statusInput" value="🔴 待改善">
+                </div>
 
                 <div style="display:flex; gap:10px; margin-bottom:20px;">
                     <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存</button>
@@ -122,6 +127,8 @@
                         <option value="主衛浴">主衛浴</option>
                         <option value="客衛浴">客衛浴</option>
                         <option value="陽台">陽台</option>
+                        <option value="工作陽台">工作陽台</option>
+                        <option value="輕隔間">輕隔間</option>
                         <option value="其他">其他</option>
                     </select>
                 </div>
@@ -182,7 +189,7 @@
         let isSelected = false;
 
         let globalRoomDefects = []; 
-        let currentTabMode = 'add'; // 'add', 'map', 'list'
+        let currentTabMode = 'add';
 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -195,27 +202,25 @@
             buildFlatRoomList(initialRoom);
             initCanvas();
             updateUI(); 
-            switchTab('add'); // 預設進入新增模式
+            switchTab('add'); 
         });
 
-        // ★ 新增：安全讀取 ngrok 圖片 (繞過瀏覽器警告)
-function safeLoadImage(url, imgId) {
-    let imgEl = document.getElementById(imgId);
-    if(!imgEl) return;
-    fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } })
-    .then(r => {
-        if(!r.ok) throw new Error('Not found');
-        return r.blob();
-    })
-    .then(blob => {
-        // 防呆：如果 ngrok 還是回傳了 HTML 警告頁面，拋出錯誤
-        if (blob.type.includes('text/html')) throw new Error('Ngrok Warning');
-        imgEl.src = URL.createObjectURL(blob);
-    })
-    .catch(e => {
-        imgEl.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
-    });
-}
+        function safeLoadImage(url, imgId) {
+            let imgEl = document.getElementById(imgId);
+            if(!imgEl) return;
+            fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } })
+            .then(r => {
+                if(!r.ok) throw new Error('Not found');
+                return r.blob();
+            })
+            .then(blob => {
+                if (blob.type.includes('text/html')) throw new Error('Ngrok Warning');
+                imgEl.src = URL.createObjectURL(blob);
+            })
+            .catch(e => {
+                imgEl.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
+            });
+        }
 
         function buildFlatRoomList(initialRoom) {
             flatRoomList = [];
@@ -255,83 +260,89 @@ function safeLoadImage(url, imgId) {
                 document.getElementById('tabAdd').classList.add('active');
                 document.getElementById('sharedMapSection').style.display = 'block';
                 document.getElementById('listSection').style.display = 'none';
-                cancelInspection(); // 進入時抹除未儲存的圖釘
+                cancelInspection(); 
                 document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
                 document.getElementById('mapHint').style.color = "#d63031";
-                document.getElementById('mapHint').innerText = "📍 點擊標記位置 (新增模式不顯示其他缺失，避免重疊)";
+                document.getElementById('mapHint').innerText = "📍 點擊標記位置 (新增模式)";
             } 
             else if (tab === 'map') {
                 document.getElementById('tabMap').classList.add('active');
                 document.getElementById('sharedMapSection').style.display = 'block';
                 document.getElementById('listSection').style.display = 'none';
-                cancelInspection(); // 隱藏表單
+                cancelInspection(); 
                 document.getElementById('mapHint').style.backgroundColor = "rgba(52, 152, 219, 0.9)";
                 document.getElementById('mapHint').style.color = "#fff";
-                document.getElementById('mapHint').innerText = "🗺️ 圖面總覽 (可點擊藍色圖釘編輯)";
+                document.getElementById('mapHint').innerText = "🗺️ 圖面總覽 (點擊圖釘編輯)";
             } 
             else if (tab === 'list') {
                 document.getElementById('tabList').classList.add('active');
                 document.getElementById('sharedMapSection').style.display = 'none';
                 document.getElementById('listSection').style.display = 'block';
-                cancelInspection(); // 隱藏表單
+                cancelInspection(); 
             }
             renderCanvas();
         }
 
         function loadRoomDefects() {
-    let container = document.getElementById('defectList');
-    container.innerHTML = "載入中...";
-    fetch(`${apiBaseUrl}/room-defects?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`, {
-        headers: { "ngrok-skip-browser-warning": "true" }
-    }).then(r => r.json()).then(res => {
-        if (res.success) {
-            globalRoomDefects = res.data;
-            renderCanvas(); // 更新圖釘
-            
-            // 渲染清單
-            if (res.data.length > 0) {
-                let html = "";
-                let loadingSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
-                let noImgSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
-
-                res.data.forEach(d => {
-                    let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
+            let container = document.getElementById('defectList');
+            container.innerHTML = "載入中...";
+            fetch(`${apiBaseUrl}/room-defects?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`, {
+                headers: { "ngrok-skip-browser-warning": "true" }
+            }).then(r => r.json()).then(res => {
+                if (res.success) {
+                    globalRoomDefects = res.data;
+                    renderCanvas(); 
                     
-                    // ★ 加上安全判斷 (d.Status 如果是 null 就不會報錯)，並支援模糊比對
-                    let isDone = (d.Status && d.Status.includes('已改善'));
-                    let statusBadge = isDone 
-                        ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
-                        : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
-                        
-                    let cardStyle = isDone 
-                        ? 'border-left: 4px solid #1DB446; opacity: 0.7;' 
-                        : 'border-left: 4px solid #dc3545;';
+                    if (res.data.length > 0) {
+                        let html = "";
+                        let loadingSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
+                        let noImgSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
 
-                    html += `
-                    <div class="defect-card" onclick="editDefect(${d.ID})" style="${cardStyle}">
-                        <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
-                        <div class="defect-info">
-                            <span class="defect-tag">${d.Location}</span>${statusBadge}
-                            <div style="font-size:14px; font-weight:bold; margin-bottom:5px; margin-top:5px;">${d.Description}</div>
-                            <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
-                        </div>
-                    </div>`;
-                });
-                container.innerHTML = html;
+                        res.data.forEach(d => {
+                            let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
+                            
+                            let isDone = (d.Status && d.Status.includes('已改善'));
+                            let statusBadge = isDone 
+                                ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
+                                : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
+                                
+                            // ★ 智慧解析期數，產生對應標籤
+                            let phaseTag = `<span style="background:#6c5ce7; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">1️⃣ 初驗</span>`;
+                            if (d.Description && d.Description.includes('[二驗]')) {
+                                phaseTag = `<span style="background:#e17055; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">2️⃣ 二驗</span>`;
+                            } else if (d.Description && d.Description.includes('[三驗]')) {
+                                phaseTag = `<span style="background:#d63031; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">3️⃣ 三驗</span>`;
+                            }
 
-                // ★ 延遲安全載入圖片，避免破圖
-                res.data.forEach(d => {
-                    if (d.HasImage && d.ImageUrl) {
-                        safeLoadImage(`${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}`, `list-img-${d.ID}`);
+                            let cardStyle = isDone 
+                                ? 'border-left: 4px solid #1DB446; opacity: 0.7;' 
+                                : 'border-left: 4px solid #dc3545;';
+
+                            html += `
+                            <div class="defect-card" onclick="editDefect(${d.ID})" style="${cardStyle}">
+                                <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
+                                <div class="defect-info">
+                                    <span class="defect-tag">${d.Location}</span>${phaseTag}${statusBadge}
+                                    <div style="font-size:14px; font-weight:bold; margin-bottom:5px; margin-top:5px;">${d.Description}</div>
+                                    <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
+                                </div>
+                            </div>`;
+                        });
+                        container.innerHTML = html;
+
+                        res.data.forEach(d => {
+                            if (d.HasImage && d.ImageUrl) {
+                                safeLoadImage(`${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}`, `list-img-${d.ID}`);
+                            }
+                        });
+
+                    } else {
+                        container.innerHTML = "<div style='text-align:center; padding:20px; color:#888;'>✅ 本戶目前無缺失</div>";
                     }
-                });
-
-            } else {
-                container.innerHTML = "<div style='text-align:center; padding:20px; color:#888;'>✅ 本戶目前無缺失</div>";
-            }
+                }
+            });
         }
-    });
-}
+
         function initCanvas() {
             floorCanvas = document.getElementById('floorPlan');
             floorCtx = floorCanvas.getContext('2d');
@@ -346,7 +357,6 @@ function safeLoadImage(url, imgId) {
                 let clickY = (e.offsetY !== undefined) ? e.offsetY * scaleY : (e.clientY - rect.top) * scaleY;
 
                 if (currentTabMode === 'add') {
-                    // 新增模式：直接畫紅點，不管藍點(藍點此時也隱藏)
                     enterAddMode();
                     selectedX = clickX; 
                     selectedY = clickY;
@@ -362,16 +372,20 @@ function safeLoadImage(url, imgId) {
                     setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
 
                 } else if (currentTabMode === 'map') {
-                    // 圖面總覽模式：尋找是否有按到藍色圖釘
                     let clickedExisting = null;
                     let threshold = Math.max(floorCanvas.width * 0.04, 30); 
                     let currentDrawing = document.getElementById('drawingType').value;
 
                     for (let d of globalRoomDefects) {
-                        if (d.DrawingType === currentDrawing && d.px && d.py) {
-                            if (Math.hypot(clickX - d.px, clickY - d.py) <= threshold) {
-                                clickedExisting = d;
-                                break;
+                        if (d.DrawingType === currentDrawing && d.XY_Coord) {
+                            let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                            if (match) {
+                                let px = (parseInt(match[1]) / 100) * floorCanvas.width;
+                                let py = (parseInt(match[2]) / 100) * floorCanvas.height;
+                                if (Math.hypot(clickX - px, clickY - py) <= threshold) {
+                                    clickedExisting = d;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -393,7 +407,6 @@ function safeLoadImage(url, imgId) {
             let currentDrawing = document.getElementById('drawingType').value;
             let currentlyEditingId = document.getElementById('editDefectId').value;
 
-            // 只有在「總覽模式」或「正在編輯」的情況下，才把藍色圖釘畫出來
             if (currentTabMode === 'map' || currentlyEditingId !== "") {
                 globalRoomDefects.forEach(d => {
                     if (d.DrawingType === currentDrawing && d.XY_Coord) {
@@ -402,11 +415,10 @@ function safeLoadImage(url, imgId) {
                             let px = (parseInt(match[1]) / 100) * floorCanvas.width;
                             let py = (parseInt(match[2]) / 100) * floorCanvas.height;
                             
-                            // 若是正在編輯的那一顆圖釘，就跳過不畫藍色 (等一下讓下方 drawSinglePin 畫成紅色)
                             if (d.ID.toString() === currentlyEditingId) {
                                 d.px = px; d.py = py;
                             } else {
-                                drawExistingPin(px, py, d.ID, d.Status);
+                                drawExistingPin(px, py, d.ID, d.Status, d.Description);
                                 d.px = px; d.py = py; 
                             }
                         }
@@ -414,7 +426,6 @@ function safeLoadImage(url, imgId) {
                 });
             }
 
-            // 畫出正在操作的紅圖釘 (新增或編輯時)
             if (isSelected) drawSinglePin(selectedX, selectedY);
         }
 
@@ -429,122 +440,116 @@ function safeLoadImage(url, imgId) {
             floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke();
         }
 
-        function drawExistingPin(px, py, id, status) {
-    let size = Math.max(floorCanvas.width * 0.008, 6); 
-    floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
-    floorCtx.beginPath(); floorCtx.moveTo(px, py); 
-    floorCtx.lineTo(px - size, py - size * 2); floorCtx.lineTo(px + size, py - size * 2); 
-    floorCtx.closePath(); 
-    
-    // ★ 依據狀態決定圖釘顏色 (已改善顯示綠色，待改善顯示原本的藍色)
-    let pinColor = (status && status.includes('已改善')) ? '#1DB446' : '#007bff';
-    
-    floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
-    
-    floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
-    floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
+        function drawExistingPin(px, py, id, status, description) {
+            let size = Math.max(floorCanvas.width * 0.008, 6); 
+            floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
+            floorCtx.beginPath(); floorCtx.moveTo(px, py); 
+            floorCtx.lineTo(px - size, py - size * 2); floorCtx.lineTo(px + size, py - size * 2); 
+            floorCtx.closePath(); 
+            
+            let pinColor = (status && status.includes('已改善')) ? '#1DB446' : '#007bff';
+            
+            floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
+            
+            floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
+            floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
 
-    floorCtx.fillStyle = '#111'; floorCtx.font = `bold ${size*1.8}px sans-serif`;
-    floorCtx.fillText(id, px + size, py - size*2.5);
-}
+            // ★ 智慧解析期數，顯示在圖釘上
+            let phasePrefix = "";
+            if (description && description.includes('[二驗]')) phasePrefix = "②-";
+            else if (description && description.includes('[三驗]')) phasePrefix = "③-";
 
-        // 增加 keepFormOpen 參數，防止編輯時切換圖紙意外關閉表單
-function updateDrawingImage(keepFormOpen = false) {
-    let drawingType = document.getElementById('drawingType').value;
-    const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
-    let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.png`;
-    
-    if (!keepFormOpen) cancelInspection();
-
-    floorImg.onload = () => {
-        floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; 
-        renderCanvas(); 
-    };
-    floorImg.onerror = () => {
-        floorImg.onload = () => { floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; renderCanvas(); };
-        floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=No+Image`;
-    };
-    floorImg.src = targetImgSrc;
-}
-
-        // ================= 編輯與刪除 =================
-        window.editDefect = function(id) {
-    let d = globalRoomDefects.find(x => x.ID === id);
-    if(!d) return;
-
-    currentTabMode = 'map';
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tabMap').classList.add('active');
-    document.getElementById('sharedMapSection').style.display = 'block';
-    document.getElementById('listSection').style.display = 'none';
-
-    // ★ 修正：若圖紙不同，切換圖片但「保留表單開啟狀態」
-    if (document.getElementById('drawingType').value !== d.DrawingType) {
-        document.getElementById('drawingType').value = d.DrawingType;
-        updateDrawingImage(true); 
-    }
-
-    document.getElementById('editDefectId').value = d.ID;
-    document.getElementById('formTitle').innerText = `✏️ 編輯缺失 #${d.ID}`;
-    document.getElementById('submitBtn').innerText = "🔄 更新此筆資料";
-    document.getElementById('deleteBtn').style.display = "block";
-
-            // ★ 新增：編輯模式下顯示狀態選擇，並讀取資料庫狀態
-    document.getElementById('statusGroup').style.display = "block";
-    setDefectStatus(d.Status || '🔴 待改善');
-
-    document.getElementById('locationSelect').value = d.Location || "客餐廳";
-    document.getElementById('descriptionInput').value = d.Description || "";
-    
-    // ★ 修正：預覽圖一樣使用安全加載
-    let previewImg = document.getElementById('previewImg');
-    if (d.HasImage && d.ImageUrl) {
-        previewImg.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
-        previewImg.style.display = 'block';
-        safeLoadImage(`${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}`, 'previewImg');
-    } else {
-        previewImg.src = "";
-        previewImg.style.display = 'none';
-    }
-
-    document.getElementById('formContainer').style.display = 'block';
-    
-    // ★ 關鍵修正：不再向下滾動隱藏圖紙，而是強制滾回最上方讓用戶看見圖釘
-    setTimeout(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, 100);
-
-    // 還原紅色標記
-    if (d.XY_Coord) {
-        let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
-        if (match) {
-            selectedX = (parseInt(match[1]) / 100) * floorCanvas.width;
-            selectedY = (parseInt(match[2]) / 100) * floorCanvas.height;
-            isSelected = true;
+            floorCtx.fillStyle = '#111'; floorCtx.font = `bold ${size*1.8}px sans-serif`;
+            floorCtx.fillText(phasePrefix + id, px + size, py - size*2.5);
         }
-    }
-    
-    document.getElementById('mapHint').style.backgroundColor = "rgba(0, 123, 255, 0.9)";
-    document.getElementById('mapHint').innerText = `📍 正在編輯缺失 #${d.ID}`;
-    renderCanvas();
-}
+
+        function updateDrawingImage(keepFormOpen = false) {
+            let drawingType = document.getElementById('drawingType').value;
+            const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資"; 
+            let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.png`;
+            
+            if (!keepFormOpen) cancelInspection();
+
+            floorImg.onload = () => {
+                floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; 
+                renderCanvas(); 
+            };
+            floorImg.onerror = () => {
+                floorImg.onload = () => { floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; renderCanvas(); };
+                floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=No+Image`;
+            };
+            floorImg.src = targetImgSrc;
+        }
+
+        window.editDefect = function(id) {
+            let d = globalRoomDefects.find(x => x.ID === id);
+            if(!d) return;
+
+            currentTabMode = 'map';
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tabMap').classList.add('active');
+            document.getElementById('sharedMapSection').style.display = 'block';
+            document.getElementById('listSection').style.display = 'none';
+
+            if (document.getElementById('drawingType').value !== d.DrawingType) {
+                document.getElementById('drawingType').value = d.DrawingType;
+                updateDrawingImage(true); 
+            }
+
+            document.getElementById('editDefectId').value = d.ID;
+            document.getElementById('formTitle').innerText = `✏️ 編輯缺失 #${d.ID}`;
+            document.getElementById('submitBtn').innerText = "🔄 更新此筆資料";
+            document.getElementById('deleteBtn').style.display = "block";
+
+            document.getElementById('statusGroup').style.display = "block";
+            setDefectStatus(d.Status || '🔴 待改善');
+
+            document.getElementById('locationSelect').value = d.Location || "客餐廳";
+            document.getElementById('descriptionInput').value = d.Description || "";
+            
+            let previewImg = document.getElementById('previewImg');
+            if (d.HasImage && d.ImageUrl) {
+                previewImg.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
+                previewImg.style.display = 'block';
+                safeLoadImage(`${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}`, 'previewImg');
+            } else {
+                previewImg.src = "";
+                previewImg.style.display = 'none';
+            }
+
+            document.getElementById('formContainer').style.display = 'block';
+            setTimeout(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, 100);
+
+            if (d.XY_Coord) {
+                let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                if (match) {
+                    selectedX = (parseInt(match[1]) / 100) * floorCanvas.width;
+                    selectedY = (parseInt(match[2]) / 100) * floorCanvas.height;
+                    isSelected = true;
+                }
+            }
+            
+            document.getElementById('mapHint').style.backgroundColor = "rgba(0, 123, 255, 0.9)";
+            document.getElementById('mapHint').innerText = `📍 正在編輯缺失 #${d.ID}`;
+            renderCanvas();
+        }
 
         window.enterAddMode = function() {
-    document.getElementById('editDefectId').value = "";
-    document.getElementById('formTitle').innerText = `✍️ 填寫缺失資訊`;
-    document.getElementById('submitBtn').innerText = "📤 儲存";
-    document.getElementById('deleteBtn').style.display = "none";
-    
-    // ★ 新增：新增模式下隱藏狀態選擇，預設為待改善
-    document.getElementById('statusGroup').style.display = "none";
-    document.getElementById('statusInput').value = "🔴 待改善";
+            document.getElementById('editDefectId').value = "";
+            document.getElementById('formTitle').innerText = `✍️ 填寫缺失資訊`;
+            document.getElementById('submitBtn').innerText = "📤 儲存";
+            document.getElementById('deleteBtn').style.display = "none";
+            
+            document.getElementById('statusGroup').style.display = "none";
+            document.getElementById('statusInput').value = "🔴 待改善";
 
-    document.getElementById('locationSelect').value = "客餐廳";
-    document.getElementById('descriptionInput').value = "";
-    document.getElementById('photoInput').value = "";
-    document.getElementById('previewImg').src = "";
-    document.getElementById('previewImg').style.display = "none";
-}
+            document.getElementById('locationSelect').value = "客餐廳";
+            document.getElementById('descriptionInput').value = "";
+            document.getElementById('photoInput').value = "";
+            document.getElementById('previewImg').src = "";
+            document.getElementById('previewImg').style.display = "none";
+        }
 
-        // 關閉表單，抹除正在操作的紅色圖釘
         window.cancelInspection = function() {
             enterAddMode();
             isSelected = false;
@@ -553,11 +558,11 @@ function updateDrawingImage(keepFormOpen = false) {
             if (currentTabMode === 'add') {
                 document.getElementById('mapHint').style.backgroundColor = "rgba(255,234,167,0.9)";
                 document.getElementById('mapHint').style.color = "#d63031";
-                document.getElementById('mapHint').innerText = "📍 點擊標記位置 (新增模式不顯示其他缺失，避免重疊)";
+                document.getElementById('mapHint').innerText = "📍 點擊標記位置 (新增模式)";
             } else if (currentTabMode === 'map') {
                 document.getElementById('mapHint').style.backgroundColor = "rgba(52, 152, 219, 0.9)";
                 document.getElementById('mapHint').style.color = "#fff";
-                document.getElementById('mapHint').innerText = "🗺️ 圖面總覽 (可點擊藍色圖釘編輯)";
+                document.getElementById('mapHint').innerText = "🗺️ 圖面總覽 (點擊圖釘編輯)";
             }
             renderCanvas(); 
         };
@@ -588,10 +593,19 @@ function updateDrawingImage(keepFormOpen = false) {
         async function submitInspection() {
             let editId = document.getElementById('editDefectId').value;
             let fileInput = document.getElementById('photoInput');
-            let desc = document.getElementById('descriptionInput').value;
+            
+            // ★ 新增：自動加上期數標籤
+            let rawDesc = document.getElementById('descriptionInput').value;
+            let inspRound = document.getElementById('inspRound').value;
+            let finalDesc = rawDesc;
+            
+            // 如果是新增模式，且有選擇二驗或三驗，就自動加上前綴
+            if (!editId && inspRound !== "初驗") {
+                finalDesc = `[${inspRound}] ` + rawDesc;
+            }
             
             if (!editId && (!fileInput.files || fileInput.files.length === 0)) return alert("⚠️ 請拍攝缺失照片！");
-            if (!desc.trim()) return alert("⚠️ 請輸入或選擇缺失說明！");
+            if (!finalDesc.trim()) return alert("⚠️ 請輸入或選擇缺失說明！");
 
             let btn = document.getElementById('submitBtn');
             btn.disabled = true; btn.innerText = "⏳ 儲存中...";
@@ -607,10 +621,10 @@ function updateDrawingImage(keepFormOpen = false) {
                 site: currentSite, floor: currentFloor, roomType: currentRoom,
                 drawingType: document.getElementById('drawingType').value,
                 location: document.getElementById('locationSelect').value,
-                description: desc,
+                description: finalDesc,
                 imageBase64: base64Img, 
                 inspector: currentUser,
-                status: document.getElementById('statusInput').value // ★ 傳送狀態給後端
+                status: document.getElementById('statusInput').value 
             };
 
             if (editId) {
@@ -670,15 +684,14 @@ function updateDrawingImage(keepFormOpen = false) {
             x.className = "toast show";
             setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
         }
+        
         window.setDefectStatus = function(status) {
-            // ★ 如果資料庫傳來 ?? 待改善，我們把它淨化還原，避免把亂碼又存回去
             let cleanStatus = (status && status.includes('已改善')) ? '🟢 已改善' : '🔴 待改善';
             document.getElementById('statusInput').value = cleanStatus;
             
             let btnWait = document.getElementById('btnStatusWait');
             let btnDone = document.getElementById('btnStatusDone');
             
-            // ★ 改用 includes 避開 SQL 亂碼的精準比對問題
             if (cleanStatus.includes('待改善')) {
                 btnWait.style.background = '#dc3545'; btnWait.style.color = 'white';
                 btnDone.style.background = 'white'; btnDone.style.color = '#1DB446';
