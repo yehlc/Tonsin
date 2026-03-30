@@ -97,6 +97,15 @@
                 </div>
                 <input type="hidden" id="editDefectId" value="">
 
+                <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6;">
+    <label>📊 驗屋狀態 (複驗確認)</label>
+    <div style="display: flex; gap: 10px;">
+        <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
+        <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
+    </div>
+    <input type="hidden" id="statusInput" value="🔴 待改善">
+</div>
+
                 <div style="display:flex; gap:10px; margin-bottom:20px;">
                     <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存</button>
                     <button id="deleteBtn" onclick="deleteInspection()" style="flex:1; background:#d63031; color:white; font-size:16px; font-weight:bold; border:none; border-radius:8px; display:none;">🗑️ 刪除</button>
@@ -286,18 +295,28 @@ function safeLoadImage(url, imgId) {
                 let noImgSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
 
                 res.data.forEach(d => {
-                    // 如果有照片先塞 loading 圖，否則塞無照片圖
-                    let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
-                    html += `
-                    <div class="defect-card" onclick="editDefect(${d.ID})">
-                        <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
-                        <div class="defect-info">
-                            <span class="defect-tag">${d.Location}</span>
-                            <div style="font-size:14px; font-weight:bold; margin-bottom:5px;">${d.Description}</div>
-                            <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
-                        </div>
-                    </div>`;
-                });
+    let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
+    
+    // ★ 依據狀態產生不同顏色的徽章與邊框
+    let isDone = d.Status.includes('已改善');
+    let statusBadge = isDone 
+        ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
+        : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
+        
+    let cardStyle = isDone 
+        ? 'border-left: 4px solid #1DB446; opacity: 0.7;' // 已改善的項目變綠色且稍微半透明
+        : 'border-left: 4px solid #dc3545;';
+
+    html += `
+    <div class="defect-card" onclick="editDefect(${d.ID})" style="${cardStyle}">
+        <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
+        <div class="defect-info">
+            <span class="defect-tag">${d.Location}</span>${statusBadge}
+            <div style="font-size:14px; font-weight:bold; margin-bottom:5px; margin-top:5px;">${d.Description}</div>
+            <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
+        </div>
+    </div>`;
+});
                 container.innerHTML = html;
 
                 // ★ 延遲安全載入圖片，避免破圖
@@ -387,7 +406,7 @@ function safeLoadImage(url, imgId) {
                             if (d.ID.toString() === currentlyEditingId) {
                                 d.px = px; d.py = py;
                             } else {
-                                drawExistingPin(px, py, d.ID);
+                                drawExistingPin(px, py, d.ID, d.Status);
                                 d.px = px; d.py = py; 
                             }
                         }
@@ -410,19 +429,24 @@ function safeLoadImage(url, imgId) {
             floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke();
         }
 
-        function drawExistingPin(px, py, id) {
-            let size = Math.max(floorCanvas.width * 0.008, 6); 
-            floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
-            floorCtx.beginPath(); floorCtx.moveTo(px, py); 
-            floorCtx.lineTo(px - size, py - size * 2); floorCtx.lineTo(px + size, py - size * 2); 
-            floorCtx.closePath(); floorCtx.fillStyle = '#007bff'; floorCtx.fill(); floorCtx.stroke();
-            
-            floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
-            floorCtx.fillStyle = '#007bff'; floorCtx.fill(); floorCtx.stroke();
+        function drawExistingPin(px, py, id, status) {
+    let size = Math.max(floorCanvas.width * 0.008, 6); 
+    floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
+    floorCtx.beginPath(); floorCtx.moveTo(px, py); 
+    floorCtx.lineTo(px - size, py - size * 2); floorCtx.lineTo(px + size, py - size * 2); 
+    floorCtx.closePath(); 
+    
+    // ★ 依據狀態決定圖釘顏色 (已改善顯示綠色，待改善顯示原本的藍色)
+    let pinColor = (status && status.includes('已改善')) ? '#1DB446' : '#007bff';
+    
+    floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
+    
+    floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
+    floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
 
-            floorCtx.fillStyle = '#111'; floorCtx.font = `bold ${size*1.8}px sans-serif`;
-            floorCtx.fillText(id, px + size, py - size*2.5);
-        }
+    floorCtx.fillStyle = '#111'; floorCtx.font = `bold ${size*1.8}px sans-serif`;
+    floorCtx.fillText(id, px + size, py - size*2.5);
+}
 
         // 增加 keepFormOpen 參數，防止編輯時切換圖紙意外關閉表單
 function updateDrawingImage(keepFormOpen = false) {
@@ -465,6 +489,10 @@ function updateDrawingImage(keepFormOpen = false) {
     document.getElementById('submitBtn').innerText = "🔄 更新此筆資料";
     document.getElementById('deleteBtn').style.display = "block";
 
+            // ★ 新增：編輯模式下顯示狀態選擇，並讀取資料庫狀態
+    document.getElementById('statusGroup').style.display = "block";
+    setDefectStatus(d.Status || '🔴 待改善');
+
     document.getElementById('locationSelect').value = d.Location || "客餐廳";
     document.getElementById('descriptionInput').value = d.Description || "";
     
@@ -500,17 +528,21 @@ function updateDrawingImage(keepFormOpen = false) {
 }
 
         window.enterAddMode = function() {
-            document.getElementById('editDefectId').value = "";
-            document.getElementById('formTitle').innerText = `✍️ 填寫缺失資訊`;
-            document.getElementById('submitBtn').innerText = "📤 儲存";
-            document.getElementById('deleteBtn').style.display = "none";
+    document.getElementById('editDefectId').value = "";
+    document.getElementById('formTitle').innerText = `✍️ 填寫缺失資訊`;
+    document.getElementById('submitBtn').innerText = "📤 儲存";
+    document.getElementById('deleteBtn').style.display = "none";
+    
+    // ★ 新增：新增模式下隱藏狀態選擇，預設為待改善
+    document.getElementById('statusGroup').style.display = "none";
+    document.getElementById('statusInput').value = "🔴 待改善";
 
-            document.getElementById('locationSelect').value = "客餐廳";
-            document.getElementById('descriptionInput').value = "";
-            document.getElementById('photoInput').value = "";
-            document.getElementById('previewImg').src = "";
-            document.getElementById('previewImg').style.display = "none";
-        }
+    document.getElementById('locationSelect').value = "客餐廳";
+    document.getElementById('descriptionInput').value = "";
+    document.getElementById('photoInput').value = "";
+    document.getElementById('previewImg').src = "";
+    document.getElementById('previewImg').style.display = "none";
+}
 
         // 關閉表單，抹除正在操作的紅色圖釘
         window.cancelInspection = function() {
@@ -578,6 +610,7 @@ function updateDrawingImage(keepFormOpen = false) {
                 description: desc,
                 imageBase64: base64Img, 
                 inspector: currentUser
+                status: document.getElementById('statusInput').value // ★ 傳送狀態給後端
             };
 
             if (editId) {
@@ -637,6 +670,19 @@ function updateDrawingImage(keepFormOpen = false) {
             x.className = "toast show";
             setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
         }
+        window.setDefectStatus = function(status) {
+    document.getElementById('statusInput').value = status;
+    let btnWait = document.getElementById('btnStatusWait');
+    let btnDone = document.getElementById('btnStatusDone');
+    
+    if (status === '🔴 待改善' || status === '❌ 複驗未過') {
+        btnWait.style.background = '#dc3545'; btnWait.style.color = 'white';
+        btnDone.style.background = 'white'; btnDone.style.color = '#1DB446';
+    } else {
+        btnWait.style.background = 'white'; btnWait.style.color = '#dc3545';
+        btnDone.style.background = '#1DB446'; btnDone.style.color = 'white';
+    }
+};
     </script>
 </body>
 </html>
