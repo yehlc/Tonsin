@@ -7,13 +7,13 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; overflow-x: hidden; touch-action: manipulation; }
-        .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
         .title-box { text-align: center; }
         .main-title { font-size: 18px; font-weight: bold; }
         .sub-title { font-size: 12px; opacity: 0.8; }
         
-        .tabs { display: flex; background: white; border-bottom: 1px solid #ddd; }
+        .tabs { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 60px; z-index: 99; }
         .tab { flex: 1; text-align: center; padding: 12px; font-weight: bold; color: #555; cursor: pointer; font-size: 14px; }
         .tab.active { color: #8e44ad; border-bottom: 3px solid #8e44ad; }
         
@@ -26,9 +26,10 @@
         #floorPlan { width: 100%; height: auto; background: #fff; cursor: crosshair; display: block; }
         .hint-bar { position: absolute; top: 0; left: 0; right: 0; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; z-index: 10; pointer-events: none; }
         
-        .form-container { padding: 15px; background: white; display: none; }
+        /* 表單加了一點陰影與平滑過渡，讓它看起來更像 Pop-up */
+        .form-container { padding: 20px 15px; background: white; display: none; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); margin-top: 5px; border-top-left-radius: 12px; border-top-right-radius: 12px;}
         .form-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
-        .form-header h3 { margin: 0; color: #2d3436; font-size: 16px; }
+        .form-header h3 { margin: 0; color: #2d3436; font-size: 18px; }
         .btn-close-form { background: #ffeaa7; color: #d63031; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         
         .form-group { margin-bottom: 15px; }
@@ -47,7 +48,8 @@
         .btn-export { width: 100%; padding: 15px; background: #007bff; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-top: 15px; }
         
         #listSection { display: none; padding: 15px; }
-        .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; cursor: pointer; border-left: 4px solid #8e44ad; }
+        .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; cursor: pointer; border-left: 4px solid #8e44ad; transition: background 0.2s; }
+        .defect-card:active { background: #f8f9fa; }
         .defect-card img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; background: #eee; }
         .defect-info { flex: 1; }
         .defect-tag { display: inline-block; background: #ffeaa7; color: #d63031; font-size: 12px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-bottom: 4px; }
@@ -103,7 +105,7 @@
                 <input type="hidden" id="editDefectId" value="">
 
                 <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6;">
-                    <label>📊 驗屋狀態 (複驗確認)</label>
+                    <label>📊 驗屋狀態 (狀態判定)</label>
                     <div style="display: flex; gap: 10px;">
                         <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
                         <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
@@ -112,7 +114,7 @@
                 </div>
 
                 <div style="display:flex; gap:10px; margin-bottom:20px;">
-                    <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存</button>
+                    <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存並送出</button>
                     <button id="deleteBtn" onclick="deleteInspection()" style="flex:1; background:#d63031; color:white; font-size:16px; font-weight:bold; border:none; border-radius:8px; display:none;">🗑️ 刪除</button>
                 </div>
 
@@ -205,6 +207,7 @@
             switchTab('add'); 
         });
 
+        // 繞過 Ngrok 警告讀取圖片
         function safeLoadImage(url, imgId) {
             let imgEl = document.getElementById(imgId);
             if(!imgEl) return;
@@ -220,6 +223,16 @@
             .catch(e => {
                 imgEl.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
             });
+        }
+
+        // ★ 平滑捲動小工具 (解決您說的跳轉問題)
+        function smoothScrollToForm() {
+            setTimeout(() => { 
+                let formEl = document.getElementById('formContainer');
+                // 扣除上方 header (60px) 與 tabs (45px) 的高度，讓表單精準出現在螢幕中間
+                let offset = formEl.getBoundingClientRect().top + window.scrollY - 110;
+                window.scrollTo({ top: offset, behavior: 'smooth' }); 
+            }, 100);
         }
 
         function buildFlatRoomList(initialRoom) {
@@ -244,10 +257,8 @@
             currentFlatIndex += direction;
             if (currentFlatIndex < 0) currentFlatIndex = flatRoomList.length - 1;
             if (currentFlatIndex >= flatRoomList.length) currentFlatIndex = 0;
-            
             currentFloor = flatRoomList[currentFlatIndex].floor;
             currentRoom = flatRoomList[currentFlatIndex].room;
-            
             updateUI();
         }
 
@@ -282,22 +293,19 @@
             renderCanvas();
         }
 
-        // ★ 當下拉選單切換時，重新渲染圖釘與清單
         window.applyPhaseFilter = function() {
             renderCanvas();
             renderDefectList();
         };
 
-        // ★ 拆分渲染清單的功能，加入過濾邏輯
         function renderDefectList() {
             let container = document.getElementById('defectList');
             let currentRound = document.getElementById('inspRound').value;
             
-            // 過濾邏輯：初驗只看初驗；二驗看初+二；三驗全看
             let filteredDefects = globalRoomDefects.filter(d => {
                 if (currentRound === '初驗') return d.Phase === '初驗';
                 if (currentRound === '二驗') return d.Phase === '初驗' || d.Phase === '二驗';
-                return true; // 三驗
+                return true; 
             });
 
             if (filteredDefects.length > 0) {
@@ -312,7 +320,6 @@
                         ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
                         : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
                         
-                    // 讀取資料庫真實的 Phase 來顯示徽章
                     let phaseTag = `<span style="background:#6c5ce7; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">1️⃣ 初驗</span>`;
                     if (d.Phase === '二驗') phaseTag = `<span style="background:#e17055; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">2️⃣ 二驗</span>`;
                     if (d.Phase === '三驗') phaseTag = `<span style="background:#d63031; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">3️⃣ 三驗</span>`;
@@ -343,7 +350,6 @@
             }
         }
 
-        // API 載入後呼叫獨立的 renderDefectList
         function loadRoomDefects() {
             let container = document.getElementById('defectList');
             container.innerHTML = "載入中...";
@@ -383,10 +389,8 @@
                     
                     renderCanvas();
                     
-                    // ★ 修復重點：確保有取得 formContainer 並讓它顯示出來
-                    let formContainer = document.getElementById('formContainer');
-                    formContainer.style.display = 'block';
-                    setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+                    document.getElementById('formContainer').style.display = 'block';
+                    smoothScrollToForm(); // ★ 呼叫平滑捲動
 
                 } else if (currentTabMode === 'map') {
                     let clickedExisting = null;
@@ -424,7 +428,6 @@
             });
         }
 
-        // 讓圖紙依照下拉選單進行期數過濾
         function renderCanvas() {
             if(!floorImg.complete || !floorImg.src) return;
             floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height);
@@ -436,16 +439,13 @@
 
             if (currentTabMode === 'map' || currentlyEditingId !== "") {
                 globalRoomDefects.forEach(d => {
-                    // 過濾非本圖紙的圖釘
                     if (d.DrawingType !== currentDrawing || !d.XY_Coord) return;
                     
-                    // 過濾邏輯：初驗只畫初驗；二驗畫初+二；三驗全畫
                     let showPin = false;
                     if (currentRound === '初驗' && d.Phase === '初驗') showPin = true;
                     if (currentRound === '二驗' && (d.Phase === '初驗' || d.Phase === '二驗')) showPin = true;
                     if (currentRound === '三驗') showPin = true;
 
-                    // 如果正在編輯這顆圖釘，無視過濾器強制顯示
                     if (d.ID.toString() === currentlyEditingId) showPin = true;
 
                     if (showPin) {
@@ -457,7 +457,7 @@
                             if (d.ID.toString() === currentlyEditingId) {
                                 d.px = px; d.py = py;
                             } else {
-                                drawExistingPin(px, py, d.ID, d.Status, d.Phase); // 傳入 Phase
+                                drawExistingPin(px, py, d.ID, d.Status, d.Phase); 
                                 d.px = px; d.py = py; 
                             }
                         }
@@ -479,7 +479,6 @@
             floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke();
         }
 
-        // 圖釘中間畫的數字由資料庫的 Phase 決定
         function drawExistingPin(px, py, id, status, phase) {
             let size = Math.max(floorCanvas.width * 0.008, 6); 
             floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
@@ -494,7 +493,6 @@
             floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
             floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
 
-            // 根據資料庫存的期數決定前綴
             let phasePrefix = "";
             if (phase === '二驗') phasePrefix = "②-";
             else if (phase === '三驗') phasePrefix = "③-";
@@ -525,6 +523,7 @@
             let d = globalRoomDefects.find(x => x.ID === id);
             if(!d) return;
 
+            // 如果原本在「清單」模式，點擊後切換回「圖面」模式並載入對應圖紙
             currentTabMode = 'map';
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.getElementById('tabMap').classList.add('active');
@@ -557,9 +556,7 @@
                 previewImg.style.display = 'none';
             }
 
-            document.getElementById('formContainer').style.display = 'block';
-            setTimeout(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, 100);
-
+            // ★ 還原紅色標記
             if (d.XY_Coord) {
                 let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
                 if (match) {
@@ -572,6 +569,10 @@
             document.getElementById('mapHint').style.backgroundColor = "rgba(0, 123, 255, 0.9)";
             document.getElementById('mapHint').innerText = `📍 正在編輯缺失 #${d.ID}`;
             renderCanvas();
+            
+            // ★ 修復：平滑捲動到表單區塊
+            document.getElementById('formContainer').style.display = 'block';
+            smoothScrollToForm();
         }
 
         window.enterAddMode = function() {
@@ -656,7 +657,7 @@
                 imageBase64: base64Img, 
                 inspector: currentUser,
                 status: document.getElementById('statusInput').value,
-                phase: document.getElementById('inspRound').value // ★ 將目前的期數送出
+                phase: document.getElementById('inspRound').value
             };
 
             if (editId) {
@@ -674,7 +675,10 @@
                 if (res.success) { 
                     showToast(editId ? "✅ 缺失更新成功！" : "✅ 缺失新增成功！"); 
                     cancelInspection(); 
-                    loadRoomDefects(); 
+                    loadRoomDefects();
+                    
+                    // ★ 送出完成後，將畫面稍微拉回圖紙，方便繼續點擊
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else { alert("❌ 操作失敗：" + res.error); }
             }).catch(e => alert("❌ 連線異常")).finally(() => {
                 btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存";
