@@ -295,28 +295,28 @@ function safeLoadImage(url, imgId) {
                 let noImgSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
 
                 res.data.forEach(d => {
-    let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
-    
-    // ★ 依據狀態產生不同顏色的徽章與邊框
-    let isDone = d.Status.includes('已改善');
-    let statusBadge = isDone 
-        ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
-        : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
-        
-    let cardStyle = isDone 
-        ? 'border-left: 4px solid #1DB446; opacity: 0.7;' // 已改善的項目變綠色且稍微半透明
-        : 'border-left: 4px solid #dc3545;';
+                    let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
+                    
+                    // ★ 加上安全判斷 (d.Status 如果是 null 就不會報錯)，並支援模糊比對
+                    let isDone = (d.Status && d.Status.includes('已改善'));
+                    let statusBadge = isDone 
+                        ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
+                        : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
+                        
+                    let cardStyle = isDone 
+                        ? 'border-left: 4px solid #1DB446; opacity: 0.7;' 
+                        : 'border-left: 4px solid #dc3545;';
 
-    html += `
-    <div class="defect-card" onclick="editDefect(${d.ID})" style="${cardStyle}">
-        <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
-        <div class="defect-info">
-            <span class="defect-tag">${d.Location}</span>${statusBadge}
-            <div style="font-size:14px; font-weight:bold; margin-bottom:5px; margin-top:5px;">${d.Description}</div>
-            <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
-        </div>
-    </div>`;
-});
+                    html += `
+                    <div class="defect-card" onclick="editDefect(${d.ID})" style="${cardStyle}">
+                        <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
+                        <div class="defect-info">
+                            <span class="defect-tag">${d.Location}</span>${statusBadge}
+                            <div style="font-size:14px; font-weight:bold; margin-bottom:5px; margin-top:5px;">${d.Description}</div>
+                            <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
+                        </div>
+                    </div>`;
+                });
                 container.innerHTML = html;
 
                 // ★ 延遲安全載入圖片，避免破圖
@@ -609,7 +609,7 @@ function updateDrawingImage(keepFormOpen = false) {
                 location: document.getElementById('locationSelect').value,
                 description: desc,
                 imageBase64: base64Img, 
-                inspector: currentUser
+                inspector: currentUser,
                 status: document.getElementById('statusInput').value // ★ 傳送狀態給後端
             };
 
@@ -671,18 +671,22 @@ function updateDrawingImage(keepFormOpen = false) {
             setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
         }
         window.setDefectStatus = function(status) {
-    document.getElementById('statusInput').value = status;
-    let btnWait = document.getElementById('btnStatusWait');
-    let btnDone = document.getElementById('btnStatusDone');
-    
-    if (status === '🔴 待改善' || status === '❌ 複驗未過') {
-        btnWait.style.background = '#dc3545'; btnWait.style.color = 'white';
-        btnDone.style.background = 'white'; btnDone.style.color = '#1DB446';
-    } else {
-        btnWait.style.background = 'white'; btnWait.style.color = '#dc3545';
-        btnDone.style.background = '#1DB446'; btnDone.style.color = 'white';
-    }
-};
+            // ★ 如果資料庫傳來 ?? 待改善，我們把它淨化還原，避免把亂碼又存回去
+            let cleanStatus = (status && status.includes('已改善')) ? '🟢 已改善' : '🔴 待改善';
+            document.getElementById('statusInput').value = cleanStatus;
+            
+            let btnWait = document.getElementById('btnStatusWait');
+            let btnDone = document.getElementById('btnStatusDone');
+            
+            // ★ 改用 includes 避開 SQL 亂碼的精準比對問題
+            if (cleanStatus.includes('待改善')) {
+                btnWait.style.background = '#dc3545'; btnWait.style.color = 'white';
+                btnDone.style.background = 'white'; btnDone.style.color = '#1DB446';
+            } else {
+                btnWait.style.background = 'white'; btnWait.style.color = '#dc3545';
+                btnDone.style.background = '#1DB446'; btnDone.style.color = 'white';
+            }
+        };
     </script>
 </body>
 </html>
