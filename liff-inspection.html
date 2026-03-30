@@ -26,7 +26,6 @@
         #floorPlan { width: 100%; height: auto; background: #fff; cursor: crosshair; display: block; }
         .hint-bar { position: absolute; top: 0; left: 0; right: 0; background: rgba(255,234,167,0.9); color: #d63031; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; z-index: 10; pointer-events: none; }
         
-        /* 表單加了一點陰影與平滑過渡，讓它看起來更像 Pop-up */
         .form-container { padding: 20px 15px; background: white; display: none; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); margin-top: 5px; border-top-left-radius: 12px; border-top-right-radius: 12px;}
         .form-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
         .form-header h3 { margin: 0; color: #2d3436; font-size: 18px; }
@@ -44,7 +43,13 @@
         .camera-input { position: absolute; top: 0; left: 0; opacity: 0; width: 100%; height: 100%; }
         #previewImg { width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; display: none; margin-bottom: 10px; border: 1px solid #ddd; }
 
-        .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 20px; }
+        /* 塗鴉工具與 Canvas 樣式 */
+        .draw-tools { display: none; gap: 10px; margin-bottom: 10px; justify-content: center; }
+        .tool-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid #ccc; background: white; font-size: 13px; cursor: pointer; transition: 0.2s;}
+        .tool-btn.active { background: #2d3436; color: white; border-color: #2d3436; }
+        #drawCanvas { width: 100%; border: 1px solid #ddd; border-radius: 6px; display: none; touch-action: none; background: #eee; cursor: crosshair; }
+
+        .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .btn-export { width: 100%; padding: 15px; background: #007bff; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-top: 15px; }
         
         #listSection { display: none; padding: 15px; }
@@ -59,13 +64,7 @@
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
         
-        /* ★ 新增：塗鴉工具與 Canvas 樣式 */
-        .draw-tools { display: none; gap: 10px; margin-bottom: 10px; justify-content: center; }
-        .tool-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid #ccc; background: white; font-size: 13px; cursor: pointer; transition: 0.2s;}
-        .tool-btn.active { background: #2d3436; color: white; border-color: #2d3436; }
-        #drawCanvas { width: 100%; border: 1px solid #ddd; border-radius: 6px; display: none; touch-action: none; background: #eee; cursor: crosshair; }
-        
-        /* ★ 新增：離線狀態橫幅 */
+        /* 離線狀態橫幅 */
         #offlineBanner { display: none; background: #e17055; color: white; padding: 12px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 1001; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
     </style>
 </head>
@@ -87,7 +86,6 @@
     </div>
 
     <div class="swipe-area" id="swipeArea">
-        
         <div id="sharedMapSection">
             <div class="toolbar" style="display: flex; gap: 10px;">
                 <select id="inspRound" onchange="applyPhaseFilter()" style="flex: 1; border-color: #8e44ad; color: #8e44ad; background: #fdfaf6;">
@@ -132,7 +130,7 @@
                     <label style="display:flex; justify-content:space-between; align-items:center;">
                         <span>📍 缺失所在空間</span>
                         <span style="font-size:12px; font-weight:normal; color:#555;">
-                            <input type="checkbox" id="stickyLocation" checked> 連續新增保留選項
+                            <input type="checkbox" id="stickyLocation" checked> 保留選項
                         </span>
                     </label>
                     <select id="locationSelect">
@@ -155,8 +153,7 @@
                         📸 點擊拍攝缺失照片
                         <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="loadPhotoToCanvas(this)">
                     </div>
-                    <img id="previewImg" src="" style="display:none; width:100%; border-radius:6px; margin-bottom:10px;">
-                    
+                    <img id="previewImg" src="" style="display:none; width:100%; border-radius:6px; margin-bottom:10px; border:1px solid #ddd;">
                     <div class="draw-tools" id="drawTools">
                         <button type="button" class="tool-btn active" onclick="setBrushColor('red', this)">🔴 紅筆</button>
                         <button type="button" class="tool-btn" onclick="setBrushColor('yellow', this)">🟡 黃筆</button>
@@ -215,10 +212,11 @@
         let globalRoomDefects = []; 
         let currentTabMode = 'add';
 
+        // 塗鴉相關變數
         let drawCanvas, drawCtx;
         let isDrawing = false;
         let brushColor = 'red';
-        let originalImgData = new Image(); // 用來保存原始乾淨照片以便復原
+        let originalImgData = new Image(); 
 
         liff.init({ liffId: myLiffId }).then(() => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -232,13 +230,13 @@
             initCanvas();
             updateUI(); 
             switchTab('add'); 
-            // ★ 新增：初始化離線偵測
+            
+            // 初始化離線偵測
             window.addEventListener('online', checkOfflineData);
             window.addEventListener('offline', checkOfflineData);
-            checkOfflineData(); // 一進系統先檢查有沒有上次沒傳完的
+            checkOfflineData();
         });
 
-        // 繞過 Ngrok 警告讀取圖片
         function safeLoadImage(url, imgId) {
             let imgEl = document.getElementById(imgId);
             if(!imgEl) return;
@@ -256,11 +254,9 @@
             });
         }
 
-        // ★ 平滑捲動小工具 (解決您說的跳轉問題)
         function smoothScrollToForm() {
             setTimeout(() => { 
                 let formEl = document.getElementById('formContainer');
-                // 扣除上方 header (60px) 與 tabs (45px) 的高度，讓表單精準出現在螢幕中間
                 let offset = formEl.getBoundingClientRect().top + window.scrollY - 110;
                 window.scrollTo({ top: offset, behavior: 'smooth' }); 
             }, 100);
@@ -421,7 +417,7 @@
                     renderCanvas();
                     
                     document.getElementById('formContainer').style.display = 'block';
-                    smoothScrollToForm(); // ★ 呼叫平滑捲動
+                    smoothScrollToForm();
 
                 } else if (currentTabMode === 'map') {
                     let clickedExisting = null;
@@ -554,7 +550,6 @@
             let d = globalRoomDefects.find(x => x.ID === id);
             if(!d) return;
 
-            // 如果原本在「清單」模式，點擊後切換回「圖面」模式並載入對應圖紙
             currentTabMode = 'map';
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.getElementById('tabMap').classList.add('active');
@@ -578,6 +573,11 @@
             document.getElementById('descriptionInput').value = d.Description || "";
             
             let previewImg = document.getElementById('previewImg');
+            
+            // 編輯模式下，先隱藏畫布
+            document.getElementById('drawCanvas').style.display = "none";
+            document.getElementById('drawTools').style.display = "none";
+
             if (d.HasImage && d.ImageUrl) {
                 previewImg.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
                 previewImg.style.display = 'block';
@@ -587,7 +587,9 @@
                 previewImg.style.display = 'none';
             }
 
-            // ★ 還原紅色標記
+            document.getElementById('formContainer').style.display = 'block';
+            smoothScrollToForm();
+
             if (d.XY_Coord) {
                 let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
                 if (match) {
@@ -600,10 +602,6 @@
             document.getElementById('mapHint').style.backgroundColor = "rgba(0, 123, 255, 0.9)";
             document.getElementById('mapHint').innerText = `📍 正在編輯缺失 #${d.ID}`;
             renderCanvas();
-            
-            // ★ 修復：平滑捲動到表單區塊
-            document.getElementById('formContainer').style.display = 'block';
-            smoothScrollToForm();
         }
 
         window.enterAddMode = function() {
@@ -615,7 +613,6 @@
             document.getElementById('statusGroup').style.display = "none";
             document.getElementById('statusInput').value = "🔴 待改善";
 
-            // ★ 修改：如果有打勾「保留選項」，就不要清空空間下拉選單
             if (!document.getElementById('stickyLocation').checked) {
                 document.getElementById('locationSelect').value = "客餐廳";
             }
@@ -625,7 +622,6 @@
             document.getElementById('previewImg').src = "";
             document.getElementById('previewImg').style.display = "none";
             
-            // ★ 清空畫布
             document.getElementById('drawCanvas').style.display = "none";
             document.getElementById('drawTools').style.display = "none";
             if (drawCtx) drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
@@ -660,9 +656,9 @@
             loadRoomDefects(); 
         }
 
-        // ★ 新增：將拍好的照片放上 Canvas 並啟動塗鴉模式
+        // ================= 塗鴉功能 =================
         window.loadPhotoToCanvas = function(input) {
-            document.getElementById('previewImg').style.display = 'none'; // 隱藏舊的預覽
+            document.getElementById('previewImg').style.display = 'none'; 
             if (input.files && input.files[0]) {
                 let reader = new FileReader();
                 reader.onload = e => {
@@ -670,7 +666,6 @@
                         drawCanvas = document.getElementById('drawCanvas');
                         drawCtx = drawCanvas.getContext('2d');
                         
-                        // 計算縮放比例，讓畫布適應手機寬度
                         let containerWidth = document.getElementById('formContainer').clientWidth - 30;
                         let scale = containerWidth / originalImgData.width;
                         drawCanvas.width = containerWidth;
@@ -680,7 +675,7 @@
                         
                         drawCanvas.style.display = 'block';
                         document.getElementById('drawTools').style.display = 'flex';
-                        initDrawing(); // 綁定手指觸控事件
+                        initDrawing();
                     };
                     originalImgData.src = e.target.result;
                 };
@@ -717,11 +712,12 @@
             }
         };
 
+        // ================= 送出與離線處理 =================
         async function submitInspection() {
             let editId = document.getElementById('editDefectId').value;
             let fileInput = document.getElementById('photoInput');
             let desc = document.getElementById('descriptionInput').value;
-            let drawCanvas = document.getElementById('drawCanvas');
+            let canvasBox = document.getElementById('drawCanvas');
             
             let rawDesc = desc;
             let inspRound = document.getElementById('inspRound').value;
@@ -731,8 +727,7 @@
                 finalDesc = `[${inspRound}] ` + rawDesc;
             }
             
-            // 判斷是否有照片 (如果是編輯模式可以沒照片，新增一定要有)
-            if (!editId && drawCanvas.style.display !== 'block' && (!fileInput.files || fileInput.files.length === 0)) {
+            if (!editId && canvasBox.style.display !== 'block' && (!fileInput.files || fileInput.files.length === 0)) {
                 return alert("⚠️ 請拍攝缺失照片！");
             }
             if (!finalDesc.trim()) return alert("⚠️ 請輸入或選擇缺失說明！");
@@ -740,13 +735,12 @@
             let btn = document.getElementById('submitBtn');
             btn.disabled = true; btn.innerText = "⏳ 儲存中...";
 
-            // ★ 修改：從畫布取得塗鴉後的 base64，如果沒畫布才走原本的 fileToBase64
             let base64Img = null;
-            if (drawCanvas.style.display === 'block') {
-                // 將塗鴉後的畫布轉成 jpg 格式，品質 0.8 以縮小容量
-                base64Img = drawCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            if (canvasBox.style.display === 'block') {
+                base64Img = canvasBox.toDataURL('image/jpeg', 0.8).split(',')[1];
             } else if (fileInput.files && fileInput.files.length > 0) {
                 base64Img = await fileToBase64(fileInput.files[0]);
+                base64Img = base64Img.split(',')[1];
             }
             
             let url = editId ? `${apiBaseUrl}/update-inspection-defect` : `${apiBaseUrl}/submit-inspection`;
@@ -770,22 +764,18 @@
                 payload.xyCoord = `[座標] X:${xPercent}%, Y:${yPercent}%`; 
             }
 
-            // ★ 新增：離線模式判斷
             if (!navigator.onLine) {
-                // 手機無網路時，存入 localStorage
                 let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
                 offlineQueue.push({ url: url, payload: payload, isEdit: !!editId });
                 localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
                 
-                showToast("📶 已離線暫存！恢復網路後點擊上方橘色橫幅上傳");
+                showToast("📶 已離線暫存！恢復網路後點擊上方橫幅上傳");
                 cancelInspection();
-                checkOfflineData(); // 更新橫幅顯示數量
-                
+                checkOfflineData(); 
                 btn.disabled = false; btn.innerText = "📤 儲存並送出";
                 return;
             }
 
-            // 正常有網路時上傳
             fetch(url, {
                 method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify(payload)
@@ -797,7 +787,6 @@
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else { alert("❌ 操作失敗：" + res.error); }
             }).catch(e => {
-                // 如果連線失敗 (可能伺服器死掉或訊號剛好斷)，也自動幫他存離線
                 let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
                 offlineQueue.push({ url: url, payload: payload, isEdit: !!editId });
                 localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
@@ -808,21 +797,21 @@
                 btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存並送出";
             });
         }
-        // ★ 新增：檢查與執行離線資料同步
+
         window.checkOfflineData = function() {
             let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
             let banner = document.getElementById('offlineBanner');
             
             if (!navigator.onLine) {
                 banner.style.display = 'block';
-                banner.style.backgroundColor = '#e17055'; // 紅橘色警告
-                banner.innerText = offlineQueue.length > 0 ? `⚠️ 無網路！目前有 ${offlineQueue.length} 筆暫存資料待上傳` : `⚠️ 目前無網路連線，資料將暫存於手機`;
+                banner.style.backgroundColor = '#e17055'; 
+                banner.innerText = offlineQueue.length > 0 ? `⚠️ 無網路！目前有 ${offlineQueue.length} 筆暫存待上傳` : `⚠️ 目前無網路連線，資料將暫存於手機`;
             } else if (offlineQueue.length > 0) {
                 banner.style.display = 'block';
-                banner.style.backgroundColor = '#00b894'; // 綠色提醒
-                banner.innerText = `🔄 網路已恢復！有 ${offlineQueue.length} 筆暫存資料，點此立即上傳`;
+                banner.style.backgroundColor = '#00b894'; 
+                banner.innerText = `🔄 網路已恢復！有 ${offlineQueue.length} 筆暫存，點此立即上傳`;
             } else {
-                banner.style.display = 'none'; // 有網路且沒資料，隱藏
+                banner.style.display = 'none'; 
             }
         }
 
@@ -835,7 +824,7 @@
             let banner = document.getElementById('offlineBanner');
             banner.innerText = "⏳ 同步上傳中，請勿關閉畫面...";
             banner.style.backgroundColor = '#0984e3';
-            banner.onclick = null; // 防連點
+            banner.onclick = null; 
 
             let successCount = 0;
             let failedQueue = [];
@@ -852,20 +841,19 @@
                     if (res.success) {
                         successCount++;
                     } else {
-                        failedQueue.push(item); // 失敗的留著下次傳
+                        failedQueue.push(item); 
                     }
                 } catch (e) {
                     failedQueue.push(item);
                 }
             }
 
-            // 更新 localStorage (只保留失敗的)
             localStorage.setItem('tonsin_offline_defects', JSON.stringify(failedQueue));
             
             showToast(`✅ 成功同步 ${successCount} 筆資料！`);
-            banner.onclick = syncOfflineData; // 恢復點擊功能
-            checkOfflineData(); // 重新檢查狀態
-            loadRoomDefects(); // 重新讀取圖紙與清單
+            banner.onclick = syncOfflineData; 
+            checkOfflineData(); 
+            loadRoomDefects(); 
         }
 
         window.deleteInspection = function() {
