@@ -251,7 +251,6 @@
             updateUI();
         }
 
-        // ================= Tab 控制邏輯 =================
         function switchTab(tab) {
             currentTabMode = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -283,7 +282,68 @@
             renderCanvas();
         }
 
-        // ★ 修改：API 載入後呼叫獨立的 renderDefectList
+        // ★ 當下拉選單切換時，重新渲染圖釘與清單
+        window.applyPhaseFilter = function() {
+            renderCanvas();
+            renderDefectList();
+        };
+
+        // ★ 拆分渲染清單的功能，加入過濾邏輯
+        function renderDefectList() {
+            let container = document.getElementById('defectList');
+            let currentRound = document.getElementById('inspRound').value;
+            
+            // 過濾邏輯：初驗只看初驗；二驗看初+二；三驗全看
+            let filteredDefects = globalRoomDefects.filter(d => {
+                if (currentRound === '初驗') return d.Phase === '初驗';
+                if (currentRound === '二驗') return d.Phase === '初驗' || d.Phase === '二驗';
+                return true; // 三驗
+            });
+
+            if (filteredDefects.length > 0) {
+                let html = "";
+                let loadingSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
+                let noImgSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
+
+                filteredDefects.forEach(d => {
+                    let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
+                    let isDone = (d.Status && d.Status.includes('已改善'));
+                    let statusBadge = isDone 
+                        ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
+                        : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
+                        
+                    // 讀取資料庫真實的 Phase 來顯示徽章
+                    let phaseTag = `<span style="background:#6c5ce7; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">1️⃣ 初驗</span>`;
+                    if (d.Phase === '二驗') phaseTag = `<span style="background:#e17055; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">2️⃣ 二驗</span>`;
+                    if (d.Phase === '三驗') phaseTag = `<span style="background:#d63031; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">3️⃣ 三驗</span>`;
+
+                    let cardStyle = isDone 
+                        ? 'border-left: 4px solid #1DB446; opacity: 0.7;' 
+                        : 'border-left: 4px solid #dc3545;';
+
+                    html += `
+                    <div class="defect-card" onclick="editDefect(${d.ID})" style="${cardStyle}">
+                        <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
+                        <div class="defect-info">
+                            <span class="defect-tag">${d.Location}</span>${phaseTag}${statusBadge}
+                            <div style="font-size:14px; font-weight:bold; margin-bottom:5px; margin-top:5px;">${d.Description}</div>
+                            <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
+                        </div>
+                    </div>`;
+                });
+                container.innerHTML = html;
+
+                filteredDefects.forEach(d => {
+                    if (d.HasImage && d.ImageUrl) {
+                        safeLoadImage(`${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}`, `list-img-${d.ID}`);
+                    }
+                });
+            } else {
+                container.innerHTML = "<div style='text-align:center; padding:20px; color:#888;'>✅ 目前畫面無缺失</div>";
+            }
+        }
+
+        // API 載入後呼叫獨立的 renderDefectList
         function loadRoomDefects() {
             let container = document.getElementById('defectList');
             container.innerHTML = "載入中...";
@@ -293,7 +353,7 @@
                 if (res.success) {
                     globalRoomDefects = res.data;
                     renderCanvas(); 
-                    renderDefectList(); // 呼叫上方新寫的方法
+                    renderDefectList();
                 }
             });
         }
@@ -322,6 +382,8 @@
                     document.getElementById('mapHint').innerText = "✅ 已標記新位置 (請在下方填寫資訊)";
                     
                     renderCanvas();
+                    
+                    // ★ 修復重點：確保有取得 formContainer 並讓它顯示出來
                     let formContainer = document.getElementById('formContainer');
                     formContainer.style.display = 'block';
                     setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
@@ -330,9 +392,17 @@
                     let clickedExisting = null;
                     let threshold = Math.max(floorCanvas.width * 0.04, 30); 
                     let currentDrawing = document.getElementById('drawingType').value;
+                    let currentRound = document.getElementById('inspRound').value;
 
                     for (let d of globalRoomDefects) {
-                        if (d.DrawingType === currentDrawing && d.XY_Coord) {
+                        if (d.DrawingType !== currentDrawing || !d.XY_Coord) continue;
+                        
+                        let isVisible = false;
+                        if (currentRound === '初驗' && d.Phase === '初驗') isVisible = true;
+                        if (currentRound === '二驗' && (d.Phase === '初驗' || d.Phase === '二驗')) isVisible = true;
+                        if (currentRound === '三驗') isVisible = true;
+                        
+                        if (isVisible) {
                             let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
                             if (match) {
                                 let px = (parseInt(match[1]) / 100) * floorCanvas.width;
@@ -354,7 +424,7 @@
             });
         }
 
-        // ★ 修改：讓圖紙也能依照下拉選單進行期數過濾
+        // 讓圖紙依照下拉選單進行期數過濾
         function renderCanvas() {
             if(!floorImg.complete || !floorImg.src) return;
             floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height);
@@ -375,7 +445,7 @@
                     if (currentRound === '二驗' && (d.Phase === '初驗' || d.Phase === '二驗')) showPin = true;
                     if (currentRound === '三驗') showPin = true;
 
-                    // 如果正在編輯這顆圖釘，無視過濾器強制顯示(以備不時之需)
+                    // 如果正在編輯這顆圖釘，無視過濾器強制顯示
                     if (d.ID.toString() === currentlyEditingId) showPin = true;
 
                     if (showPin) {
@@ -387,7 +457,7 @@
                             if (d.ID.toString() === currentlyEditingId) {
                                 d.px = px; d.py = py;
                             } else {
-                                drawExistingPin(px, py, d.ID, d.Status, d.Phase); // 改傳入 Phase
+                                drawExistingPin(px, py, d.ID, d.Status, d.Phase); // 傳入 Phase
                                 d.px = px; d.py = py; 
                             }
                         }
@@ -398,7 +468,18 @@
             if (isSelected) drawSinglePin(selectedX, selectedY);
         }
 
-        // ★ 修改：圖釘中間畫的數字改由資料庫真正的 Phase 決定
+        function drawSinglePin(px, py) {
+            let size = Math.max(floorCanvas.width * 0.008, 6); 
+            floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
+            floorCtx.beginPath(); floorCtx.moveTo(px, py); 
+            floorCtx.lineTo(px - size, py - size * 2); floorCtx.lineTo(px + size, py - size * 2); 
+            floorCtx.closePath(); floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke();
+            
+            floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
+            floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke();
+        }
+
+        // 圖釘中間畫的數字由資料庫的 Phase 決定
         function drawExistingPin(px, py, id, status, phase) {
             let size = Math.max(floorCanvas.width * 0.008, 6); 
             floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
@@ -417,29 +498,6 @@
             let phasePrefix = "";
             if (phase === '二驗') phasePrefix = "②-";
             else if (phase === '三驗') phasePrefix = "③-";
-
-            floorCtx.fillStyle = '#111'; floorCtx.font = `bold ${size*1.8}px sans-serif`;
-            floorCtx.fillText(phasePrefix + id, px + size, py - size*2.5);
-        }
-
-        function drawExistingPin(px, py, id, status, description) {
-            let size = Math.max(floorCanvas.width * 0.008, 6); 
-            floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
-            floorCtx.beginPath(); floorCtx.moveTo(px, py); 
-            floorCtx.lineTo(px - size, py - size * 2); floorCtx.lineTo(px + size, py - size * 2); 
-            floorCtx.closePath(); 
-            
-            let pinColor = (status && status.includes('已改善')) ? '#1DB446' : '#007bff';
-            
-            floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
-            
-            floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
-            floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
-
-            // ★ 智慧解析期數，顯示在圖釘上
-            let phasePrefix = "";
-            if (description && description.includes('[二驗]')) phasePrefix = "②-";
-            else if (description && description.includes('[三驗]')) phasePrefix = "③-";
 
             floorCtx.fillStyle = '#111'; floorCtx.font = `bold ${size*1.8}px sans-serif`;
             floorCtx.fillText(phasePrefix + id, px + size, py - size*2.5);
@@ -572,7 +630,6 @@
             }
         }
 
-        // ★ 修改：送出 API 時不再暴力加文字，而是真的把 Phase 送給後端
         async function submitInspection() {
             let editId = document.getElementById('editDefectId').value;
             let fileInput = document.getElementById('photoInput');
@@ -595,7 +652,7 @@
                 site: currentSite, floor: currentFloor, roomType: currentRoom,
                 drawingType: document.getElementById('drawingType').value,
                 location: document.getElementById('locationSelect').value,
-                description: desc, // 不再加前綴，保持乾淨
+                description: desc, 
                 imageBase64: base64Img, 
                 inspector: currentUser,
                 status: document.getElementById('statusInput').value,
@@ -623,6 +680,7 @@
                 btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存";
             });
         }
+
         window.deleteInspection = function() {
             let editId = document.getElementById('editDefectId').value;
             if(!editId) return;
@@ -674,66 +732,6 @@
                 btnDone.style.background = '#1DB446'; btnDone.style.color = 'white';
             }
         };
-        // ★ 新增：當下拉選單切換時，重新渲染圖釘與清單
-        window.applyPhaseFilter = function() {
-            renderCanvas();
-            renderDefectList();
-        };
-
-        // ★ 修改：拆分渲染清單的功能，加入過濾邏輯
-        function renderDefectList() {
-            let container = document.getElementById('defectList');
-            let currentRound = document.getElementById('inspRound').value;
-            
-            // 過濾邏輯：初驗只看初驗；二驗看初+二；三驗全看
-            let filteredDefects = globalRoomDefects.filter(d => {
-                if (currentRound === '初驗') return d.Phase === '初驗';
-                if (currentRound === '二驗') return d.Phase === '初驗' || d.Phase === '二驗';
-                return true; // 三驗
-            });
-
-            if (filteredDefects.length > 0) {
-                let html = "";
-                let loadingSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
-                let noImgSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
-
-                filteredDefects.forEach(d => {
-                    let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
-                    let isDone = (d.Status && d.Status.includes('已改善'));
-                    let statusBadge = isDone 
-                        ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
-                        : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
-                        
-                    // ★ 讀取資料庫真實的 Phase 來顯示徽章
-                    let phaseTag = `<span style="background:#6c5ce7; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">1️⃣ 初驗</span>`;
-                    if (d.Phase === '二驗') phaseTag = `<span style="background:#e17055; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">2️⃣ 二驗</span>`;
-                    if (d.Phase === '三驗') phaseTag = `<span style="background:#d63031; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">3️⃣ 三驗</span>`;
-
-                    let cardStyle = isDone 
-                        ? 'border-left: 4px solid #1DB446; opacity: 0.7;' 
-                        : 'border-left: 4px solid #dc3545;';
-
-                    html += `
-                    <div class="defect-card" onclick="editDefect(${d.ID})" style="${cardStyle}">
-                        <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
-                        <div class="defect-info">
-                            <span class="defect-tag">${d.Location}</span>${phaseTag}${statusBadge}
-                            <div style="font-size:14px; font-weight:bold; margin-bottom:5px; margin-top:5px;">${d.Description}</div>
-                            <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
-                        </div>
-                    </div>`;
-                });
-                container.innerHTML = html;
-
-                filteredDefects.forEach(d => {
-                    if (d.HasImage && d.ImageUrl) {
-                        safeLoadImage(`${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}`, `list-img-${d.ID}`);
-                    }
-                });
-            } else {
-                container.innerHTML = "<div style='text-align:center; padding:20px; color:#888;'>✅ 目前畫面無缺失</div>";
-            }
-        }
     </script>
 </body>
 </html>
