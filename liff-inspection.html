@@ -890,7 +890,15 @@
         }
 
         function exportExcel() {
-            let url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`;
+            // ★ 新增：抓取畫面上目前選取的期數 (初驗/二驗/三驗)
+            let currentRound = document.getElementById('inspRound').value;
+            
+            let url = `${apiBaseUrl}/export-inspection-excel?` + 
+                      `site=${encodeURIComponent(currentSite)}&` + 
+                      `floor=${encodeURIComponent(currentFloor)}&` + 
+                      `room=${encodeURIComponent(currentRoom)}&` +
+                      `round=${encodeURIComponent(currentRound)}`; // ★ 傳送期數
+            
             window.open(url, '_blank');
         }
 
