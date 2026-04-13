@@ -421,7 +421,8 @@
                 body: JSON.stringify({
                     site: currentSite, floor: currentFloor, room: currentRoom, round: currentRound,
                     signature: base64Sig,
-                    sharer: sharerId // ★ 修改點：將追蹤碼送回給後端
+                    sharer: sharerId,
+                    apiBaseUrl: apiBaseUrl // ★ 修改點：加上這一行，把網址也傳給後端
                 })
             }).then(r => r.json()).then(res => {
                 if(res.success) {
