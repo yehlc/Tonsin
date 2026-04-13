@@ -249,6 +249,7 @@
         let lineUserId = ""; 
         
         let currentRound = "業主初驗"; // 全域期數變數
+        let sharerId = ""; // ★ 新增：用來記錄分享者的 LINE ID
         
         const ROOM_CONFIG = {
             "鼎隆大苑": {
@@ -303,17 +304,21 @@
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
             let initialRoom = decodeURIComponent(urlParams.get('room') || "A1戶");
             
-            // ★ 判斷是否為「客戶簽名模式」
+            // ★ 修改點：擷取 sharer 參數
+            sharerId = urlParams.has('sharer') ? decodeURIComponent(urlParams.get('sharer')) : "";
+            
             let mode = urlParams.get('mode');
             if (mode === 'customer_sign') {
-                // 如果網址有傳期數，就抓網址的，沒有的話預設為業主初驗
                 currentRound = urlParams.has('round') ? decodeURIComponent(urlParams.get('round')) : "業主初驗";
+                
+                // ★ 修改點(問題1解法)：將 initialRoom 賦值給 currentRoom，解決無法撈出缺失清單的問題
+                currentRoom = initialRoom; 
+
                 document.getElementById('normalAppUI').style.display = 'none';
                 document.getElementById('customerSignSection').style.display = 'block';
                 loadCustomerSignData();
                 initSigCanvas();
             } else {
-                // 正常進入一般模式
                 buildFlatRoomList(initialRoom);
                 initCanvas();
                 updateUI(); 
@@ -403,7 +408,7 @@
 
         function submitSignature() {
             if (!hasSigned) return alert("⚠️ 請先在框內完成簽名！");
-            if (!confirm("確認送出簽名嗎？")) return;
+            if (!confirm("確認送出簽名嗎？送出後會自動將檔案回傳給公司人員。")) return;
 
             let btn = document.getElementById('btnSubmitSig');
             btn.disabled = true; btn.innerText = "上傳中...";
@@ -415,7 +420,8 @@
                 headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify({
                     site: currentSite, floor: currentFloor, room: currentRoom, round: currentRound,
-                    signature: base64Sig
+                    signature: base64Sig,
+                    sharer: sharerId // ★ 修改點：將追蹤碼送回給後端
                 })
             }).then(r => r.json()).then(res => {
                 if(res.success) {
