@@ -228,7 +228,7 @@
         <h4 style="background: #f0f0f0; padding: 8px; border-left: 4px solid #8e44ad; margin-bottom: 5px;">✍️ 業主 / 客戶確認簽名區</h4>
         <div style="border: 2px dashed #8e44ad; border-radius: 8px; background: #fafafa; margin-bottom: 15px; position: relative;">
             <canvas id="sigCanvas" style="width: 100%; height: 200px; touch-action: none; cursor: crosshair; display: block; border-radius: 8px;"></canvas>
-            <div style="position: absolute; top: 10px; left: 10px; color: #ccc; font-weight: bold; pointer-events: none;">請在此處簽名...</div>
+            <div id="sigHint" style="position: absolute; top: 10px; left: 10px; color: #ccc; font-weight: bold; pointer-events: none;">請在此處簽名...</div>
         </div>
 
         <div style="display: flex; gap: 10px; margin-bottom: 30px;">
@@ -340,11 +340,9 @@
                 headers: { "ngrok-skip-browser-warning": "true" }
             }).then(r => r.json()).then(res => {
                 if (res.success) {
-                    // ★ 修正 1：嚴格切開內部與外部的資料
                     let defects = res.data.filter(d => {
                         if (currentRound === '業主初驗') return d.Phase === '業主初驗';
                         if (currentRound === '業主複驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗';
-                        
                         if (currentRound === '客戶初驗') return d.Phase === '客戶初驗';
                         if (currentRound === '客戶複驗') return d.Phase === '客戶初驗' || d.Phase === '客戶複驗'; 
                         if (currentRound === '客戶三驗') return d.Phase === '客戶初驗' || d.Phase === '客戶複驗' || d.Phase === '客戶三驗'; 
@@ -355,22 +353,40 @@
                     if (defects.length === 0) {
                         listHtml = "<div style='text-align:center; color:#888; padding: 20px 0;'>本期無相關缺失紀錄，全數過關 ✅</div>";
                     } else {
+                        let loadingSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
+                        let noImgSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
+
                         defects.forEach(d => {
-                            // ★ 修正 2：狀態防呆機制 (只要是本期新增的，一律顯示待改善)
+                            // ★ 狀態防呆機制：此階段新增的缺失，強制顯示「待改善」
                             let isDone = (d.Phase !== currentRound && d.Status && d.Status.includes('已改善'));
                             
                             let statusText = isDone 
-                                ? '<span style="color:#1DB446; font-weight:bold;">✅ 已改善</span>' 
-                                : '<span style="color:#dc3545; font-weight:bold;">🔴 待改善</span>';
+                                ? '<span style="background:#1DB446; color:white; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight:bold;">✅ 已改善</span>' 
+                                : '<span style="background:#dc3545; color:white; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight:bold;">🔴 待改善</span>';
                             
-                            listHtml += `<div style="border-bottom: 1px solid #eee; padding: 12px 0;">
-                                <strong style="color: #8e44ad;">[${d.Location}]</strong> 
-                                ${d.Description} 
-                                <div style="float:right;">${statusText}</div>
+                            let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
+
+                            // ★ 加入照片欄位，並排顯示
+                            listHtml += `<div style="border-bottom: 1px solid #eee; padding: 12px 0; display: flex; gap: 12px; align-items: center;">
+                                <img id="sign-img-${d.ID}" src="${initialSrc}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;">
+                                <div style="flex: 1;">
+                                    <div style="margin-bottom: 4px;">
+                                        <strong style="color: #8e44ad; font-size: 15px;">[${d.Location}]</strong>
+                                    </div>
+                                    <div style="font-size: 14px; color: #333; margin-bottom: 6px; font-weight: bold;">${d.Description}</div> 
+                                    <div>${statusText}</div>
+                                </div>
                             </div>`;
                         });
                     }
                     document.getElementById('signDefectList').innerHTML = listHtml;
+
+                    // ★ 觸發 safeLoadImage，讓 iOS/Android 都能正常加載圖片
+                    defects.forEach(d => {
+                        if (d.HasImage && d.ImageUrl) {
+                            safeLoadImage(`${apiBaseUrl}${d.ImageUrl}?cb=${new Date().getTime()}`, `sign-img-${d.ID}`);
+                        }
+                    });
                 }
             });
         }
@@ -379,7 +395,6 @@
             sigCanvas = document.getElementById('sigCanvas');
             sigCtx = sigCanvas.getContext('2d');
             
-            // 設定畫布正確解析度 (解決滑鼠偏移)
             let rect = sigCanvas.parentElement.getBoundingClientRect();
             sigCanvas.width = rect.width;
             sigCanvas.height = 200;
@@ -388,6 +403,23 @@
             sigCtx.lineCap = "round";
             sigCtx.strokeStyle = "#2d3436";
 
+            // ★ 新增多人簽名機制：嘗試撈取已存在的歷史簽名
+            fetch(`${apiBaseUrl}/room-signature?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(currentRound)}`, {
+                headers: { "ngrok-skip-browser-warning": "true" }
+            }).then(r => r.json()).then(res => {
+                if (res.success && res.signature) {
+                    let img = new Image();
+                    img.onload = () => {
+                        // 將先前的簽名當作背景畫上去
+                        sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
+                        hasSigned = true; // 既然有舊紀錄，允許直接送出
+                        document.getElementById('sigHint').innerText = "⚠️ 已經有簽名紀錄囉！若有多人需確認，可於空白處繼續簽名。";
+                        document.getElementById('sigHint').style.color = "#d63031";
+                    };
+                    img.src = res.signature;
+                }
+            }).catch(e => console.error("無法載入舊簽名"));
+
             let getPos = (e) => {
                 let r = sigCanvas.getBoundingClientRect();
                 let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -395,7 +427,15 @@
                 return { x: clientX - r.left, y: clientY - r.top };
             };
 
-            let start = (e) => { e.preventDefault(); isSigning = true; hasSigned = true; let pos = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(pos.x, pos.y); };
+            let start = (e) => { 
+                e.preventDefault(); 
+                isSigning = true; 
+                hasSigned = true; 
+                document.getElementById('sigHint').style.display = "none"; // 開始畫畫就隱藏提示
+                let pos = getPos(e); 
+                sigCtx.beginPath(); 
+                sigCtx.moveTo(pos.x, pos.y); 
+            };
             let draw = (e) => { e.preventDefault(); if(!isSigning) return; let pos = getPos(e); sigCtx.lineTo(pos.x, pos.y); sigCtx.stroke(); };
             let end = (e) => { e.preventDefault(); isSigning = false; };
 
@@ -407,6 +447,9 @@
             if(sigCtx && sigCanvas) {
                 sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
                 hasSigned = false;
+                document.getElementById('sigHint').innerText = "請在此處簽名...";
+                document.getElementById('sigHint').style.color = "#ccc";
+                document.getElementById('sigHint').style.display = "block";
             }
         }
 
