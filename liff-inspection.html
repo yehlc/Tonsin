@@ -340,13 +340,14 @@
                 headers: { "ngrok-skip-browser-warning": "true" }
             }).then(r => r.json()).then(res => {
                 if (res.success) {
-                    // 過濾出屬於這個期數該看到的項目
+                    // ★ 修正 1：嚴格切開內部與外部的資料
                     let defects = res.data.filter(d => {
                         if (currentRound === '業主初驗') return d.Phase === '業主初驗';
                         if (currentRound === '業主複驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗';
-                        if (currentRound === '客戶初驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗';
-                        if (currentRound === '客戶複驗') return d.Phase !== '客戶三驗'; 
-                        if (currentRound === '客戶三驗') return true; 
+                        
+                        if (currentRound === '客戶初驗') return d.Phase === '客戶初驗';
+                        if (currentRound === '客戶複驗') return d.Phase === '客戶初驗' || d.Phase === '客戶複驗'; 
+                        if (currentRound === '客戶三驗') return d.Phase === '客戶初驗' || d.Phase === '客戶複驗' || d.Phase === '客戶三驗'; 
                         return true; 
                     });
                     
@@ -355,7 +356,10 @@
                         listHtml = "<div style='text-align:center; color:#888; padding: 20px 0;'>本期無相關缺失紀錄，全數過關 ✅</div>";
                     } else {
                         defects.forEach(d => {
-                            let statusText = d.Status.includes('已改善') 
+                            // ★ 修正 2：狀態防呆機制 (只要是本期新增的，一律顯示待改善)
+                            let isDone = (d.Phase !== currentRound && d.Status && d.Status.includes('已改善'));
+                            
+                            let statusText = isDone 
                                 ? '<span style="color:#1DB446; font-weight:bold;">✅ 已改善</span>' 
                                 : '<span style="color:#dc3545; font-weight:bold;">🔴 待改善</span>';
                             
@@ -550,7 +554,7 @@
             renderDefectList();
         };
 
-        // ★ 修改點：過濾邏輯切開內部與外部
+        // ★ 確保清單總覽也套用狀態防呆機制
         function renderDefectList() {
             let container = document.getElementById('defectList');
             let selectedRound = document.getElementById('inspRound').value; 
@@ -568,14 +572,16 @@
             });
 
             if (filteredDefects.length > 0) {
-                // ... (保留原本畫卡片的邏輯)
                 let html = "";
                 let loadingSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E載入中...%3C/text%3E%3C/svg%3E";
                 let noImgSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23999'%3E無照片%3C/text%3E%3C/svg%3E";
 
                 filteredDefects.forEach(d => {
                     let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
-                    let isDone = (d.Status && d.Status.includes('已改善'));
+                    
+                    // ★ 修正 3：套用狀態防呆機制
+                    let isDone = (d.Phase !== selectedRound && d.Status && d.Status.includes('已改善'));
+                    
                     let statusBadge = isDone 
                         ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
                         : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
