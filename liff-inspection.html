@@ -72,142 +72,169 @@
 </head>
 <body>
     <div id="offlineBanner" onclick="syncOfflineData()">⚠️ 目前無網路連線，資料將暫存於手機</div>
-    <div class="header">
-        <button class="nav-btn" onclick="changeRoom(-1)">◀</button>
-        <div class="title-box">
-            <select id="roomNavSelect" onchange="jumpToRoom(this.value)">
-                <option>載入中...</option>
-            </select>
-            <div class="sub-title" id="siteFloorTitle">載入中...</div>
+    
+    <div id="normalAppUI">
+        <div class="header">
+            <button class="nav-btn" onclick="changeRoom(-1)">◀</button>
+            <div class="title-box">
+                <select id="roomNavSelect" onchange="jumpToRoom(this.value)">
+                    <option>載入中...</option>
+                </select>
+                <div class="sub-title" id="siteFloorTitle">載入中...</div>
+            </div>
+            <button class="nav-btn" onclick="changeRoom(1)">▶</button>
         </div>
-        <button class="nav-btn" onclick="changeRoom(1)">▶</button>
-    </div>
 
-    <div class="tabs">
-        <div class="tab active" id="tabAdd" onclick="switchTab('add')">✍️ 新增缺失</div>
-        <div class="tab" id="tabMap" onclick="switchTab('map')">🗺️ 總覽(圖面)</div>
-        <div class="tab" id="tabList" onclick="switchTab('list')">📋 清單總覽</div>
-    </div>
+        <div class="tabs">
+            <div class="tab active" id="tabAdd" onclick="switchTab('add')">✍️ 新增缺失</div>
+            <div class="tab" id="tabMap" onclick="switchTab('map')">🗺️ 總覽(圖面)</div>
+            <div class="tab" id="tabList" onclick="switchTab('list')">📋 清單總覽</div>
+        </div>
 
-    <div class="swipe-area" id="swipeArea">
-        <div id="sharedMapSection">
-            <div class="toolbar" style="display: flex; gap: 10px;">
-                <select id="inspRound" onchange="applyPhaseFilter()" style="flex: 1; border-color: #8e44ad; color: #8e44ad; background: #fdfaf6;">
-                    <option value="業主初驗">1️⃣ 業主初驗</option>
-                    <option value="業主複驗">2️⃣ 業主複驗</option>
-                    <option value="客戶初驗">3️⃣ 客戶初驗</option>
-                    <option value="客戶複驗">4️⃣ 客戶複驗</option>
-                    <option value="客戶三驗">5️⃣ 客戶三驗</option>
-                </select>
-                <select id="drawingType" onchange="updateDrawingImage()" style="flex: 2;">
-                    <option value="1.建築客變圖">1. 建築客變圖</option>
-                    <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
-                    <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
-                </select>
-            </div>
-            
-            <div class="map-container" id="canvas-container">
-                <div class="hint-bar" id="mapHint">📍 點擊標記位置</div>
-                <canvas id="floorPlan"></canvas>
-            </div>
-
-            <div class="form-container" id="formContainer">
-                <div class="form-header">
-                    <h3 id="formTitle">✍️ 填寫缺失資訊</h3>
-                    <button class="btn-close-form" onclick="cancelInspection()">✖</button>
-                </div>
-                <input type="hidden" id="editDefectId" value="">
-
-                <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6;">
-                    <label>📊 驗屋狀態 (狀態判定)</label>
-                    <div style="display: flex; gap: 10px;">
-                        <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
-                        <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
-                    </div>
-                    <input type="hidden" id="statusInput" value="🔴 待改善">
-                </div>
-
-                <div style="display:flex; gap:10px; margin-bottom:20px;">
-                    <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存並送出</button>
-                    <button id="deleteBtn" onclick="deleteInspection()" style="flex:1; background:#d63031; color:white; font-size:16px; font-weight:bold; border:none; border-radius:8px; display:none;">🗑️ 刪除</button>
-                </div>
-
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <div class="form-group" style="flex:1;">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>📍 所在空間</span>
-                        </label>
-                        <select id="locationSelect">
-                            <option value="客餐廳">客餐廳</option>
-                            <option value="臥室(一)">臥室(一)</option>
-                            <option value="臥室(二)">臥室(二)</option>
-                            <option value="臥室(三)">臥室(三)</option>
-                            <option value="廚房">廚房</option>
-                            <option value="主衛浴">主衛浴</option>
-                            <option value="客衛浴">客衛浴</option>
-                            <option value="前陽台">前陽台</option>
-                            <option value="後陽台">後陽台</option>
-                            <option value="隔間">隔間</option>
-                            <option value="其他">其他</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>👷‍♂️ 缺失工種</span>
-                            <span style="font-size:12px; font-weight:normal; color:#555;">
-                                <input type="checkbox" id="stickyLocation" checked> 保留
-                            </span>
-                        </label>
-                        <select id="tradeSelect">
-                            <option value="泥作工程">泥作工程</option>
-                            <option value="油漆工程">油漆工程</option>
-                            <option value="水電工程">水電工程</option>
-                            <option value="木作工程">木作工程</option>
-                            <option value="鋁窗工程">鋁窗工程</option>
-                            <option value="清潔工程">清潔工程</option>
-                            <option value="其他">其他</option>
-                        </select>
-                    </div>
+        <div class="swipe-area" id="swipeArea">
+            <div id="sharedMapSection">
+                <div class="toolbar" style="display: flex; gap: 10px;">
+                    <select id="inspRound" onchange="applyPhaseFilter()" style="flex: 1; border-color: #8e44ad; color: #8e44ad; background: #fdfaf6;">
+                        <option value="業主初驗">1️⃣ 業主初驗</option>
+                        <option value="業主複驗">2️⃣ 業主複驗</option>
+                        <option value="客戶初驗">3️⃣ 客戶初驗</option>
+                        <option value="客戶複驗">4️⃣ 客戶複驗</option>
+                        <option value="客戶三驗">5️⃣ 客戶三驗</option>
+                    </select>
+                    <select id="drawingType" onchange="updateDrawingImage()" style="flex: 2;">
+                        <option value="1.建築客變圖">1. 建築客變圖</option>
+                        <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
+                        <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
+                    </select>
                 </div>
                 
-                <div class="form-group">
-                    <div class="camera-btn">
-                        📸 點擊拍攝缺失照片
-                        <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="loadPhotoToCanvas(this)">
-                    </div>
-                    <img id="previewImg" src="" style="display:none; width:100%; border-radius:6px; margin-bottom:10px; border:1px solid #ddd;">
-                    <div class="draw-tools" id="drawTools">
-                        <button type="button" class="tool-btn active" onclick="setBrushColor('red', this)">🔴 紅筆</button>
-                        <button type="button" class="tool-btn" onclick="setBrushColor('yellow', this)">🟡 黃筆</button>
-                        <button type="button" class="tool-btn" onclick="clearDrawCanvas()">🗑️ 復原重畫</button>
-                    </div>
-                    <canvas id="drawCanvas"></canvas>
+                <div class="map-container" id="canvas-container">
+                    <div class="hint-bar" id="mapHint">📍 點擊標記位置</div>
+                    <canvas id="floorPlan"></canvas>
                 </div>
-                
-                <div class="form-group">
-                    <label>📝 缺失說明</label>
-                    <div class="quick-tags">
-                        <span class="q-tag" onclick="appendDesc('牆面髒污未清潔')">牆面髒污</span>
-                        <span class="q-tag" onclick="appendDesc('油漆剝落/裂縫')">油漆裂縫</span>
-                        <span class="q-tag" onclick="appendDesc('地磚空鼓/破損')">地磚空鼓</span>
-                        <span class="q-tag" onclick="appendDesc('插座無電/位置錯誤')">插座異常</span>
-                        <span class="q-tag" onclick="appendDesc('排水孔阻塞/不通')">排水阻塞</span>
-                        <span class="q-tag" onclick="appendDesc('門窗開關不順/刮傷')">門窗異常</span>
+
+                <div class="form-container" id="formContainer">
+                    <div class="form-header">
+                        <h3 id="formTitle">✍️ 填寫缺失資訊</h3>
+                        <button class="btn-close-form" onclick="cancelInspection()">✖</button>
                     </div>
-                    <textarea id="descriptionInput" placeholder="可點擊上方快速標籤，或手動輸入說明..."></textarea>
+                    <input type="hidden" id="editDefectId" value="">
+
+                    <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6;">
+                        <label>📊 驗屋狀態 (狀態判定)</label>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
+                            <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
+                        </div>
+                        <input type="hidden" id="statusInput" value="🔴 待改善">
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-bottom:20px;">
+                        <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存並送出</button>
+                        <button id="deleteBtn" onclick="deleteInspection()" style="flex:1; background:#d63031; color:white; font-size:16px; font-weight:bold; border:none; border-radius:8px; display:none;">🗑️ 刪除</button>
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-bottom:15px;">
+                        <div class="form-group" style="flex:1;">
+                            <label style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>📍 所在空間</span>
+                            </label>
+                            <select id="locationSelect">
+                                <option value="客餐廳">客餐廳</option>
+                                <option value="臥室(一)">臥室(一)</option>
+                                <option value="臥室(二)">臥室(二)</option>
+                                <option value="臥室(三)">臥室(三)</option>
+                                <option value="廚房">廚房</option>
+                                <option value="主衛浴">主衛浴</option>
+                                <option value="客衛浴">客衛浴</option>
+                                <option value="前陽台">前陽台</option>
+                                <option value="後陽台">後陽台</option>
+                                <option value="輕隔間">輕隔間</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>👷‍♂️ 缺失工種</span>
+                                <span style="font-size:12px; font-weight:normal; color:#555;">
+                                    <input type="checkbox" id="stickyLocation" checked> 保留
+                                </span>
+                            </label>
+                            <select id="tradeSelect">
+                                <option value="泥作工程">泥作工程</option>
+                                <option value="油漆工程">油漆工程</option>
+                                <option value="水電工程">水電工程</option>
+                                <option value="木作工程">木作工程</option>
+                                <option value="鋁窗工程">鋁窗工程</option>
+                                <option value="清潔工程">清潔工程</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="camera-btn">
+                            📸 點擊拍攝缺失照片
+                            <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="loadPhotoToCanvas(this)">
+                        </div>
+                        <img id="previewImg" src="" style="display:none; width:100%; border-radius:6px; margin-bottom:10px; border:1px solid #ddd;">
+                        <div class="draw-tools" id="drawTools">
+                            <button type="button" class="tool-btn active" onclick="setBrushColor('red', this)">🔴 紅筆</button>
+                            <button type="button" class="tool-btn" onclick="setBrushColor('yellow', this)">🟡 黃筆</button>
+                            <button type="button" class="tool-btn" onclick="clearDrawCanvas()">🗑️ 復原重畫</button>
+                        </div>
+                        <canvas id="drawCanvas"></canvas>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>📝 缺失說明</label>
+                        <div class="quick-tags">
+                            <span class="q-tag" onclick="appendDesc('牆面髒污未清潔')">牆面髒污</span>
+                            <span class="q-tag" onclick="appendDesc('油漆剝落/裂縫')">油漆裂縫</span>
+                            <span class="q-tag" onclick="appendDesc('地磚空鼓/破損')">地磚空鼓</span>
+                            <span class="q-tag" onclick="appendDesc('插座無電/位置錯誤')">插座異常</span>
+                            <span class="q-tag" onclick="appendDesc('排水孔阻塞/不通')">排水阻塞</span>
+                            <span class="q-tag" onclick="appendDesc('門窗開關不順/刮傷')">門窗異常</span>
+                        </div>
+                        <textarea id="descriptionInput" placeholder="可點擊上方快速標籤，或手動輸入說明..."></textarea>
+                    </div>
                 </div>
             </div>
+
+            <div id="listSection">
+                <h3 style="color:#2d3436; margin-top:0;">📋 本戶缺失清單</h3>
+                <div id="defectList">載入中...</div>
+                <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+                <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋單 (客戶用 Excel)</button>
+                <button class="btn-export btn-trade" onclick="exportTradeReport()">🛠️ 匯出派工單 (工班用 Excel)</button>
+                <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="customerSignSection" style="display:none; padding: 20px; background: white; min-height: 100vh;">
+        <h2 style="text-align:center; color: #2d3436; border-bottom: 2px solid #8e44ad; padding-bottom: 10px; margin-top: 0;">驗屋修繕確認單</h2>
+        <div style="margin-bottom: 15px; font-size: 16px; color: #555;">
+            <p><strong>🏢 案場：</strong> <span id="signSite"></span></p>
+            <p><strong>📍 戶別：</strong> <span id="signRoom"></span></p>
+            <p><strong>📅 期數：</strong> <span id="signRound" style="color: #e17055; font-weight: bold;"></span></p>
+        </div>
+        
+        <h4 style="background: #f0f0f0; padding: 8px; border-left: 4px solid #8e44ad; margin-bottom: 5px;">📋 本期檢驗項目狀態</h4>
+        <div id="signDefectList" style="margin-bottom: 20px; font-size: 14px; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
+            載入中...
         </div>
 
-        <div id="listSection">
-            <h3 style="color:#2d3436; margin-top:0;">📋 本戶缺失清單</h3>
-            <div id="defectList">載入中...</div>
-            <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
-            <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋單 (客戶用 Excel)</button>
-            <button class="btn-export btn-trade" onclick="exportTradeReport()">🛠️ 匯出派工單 (工班用 Excel)</button>
-            <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
+        <h4 style="background: #f0f0f0; padding: 8px; border-left: 4px solid #8e44ad; margin-bottom: 5px;">✍️ 業主 / 客戶確認簽名區</h4>
+        <div style="border: 2px dashed #8e44ad; border-radius: 8px; background: #fafafa; margin-bottom: 15px; position: relative;">
+            <canvas id="sigCanvas" style="width: 100%; height: 200px; touch-action: none; cursor: crosshair; display: block; border-radius: 8px;"></canvas>
+            <div style="position: absolute; top: 10px; left: 10px; color: #ccc; font-weight: bold; pointer-events: none;">請在此處簽名...</div>
         </div>
 
+        <div style="display: flex; gap: 10px; margin-bottom: 30px;">
+            <button onclick="clearSigCanvas()" style="flex: 1; padding: 15px; border: 1px solid #ccc; background: white; border-radius: 8px; font-weight: bold; font-size: 16px;">清除重簽</button>
+            <button onclick="submitSignature()" id="btnSubmitSig" style="flex: 2; padding: 15px; border: none; background: #1DB446; color: white; border-radius: 8px; font-weight: bold; font-size: 16px;">✅ 確認送出</button>
+        </div>
     </div>
 
     <div id="toastMsg" class="toast">✅ 狀態更新成功！</div>
@@ -220,6 +247,8 @@
         let currentRoom = "";
         let currentUser = "";
         let lineUserId = ""; 
+        
+        let currentRound = "業主初驗"; // 全域期數變數
         
         const ROOM_CONFIG = {
             "鼎隆大苑": {
@@ -260,6 +289,11 @@
         let brushColor = 'red';
         let originalImgData = new Image(); 
 
+        // 簽名相關變數
+        let sigCanvas, sigCtx;
+        let isSigning = false;
+        let hasSigned = false;
+
         liff.init({ liffId: myLiffId }).then(() => {
             if (liff.isLoggedIn()) {
                 liff.getProfile().then(profile => { lineUserId = profile.userId; });
@@ -270,17 +304,133 @@
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
             let initialRoom = decodeURIComponent(urlParams.get('room') || "A1戶");
-
-            buildFlatRoomList(initialRoom);
-            initCanvas();
-            updateUI(); 
-            switchTab('add'); 
             
-            // 初始化離線偵測
-            window.addEventListener('online', checkOfflineData);
-            window.addEventListener('offline', checkOfflineData);
-            checkOfflineData();
+            // ★ 判斷是否為「客戶簽名模式」
+            let mode = urlParams.get('mode');
+            if (mode === 'customer_sign') {
+                currentRound = decodeURIComponent(urlParams.get('round') || "業主初驗");
+                document.getElementById('normalAppUI').style.display = 'none';
+                document.getElementById('customerSignSection').style.display = 'block';
+                loadCustomerSignData();
+                initSigCanvas();
+            } else {
+                // 正常進入一般模式
+                buildFlatRoomList(initialRoom);
+                initCanvas();
+                updateUI(); 
+                switchTab('add'); 
+                
+                window.addEventListener('online', checkOfflineData);
+                window.addEventListener('offline', checkOfflineData);
+                checkOfflineData();
+            }
         });
+
+        // ================= ★ 客戶專屬電子簽名邏輯 =================
+        function loadCustomerSignData() {
+            document.getElementById('signSite').innerText = currentSite;
+            document.getElementById('signRoom').innerText = currentFloor + " - " + currentRoom;
+            document.getElementById('signRound').innerText = currentRound;
+
+            fetch(`${apiBaseUrl}/room-defects?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}`, {
+                headers: { "ngrok-skip-browser-warning": "true" }
+            }).then(r => r.json()).then(res => {
+                if (res.success) {
+                    let defects = res.data.filter(d => {
+                        if (currentRound === '業主初驗') return d.Phase === '業主初驗';
+                        if (currentRound === '業主複驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗';
+                        if (currentRound === '客戶初驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗';
+                        if (currentRound === '客戶複驗') return d.Phase !== '客戶三驗'; 
+                        if (currentRound === '客戶三驗') return true; 
+                        return true; 
+                    });
+                    
+                    let listHtml = "";
+                    if (defects.length === 0) {
+                        listHtml = "<div style='text-align:center; color:#888; padding: 20px 0;'>本期無相關缺失紀錄，全數過關 ✅</div>";
+                    } else {
+                        defects.forEach(d => {
+                            let statusText = d.Status.includes('已改善') 
+                                ? '<span style="color:#1DB446; font-weight:bold;">✅ 已改善</span>' 
+                                : '<span style="color:#dc3545; font-weight:bold;">🔴 待改善</span>';
+                            
+                            listHtml += `<div style="border-bottom: 1px solid #eee; padding: 12px 0;">
+                                <strong style="color: #8e44ad;">[${d.Location}]</strong> 
+                                ${d.Description} 
+                                <div style="float:right;">${statusText}</div>
+                            </div>`;
+                        });
+                    }
+                    document.getElementById('signDefectList').innerHTML = listHtml;
+                }
+            });
+        }
+
+        function initSigCanvas() {
+            sigCanvas = document.getElementById('sigCanvas');
+            sigCtx = sigCanvas.getContext('2d');
+            
+            // 設定畫布正確解析度 (解決滑鼠偏移)
+            let rect = sigCanvas.parentElement.getBoundingClientRect();
+            sigCanvas.width = rect.width;
+            sigCanvas.height = 200;
+            
+            sigCtx.lineWidth = 4;
+            sigCtx.lineCap = "round";
+            sigCtx.strokeStyle = "#2d3436";
+
+            let getPos = (e) => {
+                let r = sigCanvas.getBoundingClientRect();
+                let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - r.left, y: clientY - r.top };
+            };
+
+            let start = (e) => { e.preventDefault(); isSigning = true; hasSigned = true; let pos = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(pos.x, pos.y); };
+            let draw = (e) => { e.preventDefault(); if(!isSigning) return; let pos = getPos(e); sigCtx.lineTo(pos.x, pos.y); sigCtx.stroke(); };
+            let end = (e) => { e.preventDefault(); isSigning = false; };
+
+            sigCanvas.ontouchstart = start; sigCanvas.ontouchmove = draw; sigCanvas.ontouchend = end;
+            sigCanvas.onmousedown = start; sigCanvas.onmousemove = draw; sigCanvas.onmouseup = end;
+        }
+
+        function clearSigCanvas() {
+            if(sigCtx && sigCanvas) {
+                sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+                hasSigned = false;
+            }
+        }
+
+        function submitSignature() {
+            if (!hasSigned) return alert("⚠️ 請先在框內完成簽名！");
+            if (!confirm("確認送出簽名嗎？")) return;
+
+            let btn = document.getElementById('btnSubmitSig');
+            btn.disabled = true; btn.innerText = "上傳中...";
+
+            let base64Sig = sigCanvas.toDataURL('image/png');
+
+            fetch(`${apiBaseUrl}/submit-room-signature`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                body: JSON.stringify({
+                    site: currentSite, floor: currentFloor, room: currentRoom, round: currentRound,
+                    signature: base64Sig
+                })
+            }).then(r => r.json()).then(res => {
+                if(res.success) {
+                    alert("✅ 簽名已成功送出，感謝您的配合！");
+                    liff.closeWindow();
+                } else {
+                    alert("❌ 儲存失敗：" + res.error);
+                    btn.disabled = false; btn.innerText = "✅ 確認送出";
+                }
+            }).catch(e => {
+                alert("❌ 連線異常");
+                btn.disabled = false; btn.innerText = "✅ 確認送出";
+            });
+        }
+        // ==========================================================
 
         function buildFlatRoomList(initialRoom) {
             flatRoomList = [];
@@ -395,15 +545,14 @@
 
         function renderDefectList() {
             let container = document.getElementById('defectList');
-            let currentRound = document.getElementById('inspRound').value; // 這邊會抓到 '業主初驗' 等 5 種值
+            let selectedRound = document.getElementById('inspRound').value; 
             
-            // ★ 修改 5 階段過濾邏輯
             let filteredDefects = globalRoomDefects.filter(d => {
-                if (currentRound === '業主初驗') return d.Phase === '業主初驗';
-                if (currentRound === '業主複驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗';
-                if (currentRound === '客戶初驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗';
-                if (currentRound === '客戶複驗') return d.Phase !== '客戶三驗'; // 除了三驗都顯示
-                if (currentRound === '客戶三驗') return true; // 全顯示
+                if (selectedRound === '業主初驗') return d.Phase === '業主初驗';
+                if (selectedRound === '業主複驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗';
+                if (selectedRound === '客戶初驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗';
+                if (selectedRound === '客戶複驗') return d.Phase !== '客戶三驗'; 
+                if (selectedRound === '客戶三驗') return true; 
                 return true; 
             });
 
@@ -419,7 +568,6 @@
                         ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
                         : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
                         
-                    // 根據 5 階段給予不同標籤顏色
                     let phaseTag = `<span style="background:#6c5ce7; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">${d.Phase}</span>`;
                     if (d.Phase === '業主複驗') phaseTag = `<span style="background:#0984e3; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">${d.Phase}</span>`;
                     if (d.Phase === '客戶初驗') phaseTag = `<span style="background:#fdcb6e; color:#2d3436; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">${d.Phase}</span>`;
@@ -499,18 +647,17 @@
                     let clickedExisting = null;
                     let threshold = Math.max(floorCanvas.width * 0.04, 30); 
                     let currentDrawing = document.getElementById('drawingType').value;
-                    let currentRound = document.getElementById('inspRound').value;
+                    let selectedRound = document.getElementById('inspRound').value;
 
                     for (let d of globalRoomDefects) {
                         if (d.DrawingType !== currentDrawing || !d.XY_Coord) continue;
                         
-                        // ★ 地圖圖釘顯示過濾邏輯更新
                         let isVisible = false;
-                        if (currentRound === '業主初驗' && d.Phase === '業主初驗') isVisible = true;
-                        if (currentRound === '業主複驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗')) isVisible = true;
-                        if (currentRound === '客戶初驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗')) isVisible = true;
-                        if (currentRound === '客戶複驗' && d.Phase !== '客戶三驗') isVisible = true;
-                        if (currentRound === '客戶三驗') isVisible = true;
+                        if (selectedRound === '業主初驗' && d.Phase === '業主初驗') isVisible = true;
+                        if (selectedRound === '業主複驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗')) isVisible = true;
+                        if (selectedRound === '客戶初驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗')) isVisible = true;
+                        if (selectedRound === '客戶複驗' && d.Phase !== '客戶三驗') isVisible = true;
+                        if (selectedRound === '客戶三驗') isVisible = true;
                         
                         if (isVisible) {
                             let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
@@ -540,7 +687,7 @@
             floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
             
             let currentDrawing = document.getElementById('drawingType').value;
-            let currentRound = document.getElementById('inspRound').value;
+            let selectedRound = document.getElementById('inspRound').value;
             let currentlyEditingId = document.getElementById('editDefectId').value;
 
             if (currentTabMode === 'map' || currentlyEditingId !== "") {
@@ -548,11 +695,11 @@
                     if (d.DrawingType !== currentDrawing || !d.XY_Coord) return;
                     
                     let showPin = false;
-                    if (currentRound === '業主初驗' && d.Phase === '業主初驗') showPin = true;
-                    if (currentRound === '業主複驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗')) showPin = true;
-                    if (currentRound === '客戶初驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗')) showPin = true;
-                    if (currentRound === '客戶複驗' && d.Phase !== '客戶三驗') showPin = true;
-                    if (currentRound === '客戶三驗') showPin = true;
+                    if (selectedRound === '業主初驗' && d.Phase === '業主初驗') showPin = true;
+                    if (selectedRound === '業主複驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗')) showPin = true;
+                    if (selectedRound === '客戶初驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗')) showPin = true;
+                    if (selectedRound === '客戶複驗' && d.Phase !== '客戶三驗') showPin = true;
+                    if (selectedRound === '客戶三驗') showPin = true;
 
                     if (d.ID.toString() === currentlyEditingId) showPin = true;
 
@@ -601,7 +748,6 @@
             floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
             floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
 
-            // ★ 根據新期數修改前綴文字
             let phasePrefix = "";
             if (phase === '業主初驗') phasePrefix = "O1-";
             else if (phase === '業主複驗') phasePrefix = "O2-";
@@ -742,7 +888,6 @@
             loadRoomDefects(); 
         }
 
-        // ================= 塗鴉功能 =================
         window.loadPhotoToCanvas = function(input) {
             document.getElementById('previewImg').style.display = 'none'; 
             if (input.files && input.files[0]) {
@@ -798,7 +943,6 @@
             }
         };
 
-        // ================= 送出與離線處理 =================
         async function submitInspection() {
             let editId = document.getElementById('editDefectId').value;
             let fileInput = document.getElementById('photoInput');
@@ -806,10 +950,8 @@
             let canvasBox = document.getElementById('drawCanvas');
             
             let rawDesc = desc;
-            let inspRound = document.getElementById('inspRound').value;
+            let selectedRound = document.getElementById('inspRound').value;
             let finalDesc = rawDesc;
-            
-            // 將原本 [初驗] 標記拿掉，因為我們現在資料庫裡有 Phase 可以精準紀錄，不需要污染 Description 欄位
             
             if (!editId && canvasBox.style.display !== 'block' && (!fileInput.files || fileInput.files.length === 0)) {
                 return alert("⚠️ 請拍攝缺失照片！");
@@ -959,33 +1101,35 @@
         }
 
         function exportExcel() {
-            let currentRound = document.getElementById('inspRound').value;
-            let url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(currentRound)}`;
+            let selectedRound = document.getElementById('inspRound').value;
+            let url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(selectedRound)}`;
             window.open(url, '_blank');
         }
 
         function exportTradeReport() {
-            let currentRound = document.getElementById('inspRound').value;
-            let url = `${apiBaseUrl}/export-trade-report?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(currentRound)}`;
+            let selectedRound = document.getElementById('inspRound').value;
+            let url = `${apiBaseUrl}/export-trade-report?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(selectedRound)}`;
             window.open(url, '_blank');
         }
 
         function sendSignatureRequest() {
             if (!lineUserId) return alert("無法取得您的 LINE ID，請確認已授權！");
-            if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】的電子簽名連結嗎？\n(系統將會發送一張卡片到 LINE 聊天室中)`)) return;
+            let selectedRound = document.getElementById('inspRound').value;
+
+            if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】${selectedRound}的電子簽名連結嗎？\n(系統將會發送一張卡片到 LINE 聊天室中)`)) return;
             
             fetch(`${apiBaseUrl}/send-sig-request`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify({
-                    site: currentSite, floor: currentFloor, room: currentRoom,
+                    site: currentSite, floor: currentFloor, room: currentRoom, round: selectedRound, // ★ 傳入期數
                     userId: lineUserId, apiBaseUrl: apiBaseUrl
                 })
             })
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    alert("✅ 已成功傳送簽名卡片到您的 LINE 聊天室，請點擊左上角「X」關閉視窗並轉傳該卡片給客戶！");
+                    alert("✅ 已成功傳送簽名卡片到您的 LINE 聊天室，請關閉視窗並在聊天室中點擊卡片右上角「分享圖示」轉傳給客戶簽名！");
                     liff.closeWindow();
                 } else { alert("❌ 傳送失敗：" + res.error); }
             })
