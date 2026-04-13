@@ -208,6 +208,7 @@
                 <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋單 (客戶用 Excel)</button>
                 <button class="btn-export btn-trade" onclick="exportTradeReport()">🛠️ 匯出派工單 (工班用 Excel)</button>
                 <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
+                <button class="btn-export" style="background:#e17055;" onclick="emailExcelToCustomer()">📧 寄送 EXCEL 至客戶信箱</button>
             </div>
         </div>
     </div>
@@ -1183,6 +1184,40 @@
             let selectedRound = document.getElementById('inspRound').value;
             let url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(selectedRound)}`;
             window.open(url, '_blank');
+        }
+
+        // ==========================================
+        // ★ 新增：觸發後端寄送 Email 給客戶
+        // ==========================================
+        function emailExcelToCustomer() {
+            let selectedRound = document.getElementById('inspRound').value || currentRound;
+            
+            if (!confirm(`確定要將【${selectedRound}】EXCEL 寄送至該戶客戶信箱嗎？\n(寄送前請確認後台已填寫客戶 Email)`)) return;
+
+            let btn = event.target;
+            let originalText = btn.innerText;
+            btn.disabled = true; btn.innerText = "⏳ 寄信處理中...";
+
+            fetch(`${apiBaseUrl}/email-inspection-excel`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                body: JSON.stringify({
+                    site: currentSite, 
+                    floor: currentFloor, 
+                    room: currentRoom, 
+                    round: selectedRound
+                })
+            }).then(r => r.json()).then(res => {
+                if (res.success) {
+                    showToast("✅ 已成功寄送 EXCEL 至客戶信箱！");
+                } else {
+                    alert("❌ 寄送失敗：" + res.error);
+                }
+            }).catch(e => {
+                alert("❌ 連線異常，無法寄送信件");
+            }).finally(() => {
+                btn.disabled = false; btn.innerText = originalText;
+            });
         }
 
         function exportTradeReport() {
