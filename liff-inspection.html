@@ -1112,9 +1112,13 @@
             window.open(url, '_blank');
         }
 
+        // ★ 修正：發送給客戶電子簽名要求 (確保傳入 round)
         function sendSignatureRequest() {
             if (!lineUserId) return alert("無法取得您的 LINE ID，請確認已授權！");
+            
+            // ★ 確保抓到畫面上下拉選單的期數
             let selectedRound = document.getElementById('inspRound').value;
+            if (!selectedRound) selectedRound = currentRound; // fallback
 
             if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】${selectedRound}的電子簽名連結嗎？\n(系統將會發送一張卡片到 LINE 聊天室中)`)) return;
             
@@ -1122,14 +1126,18 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify({
-                    site: currentSite, floor: currentFloor, room: currentRoom, round: selectedRound, // ★ 傳入期數
-                    userId: lineUserId, apiBaseUrl: apiBaseUrl
+                    site: currentSite, 
+                    floor: currentFloor, 
+                    room: currentRoom, 
+                    round: selectedRound, // ★ 這裡正確傳入期數
+                    userId: lineUserId, 
+                    apiBaseUrl: apiBaseUrl
                 })
             })
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    alert("✅ 已成功傳送簽名卡片到您的 LINE 聊天室，請關閉視窗並在聊天室中點擊卡片右上角「分享圖示」轉傳給客戶簽名！");
+                    alert("✅ 已成功傳送簽名卡片到您的 LINE 聊天室，請點擊左上角「X」關閉視窗並轉傳該卡片給客戶！");
                     liff.closeWindow();
                 } else { alert("❌ 傳送失敗：" + res.error); }
             })
