@@ -10,7 +10,9 @@
         .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
         .title-box { text-align: center; }
-        .main-title { font-size: 18px; font-weight: bold; }
+        /* ★ 將標題改為下拉選單樣式 */
+        #roomNavSelect { background: transparent; color: white; border: none; font-size: 18px; font-weight: bold; outline: none; text-align: center; appearance: none; cursor: pointer;}
+        #roomNavSelect option { color: black; font-size: 16px; }
         .sub-title { font-size: 12px; opacity: 0.8; }
         
         .tabs { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 60px; z-index: 99; }
@@ -43,14 +45,15 @@
         .camera-input { position: absolute; top: 0; left: 0; opacity: 0; width: 100%; height: 100%; }
         #previewImg { width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; display: none; margin-bottom: 10px; border: 1px solid #ddd; }
 
-        /* 塗鴉工具與 Canvas 樣式 */
         .draw-tools { display: none; gap: 10px; margin-bottom: 10px; justify-content: center; }
         .tool-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid #ccc; background: white; font-size: 13px; cursor: pointer; transition: 0.2s;}
         .tool-btn.active { background: #2d3436; color: white; border-color: #2d3436; }
         #drawCanvas { width: 100%; border: 1px solid #ddd; border-radius: 6px; display: none; touch-action: none; background: #eee; cursor: crosshair; }
 
         .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn-export { width: 100%; padding: 15px; background: #007bff; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-top: 15px; }
+        .btn-export { width: 100%; padding: 15px; background: #007bff; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 10px; }
+        .btn-trade { background: #00b894; }
+        .btn-sign { background: #6c5ce7; }
         
         #listSection { display: none; padding: 15px; }
         .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; cursor: pointer; border-left: 4px solid #8e44ad; transition: background 0.2s; }
@@ -58,25 +61,27 @@
         .defect-card img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; background: #eee; }
         .defect-info { flex: 1; }
         .defect-tag { display: inline-block; background: #ffeaa7; color: #d63031; font-size: 12px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-bottom: 4px; }
+        .trade-tag { display: inline-block; background: #dfe6e9; color: #2d3436; font-size: 12px; padding: 2px 6px; border-radius: 4px; margin-left: 5px;}
         
         .toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: bold;}
         .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
         
-        /* 離線狀態橫幅 */
         #offlineBanner { display: none; background: #e17055; color: white; padding: 12px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 1001; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
     </style>
 </head>
 <body>
     <div id="offlineBanner" onclick="syncOfflineData()">⚠️ 目前無網路連線，資料將暫存於手機</div>
     <div class="header">
-        <button class="nav-btn" onclick="changeRoom(-1)">◀ 上一戶</button>
+        <button class="nav-btn" onclick="changeRoom(-1)">◀</button>
         <div class="title-box">
-            <div class="main-title" id="roomTitle">A1戶</div>
+            <select id="roomNavSelect" onchange="jumpToRoom(this.value)">
+                <option>載入中...</option>
+            </select>
             <div class="sub-title" id="siteFloorTitle">載入中...</div>
         </div>
-        <button class="nav-btn" onclick="changeRoom(1)">下一戶 ▶</button>
+        <button class="nav-btn" onclick="changeRoom(1)">▶</button>
     </div>
 
     <div class="tabs">
@@ -126,26 +131,42 @@
                     <button id="deleteBtn" onclick="deleteInspection()" style="flex:1; background:#d63031; color:white; font-size:16px; font-weight:bold; border:none; border-radius:8px; display:none;">🗑️ 刪除</button>
                 </div>
 
-                <div class="form-group">
-                    <label style="display:flex; justify-content:space-between; align-items:center;">
-                        <span>📍 缺失所在空間</span>
-                        <span style="font-size:12px; font-weight:normal; color:#555;">
-                            <input type="checkbox" id="stickyLocation" checked> 保留選項
-                        </span>
-                    </label>
-                    <select id="locationSelect">
-                        <option value="客餐廳">客餐廳</option>
-                        <option value="臥室(一)">臥室(一)</option>
-                        <option value="臥室(二)">臥室(二)</option>
-                        <option value="臥室(三)">臥室(三)</option>
-                        <option value="廚房">廚房</option>
-                        <option value="主衛浴">主衛浴</option>
-                        <option value="客衛浴">客衛浴</option>
-                        <option value="前陽台">前陽台</option>
-                        <option value="後陽台">後陽台</option>
-                        <option value="輕隔間">輕隔間</option>
-                        <option value="其他">其他</option>
-                    </select>
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <div class="form-group" style="flex:1;">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>📍 所在空間</span>
+                        </label>
+                        <select id="locationSelect">
+                            <option value="客餐廳">客餐廳</option>
+                            <option value="臥室(一)">臥室(一)</option>
+                            <option value="臥室(二)">臥室(二)</option>
+                            <option value="臥室(三)">臥室(三)</option>
+                            <option value="廚房">廚房</option>
+                            <option value="主衛浴">主衛浴</option>
+                            <option value="客衛浴">客衛浴</option>
+                            <option value="前陽台">前陽台</option>
+                            <option value="後陽台">後陽台</option>
+                            <option value="輕隔間">輕隔間</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>👷‍♂️ 缺失工種</span>
+                            <span style="font-size:12px; font-weight:normal; color:#555;">
+                                <input type="checkbox" id="stickyLocation" checked> 保留
+                            </span>
+                        </label>
+                        <select id="tradeSelect">
+                            <option value="泥作工程">泥作工程</option>
+                            <option value="油漆工程">油漆工程</option>
+                            <option value="水電工程">水電工程</option>
+                            <option value="木作工程">木作工程</option>
+                            <option value="鋁窗工程">鋁窗工程</option>
+                            <option value="清潔工程">清潔工程</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -180,7 +201,10 @@
         <div id="listSection">
             <h3 style="color:#2d3436; margin-top:0;">📋 本戶缺失清單</h3>
             <div id="defectList">載入中...</div>
-            <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋修繕單 (Excel)</button>
+            <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+            <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋單 (客戶用 Excel)</button>
+            <button class="btn-export btn-trade" onclick="exportTradeReport()">🛠️ 匯出派工單 (工班用 Excel)</button>
+            <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
         </div>
 
     </div>
@@ -194,6 +218,7 @@
         let currentFloor = "";
         let currentRoom = "";
         let currentUser = "";
+        let lineUserId = ""; // 給推播用
         
         const ROOM_CONFIG = {
             "鼎隆大苑": {
@@ -235,6 +260,9 @@
         let originalImgData = new Image(); 
 
         liff.init({ liffId: myLiffId }).then(() => {
+            if (liff.isLoggedIn()) {
+                liff.getProfile().then(profile => { lineUserId = profile.userId; });
+            }
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
             currentFloor = decodeURIComponent(urlParams.get('floor') || "");
@@ -252,6 +280,59 @@
             window.addEventListener('offline', checkOfflineData);
             checkOfflineData();
         });
+
+        // ★ 新增功能：建立包含全棟樓層與戶別的下拉選單
+        function buildFlatRoomList(initialRoom) {
+            flatRoomList = [];
+            let navSelect = document.getElementById('roomNavSelect');
+            navSelect.innerHTML = ""; 
+
+            if (ROOM_CONFIG[currentSite]) {
+                let floors = Object.keys(ROOM_CONFIG[currentSite]);
+                for (let f of floors) {
+                    for (let r of ROOM_CONFIG[currentSite][f]) {
+                        flatRoomList.push({ floor: f, room: r });
+                        
+                        let opt = document.createElement('option');
+                        opt.value = `${f}|${r}`;
+                        opt.text = `▼ ${f} - ${r}`;
+                        navSelect.appendChild(opt);
+                    }
+                }
+            } else {
+                flatRoomList.push({ floor: currentFloor, room: "A1戶" });
+                let opt = document.createElement('option');
+                opt.value = `${currentFloor}|A1戶`;
+                opt.text = `▼ ${currentFloor} - A1戶`;
+                navSelect.appendChild(opt);
+            }
+            
+            currentFlatIndex = flatRoomList.findIndex(item => item.floor === currentFloor && item.room === initialRoom);
+            if (currentFlatIndex === -1) currentFlatIndex = 0;
+            currentFloor = flatRoomList[currentFlatIndex].floor;
+            currentRoom = flatRoomList[currentFlatIndex].room;
+            navSelect.value = `${currentFloor}|${currentRoom}`;
+        }
+
+        // ★ 新增功能：下拉選單直接跳轉
+        function jumpToRoom(val) {
+            let parts = val.split("|");
+            currentFloor = parts[0];
+            currentRoom = parts[1];
+            currentFlatIndex = flatRoomList.findIndex(item => item.floor === currentFloor && item.room === currentRoom);
+            updateUI();
+        }
+
+        // 左右箭頭切換
+        function changeRoom(direction) {
+            currentFlatIndex += direction;
+            if (currentFlatIndex < 0) currentFlatIndex = flatRoomList.length - 1;
+            if (currentFlatIndex >= flatRoomList.length) currentFlatIndex = 0;
+            currentFloor = flatRoomList[currentFlatIndex].floor;
+            currentRoom = flatRoomList[currentFlatIndex].room;
+            document.getElementById('roomNavSelect').value = `${currentFloor}|${currentRoom}`;
+            updateUI();
+        }
 
         function safeLoadImage(url, imgId) {
             let imgEl = document.getElementById(imgId);
@@ -276,33 +357,6 @@
                 let offset = formEl.getBoundingClientRect().top + window.scrollY - 110;
                 window.scrollTo({ top: offset, behavior: 'smooth' }); 
             }, 100);
-        }
-
-        function buildFlatRoomList(initialRoom) {
-            flatRoomList = [];
-            if (ROOM_CONFIG[currentSite]) {
-                let floors = Object.keys(ROOM_CONFIG[currentSite]);
-                for (let f of floors) {
-                    for (let r of ROOM_CONFIG[currentSite][f]) {
-                        flatRoomList.push({ floor: f, room: r });
-                    }
-                }
-            } else {
-                flatRoomList.push({ floor: currentFloor, room: "A1戶" });
-            }
-            currentFlatIndex = flatRoomList.findIndex(item => item.floor === currentFloor && item.room === initialRoom);
-            if (currentFlatIndex === -1) currentFlatIndex = 0;
-            currentFloor = flatRoomList[currentFlatIndex].floor;
-            currentRoom = flatRoomList[currentFlatIndex].room;
-        }
-
-        function changeRoom(direction) {
-            currentFlatIndex += direction;
-            if (currentFlatIndex < 0) currentFlatIndex = flatRoomList.length - 1;
-            if (currentFlatIndex >= flatRoomList.length) currentFlatIndex = 0;
-            currentFloor = flatRoomList[currentFlatIndex].floor;
-            currentRoom = flatRoomList[currentFlatIndex].room;
-            updateUI();
         }
 
         function switchTab(tab) {
@@ -371,11 +425,14 @@
                         ? 'border-left: 4px solid #1DB446; opacity: 0.7;' 
                         : 'border-left: 4px solid #dc3545;';
 
+                    // ★ 新增：顯示工種標籤
+                    let tradeDisplay = d.Trade && d.Trade !== '其他' ? `<span class="trade-tag">${d.Trade}</span>` : '';
+
                     html += `
                     <div class="defect-card" onclick="editDefect(${d.ID})" style="${cardStyle}">
                         <img id="list-img-${d.ID}" src="${initialSrc}" alt="照片">
                         <div class="defect-info">
-                            <span class="defect-tag">${d.Location}</span>${phaseTag}${statusBadge}
+                            <span class="defect-tag">${d.Location}</span>${tradeDisplay}${phaseTag}${statusBadge}
                             <div style="font-size:14px; font-weight:bold; margin-bottom:5px; margin-top:5px;">${d.Description}</div>
                             <div style="font-size:12px; color:#888;">${d.DrawingType}</div>
                         </div>
@@ -431,7 +488,6 @@
                     document.getElementById('mapHint').innerText = "✅ 已標記新位置 (請在下方填寫資訊)";
                     
                     renderCanvas();
-                    
                     document.getElementById('formContainer').style.display = 'block';
                     smoothScrollToForm();
 
@@ -586,11 +642,11 @@
             setDefectStatus(d.Status || '🔴 待改善');
 
             document.getElementById('locationSelect').value = d.Location || "客餐廳";
+            document.getElementById('tradeSelect').value = d.Trade || "其他"; // ★ 讀取工種
             document.getElementById('descriptionInput').value = d.Description || "";
             
             let previewImg = document.getElementById('previewImg');
             
-            // 編輯模式下，先隱藏畫布
             document.getElementById('drawCanvas').style.display = "none";
             document.getElementById('drawTools').style.display = "none";
 
@@ -631,6 +687,7 @@
 
             if (!document.getElementById('stickyLocation').checked) {
                 document.getElementById('locationSelect').value = "客餐廳";
+                document.getElementById('tradeSelect').value = "其他"; // 重置工種
             }
             
             document.getElementById('descriptionInput').value = "";
@@ -666,8 +723,8 @@
         }
 
         function updateUI() {
-            document.getElementById('roomTitle').innerText = currentRoom;
             document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
+            document.getElementById('roomNavSelect').value = `${currentFloor}|${currentRoom}`;
             updateDrawingImage();
             loadRoomDefects(); 
         }
@@ -769,7 +826,8 @@
                 imageBase64: base64Img, 
                 inspector: currentUser,
                 status: document.getElementById('statusInput').value,
-                phase: document.getElementById('inspRound').value 
+                phase: document.getElementById('inspRound').value,
+                trade: document.getElementById('tradeSelect').value // ★ 加入工種
             };
 
             if (editId) {
@@ -890,16 +948,39 @@
         }
 
         function exportExcel() {
-            // ★ 新增：抓取畫面上目前選取的期數 (初驗/二驗/三驗)
             let currentRound = document.getElementById('inspRound').value;
-            
-            let url = `${apiBaseUrl}/export-inspection-excel?` + 
-                      `site=${encodeURIComponent(currentSite)}&` + 
-                      `floor=${encodeURIComponent(currentFloor)}&` + 
-                      `room=${encodeURIComponent(currentRoom)}&` +
-                      `round=${encodeURIComponent(currentRound)}`; // ★ 傳送期數
-            
+            let url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(currentRound)}`;
             window.open(url, '_blank');
+        }
+
+        // ★ 新增功能：匯出派工單 (給工班看)
+        function exportTradeReport() {
+            let currentRound = document.getElementById('inspRound').value;
+            let url = `${apiBaseUrl}/export-trade-report?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(currentRound)}`;
+            window.open(url, '_blank');
+        }
+
+        // ★ 新增功能：發送給客戶電子簽名要求
+        function sendSignatureRequest() {
+            if (!lineUserId) return alert("無法取得您的 LINE ID，請確認已授權！");
+            if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】的電子簽名連結嗎？\n(系統將會發送一張卡片到 LINE 聊天室中)`)) return;
+            
+            fetch(`${apiBaseUrl}/send-sig-request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', "ngrok-skip-browser-warning": "true" },
+                body: JSON.stringify({
+                    site: currentSite, floor: currentFloor, room: currentRoom,
+                    userId: lineUserId, apiBaseUrl: apiBaseUrl
+                })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    alert("✅ 已成功傳送簽名卡片到您的 LINE 聊天室，請點擊左上角「X」關閉視窗並轉傳該卡片給客戶！");
+                    liff.closeWindow();
+                } else { alert("❌ 傳送失敗：" + res.error); }
+            })
+            .catch(e => alert("傳送失敗，網路異常"));
         }
 
         function fileToBase64(file) {
