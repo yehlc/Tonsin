@@ -283,13 +283,11 @@
         let globalRoomDefects = []; 
         let currentTabMode = 'add';
 
-        // 塗鴉相關變數
         let drawCanvas, drawCtx;
         let isDrawing = false;
         let brushColor = 'red';
         let originalImgData = new Image(); 
 
-        // 簽名相關變數
         let sigCanvas, sigCtx;
         let isSigning = false;
         let hasSigned = false;
@@ -308,7 +306,8 @@
             // ★ 判斷是否為「客戶簽名模式」
             let mode = urlParams.get('mode');
             if (mode === 'customer_sign') {
-                currentRound = decodeURIComponent(urlParams.get('round') || "業主初驗");
+                // 如果網址有傳期數，就抓網址的，沒有的話預設為業主初驗
+                currentRound = urlParams.has('round') ? decodeURIComponent(urlParams.get('round')) : "業主初驗";
                 document.getElementById('normalAppUI').style.display = 'none';
                 document.getElementById('customerSignSection').style.display = 'block';
                 loadCustomerSignData();
@@ -336,6 +335,7 @@
                 headers: { "ngrok-skip-browser-warning": "true" }
             }).then(r => r.json()).then(res => {
                 if (res.success) {
+                    // 過濾出屬於這個期數該看到的項目
                     let defects = res.data.filter(d => {
                         if (currentRound === '業主初驗') return d.Phase === '業主初驗';
                         if (currentRound === '業主複驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗';
