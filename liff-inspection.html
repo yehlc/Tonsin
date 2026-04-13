@@ -10,7 +10,6 @@
         .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
         .title-box { text-align: center; }
-        /* ★ 將標題改為下拉選單樣式 */
         #roomNavSelect { background: transparent; color: white; border: none; font-size: 18px; font-weight: bold; outline: none; text-align: center; appearance: none; cursor: pointer;}
         #roomNavSelect option { color: black; font-size: 16px; }
         .sub-title { font-size: 12px; opacity: 0.8; }
@@ -94,9 +93,11 @@
         <div id="sharedMapSection">
             <div class="toolbar" style="display: flex; gap: 10px;">
                 <select id="inspRound" onchange="applyPhaseFilter()" style="flex: 1; border-color: #8e44ad; color: #8e44ad; background: #fdfaf6;">
-                    <option value="初驗">1️⃣ 初驗</option>
-                    <option value="二驗">2️⃣ 二驗</option>
-                    <option value="三驗">3️⃣ 三驗</option>
+                    <option value="業主初驗">1️⃣ 業主初驗</option>
+                    <option value="業主複驗">2️⃣ 業主複驗</option>
+                    <option value="客戶初驗">3️⃣ 客戶初驗</option>
+                    <option value="客戶複驗">4️⃣ 客戶複驗</option>
+                    <option value="客戶三驗">5️⃣ 客戶三驗</option>
                 </select>
                 <select id="drawingType" onchange="updateDrawingImage()" style="flex: 2;">
                     <option value="1.建築客變圖">1. 建築客變圖</option>
@@ -218,7 +219,7 @@
         let currentFloor = "";
         let currentRoom = "";
         let currentUser = "";
-        let lineUserId = ""; // 給推播用
+        let lineUserId = ""; 
         
         const ROOM_CONFIG = {
             "鼎隆大苑": {
@@ -281,7 +282,6 @@
             checkOfflineData();
         });
 
-        // ★ 新增功能：建立包含全棟樓層與戶別的下拉選單
         function buildFlatRoomList(initialRoom) {
             flatRoomList = [];
             let navSelect = document.getElementById('roomNavSelect');
@@ -314,7 +314,6 @@
             navSelect.value = `${currentFloor}|${currentRoom}`;
         }
 
-        // ★ 新增功能：下拉選單直接跳轉
         function jumpToRoom(val) {
             let parts = val.split("|");
             currentFloor = parts[0];
@@ -323,7 +322,6 @@
             updateUI();
         }
 
-        // 左右箭頭切換
         function changeRoom(direction) {
             currentFlatIndex += direction;
             if (currentFlatIndex < 0) currentFlatIndex = flatRoomList.length - 1;
@@ -397,11 +395,15 @@
 
         function renderDefectList() {
             let container = document.getElementById('defectList');
-            let currentRound = document.getElementById('inspRound').value;
+            let currentRound = document.getElementById('inspRound').value; // 這邊會抓到 '業主初驗' 等 5 種值
             
+            // ★ 修改 5 階段過濾邏輯
             let filteredDefects = globalRoomDefects.filter(d => {
-                if (currentRound === '初驗') return d.Phase === '初驗';
-                if (currentRound === '二驗') return d.Phase === '初驗' || d.Phase === '二驗';
+                if (currentRound === '業主初驗') return d.Phase === '業主初驗';
+                if (currentRound === '業主複驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗';
+                if (currentRound === '客戶初驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗';
+                if (currentRound === '客戶複驗') return d.Phase !== '客戶三驗'; // 除了三驗都顯示
+                if (currentRound === '客戶三驗') return true; // 全顯示
                 return true; 
             });
 
@@ -417,15 +419,17 @@
                         ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
                         : `<span style="background:#dc3545; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">🔴 待改善</span>`;
                         
-                    let phaseTag = `<span style="background:#6c5ce7; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">1️⃣ 初驗</span>`;
-                    if (d.Phase === '二驗') phaseTag = `<span style="background:#e17055; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">2️⃣ 二驗</span>`;
-                    if (d.Phase === '三驗') phaseTag = `<span style="background:#d63031; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">3️⃣ 三驗</span>`;
+                    // 根據 5 階段給予不同標籤顏色
+                    let phaseTag = `<span style="background:#6c5ce7; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">${d.Phase}</span>`;
+                    if (d.Phase === '業主複驗') phaseTag = `<span style="background:#0984e3; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">${d.Phase}</span>`;
+                    if (d.Phase === '客戶初驗') phaseTag = `<span style="background:#fdcb6e; color:#2d3436; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">${d.Phase}</span>`;
+                    if (d.Phase === '客戶複驗') phaseTag = `<span style="background:#e17055; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">${d.Phase}</span>`;
+                    if (d.Phase === '客戶三驗') phaseTag = `<span style="background:#d63031; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">${d.Phase}</span>`;
 
                     let cardStyle = isDone 
                         ? 'border-left: 4px solid #1DB446; opacity: 0.7;' 
                         : 'border-left: 4px solid #dc3545;';
 
-                    // ★ 新增：顯示工種標籤
                     let tradeDisplay = d.Trade && d.Trade !== '其他' ? `<span class="trade-tag">${d.Trade}</span>` : '';
 
                     html += `
@@ -500,10 +504,13 @@
                     for (let d of globalRoomDefects) {
                         if (d.DrawingType !== currentDrawing || !d.XY_Coord) continue;
                         
+                        // ★ 地圖圖釘顯示過濾邏輯更新
                         let isVisible = false;
-                        if (currentRound === '初驗' && d.Phase === '初驗') isVisible = true;
-                        if (currentRound === '二驗' && (d.Phase === '初驗' || d.Phase === '二驗')) isVisible = true;
-                        if (currentRound === '三驗') isVisible = true;
+                        if (currentRound === '業主初驗' && d.Phase === '業主初驗') isVisible = true;
+                        if (currentRound === '業主複驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗')) isVisible = true;
+                        if (currentRound === '客戶初驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗')) isVisible = true;
+                        if (currentRound === '客戶複驗' && d.Phase !== '客戶三驗') isVisible = true;
+                        if (currentRound === '客戶三驗') isVisible = true;
                         
                         if (isVisible) {
                             let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
@@ -541,9 +548,11 @@
                     if (d.DrawingType !== currentDrawing || !d.XY_Coord) return;
                     
                     let showPin = false;
-                    if (currentRound === '初驗' && d.Phase === '初驗') showPin = true;
-                    if (currentRound === '二驗' && (d.Phase === '初驗' || d.Phase === '二驗')) showPin = true;
-                    if (currentRound === '三驗') showPin = true;
+                    if (currentRound === '業主初驗' && d.Phase === '業主初驗') showPin = true;
+                    if (currentRound === '業主複驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗')) showPin = true;
+                    if (currentRound === '客戶初驗' && (d.Phase === '業主初驗' || d.Phase === '業主複驗' || d.Phase === '客戶初驗')) showPin = true;
+                    if (currentRound === '客戶複驗' && d.Phase !== '客戶三驗') showPin = true;
+                    if (currentRound === '客戶三驗') showPin = true;
 
                     if (d.ID.toString() === currentlyEditingId) showPin = true;
 
@@ -592,11 +601,15 @@
             floorCtx.beginPath(); floorCtx.arc(px, py - size * 2, size, 0, Math.PI * 2);
             floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
 
+            // ★ 根據新期數修改前綴文字
             let phasePrefix = "";
-            if (phase === '二驗') phasePrefix = "②-";
-            else if (phase === '三驗') phasePrefix = "③-";
+            if (phase === '業主初驗') phasePrefix = "O1-";
+            else if (phase === '業主複驗') phasePrefix = "O2-";
+            else if (phase === '客戶初驗') phasePrefix = "C1-";
+            else if (phase === '客戶複驗') phasePrefix = "C2-";
+            else if (phase === '客戶三驗') phasePrefix = "C3-";
 
-            floorCtx.fillStyle = '#111'; floorCtx.font = `bold ${size*1.8}px sans-serif`;
+            floorCtx.fillStyle = '#111'; floorCtx.font = `bold ${size*1.6}px sans-serif`;
             floorCtx.fillText(phasePrefix + id, px + size, py - size*2.5);
         }
 
@@ -642,7 +655,7 @@
             setDefectStatus(d.Status || '🔴 待改善');
 
             document.getElementById('locationSelect').value = d.Location || "客餐廳";
-            document.getElementById('tradeSelect').value = d.Trade || "其他"; // ★ 讀取工種
+            document.getElementById('tradeSelect').value = d.Trade || "其他"; 
             document.getElementById('descriptionInput').value = d.Description || "";
             
             let previewImg = document.getElementById('previewImg');
@@ -687,7 +700,7 @@
 
             if (!document.getElementById('stickyLocation').checked) {
                 document.getElementById('locationSelect').value = "客餐廳";
-                document.getElementById('tradeSelect').value = "其他"; // 重置工種
+                document.getElementById('tradeSelect').value = "其他";
             }
             
             document.getElementById('descriptionInput').value = "";
@@ -796,9 +809,7 @@
             let inspRound = document.getElementById('inspRound').value;
             let finalDesc = rawDesc;
             
-            if (!editId && inspRound !== "初驗") {
-                finalDesc = `[${inspRound}] ` + rawDesc;
-            }
+            // 將原本 [初驗] 標記拿掉，因為我們現在資料庫裡有 Phase 可以精準紀錄，不需要污染 Description 欄位
             
             if (!editId && canvasBox.style.display !== 'block' && (!fileInput.files || fileInput.files.length === 0)) {
                 return alert("⚠️ 請拍攝缺失照片！");
@@ -827,7 +838,7 @@
                 inspector: currentUser,
                 status: document.getElementById('statusInput').value,
                 phase: document.getElementById('inspRound').value,
-                trade: document.getElementById('tradeSelect').value // ★ 加入工種
+                trade: document.getElementById('tradeSelect').value
             };
 
             if (editId) {
@@ -953,14 +964,12 @@
             window.open(url, '_blank');
         }
 
-        // ★ 新增功能：匯出派工單 (給工班看)
         function exportTradeReport() {
             let currentRound = document.getElementById('inspRound').value;
             let url = `${apiBaseUrl}/export-trade-report?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(currentRound)}`;
             window.open(url, '_blank');
         }
 
-        // ★ 新增功能：發送給客戶電子簽名要求
         function sendSignatureRequest() {
             if (!lineUserId) return alert("無法取得您的 LINE ID，請確認已授權！");
             if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】的電子簽名連結嗎？\n(系統將會發送一張卡片到 LINE 聊天室中)`)) return;
