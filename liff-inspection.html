@@ -225,6 +225,11 @@
             載入中...
         </div>
 
+        <h4 style="background: #f0f0f0; padding: 8px; border-left: 4px solid #8e44ad; margin-bottom: 5px;">📜 歷史簽名紀錄</h4>
+        <div id="historySignContainer" style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px;">
+            <span style="color:#888; font-size:14px; padding-left:10px;">尚無紀錄</span>
+        </div>
+
         <h4 style="background: #f0f0f0; padding: 8px; border-left: 4px solid #8e44ad; margin-bottom: 5px;">✍️ 業主 / 客戶確認簽名區</h4>
         <div style="border: 2px dashed #8e44ad; border-radius: 8px; background: #fafafa; margin-bottom: 15px; position: relative;">
             <canvas id="sigCanvas" style="width: 100%; height: 200px; touch-action: none; cursor: crosshair; display: block; border-radius: 8px;"></canvas>
@@ -391,9 +396,6 @@
             });
         }
 
-        // ==========================================
-        // ★ 多人簽名機制：畫布初始化與舊紀錄疊加
-        // ==========================================
         function initSigCanvas() {
             sigCanvas = document.getElementById('sigCanvas');
             sigCtx = sigCanvas.getContext('2d');
@@ -406,27 +408,27 @@
             sigCtx.lineCap = "round";
             sigCtx.strokeStyle = "#2d3436";
 
-            // 去後端撈撈看有沒有之前簽過的紀錄
+            // ★ 前端：撈取陣列並顯示在歷史區塊，不影響當前的空白畫布
             fetch(`${apiBaseUrl}/room-signature?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(currentRound)}`, {
                 headers: { "ngrok-skip-browser-warning": "true" }
             }).then(r => r.json()).then(res => {
-                if (res.success && res.signature) {
-                    let img = new Image();
-                    img.crossOrigin = "Anonymous";
-                    img.onload = () => {
-                        // 把舊的簽名當作背景畫上去
-                        sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
-                        hasSigned = true; // 既然有舊紀錄，允許直接送出
-                        
-                        let hintEl = document.getElementById('sigHint');
-                        if (hintEl) {
-                            hintEl.innerText = "⚠️ 已有簽名紀錄，新確認者請簽於旁邊空白處";
-                            hintEl.style.color = "#e17055";
-                        }
-                    };
-                    img.src = res.signature;
+                if (res.success && res.signatures && res.signatures.length > 0) {
+                    let historyHtml = "";
+                    res.signatures.forEach((sig, idx) => {
+                        historyHtml += `<div style="border: 1px solid #ddd; padding: 5px; border-radius: 6px; background: #fff; text-align: center;">
+                            <div style="font-size:12px; color:#555; margin-bottom:4px;">簽名 ${idx + 1}</div>
+                            <img src="${sig.data}" style="width:120px; height:auto; display:block;">
+                        </div>`;
+                    });
+                    document.getElementById('historySignContainer').innerHTML = historyHtml;
+                    
+                    let hintEl = document.getElementById('sigHint');
+                    if (hintEl) {
+                        hintEl.innerText = "如有其他人員，請於下方空白處繼續簽名...";
+                        hintEl.style.color = "#e17055";
+                    }
                 }
-            }).catch(e => console.log("無歷史簽名或載入失敗"));
+            }).catch(e => console.log("無歷史簽名"));
 
             let getPos = (e) => {
                 let r = sigCanvas.getBoundingClientRect();
@@ -440,7 +442,7 @@
                 isSigning = true; 
                 hasSigned = true; 
                 let hintEl = document.getElementById('sigHint');
-                if(hintEl) hintEl.style.display = "none"; // 開始畫畫就隱藏文字提示
+                if(hintEl) hintEl.style.display = "none";
                 let pos = getPos(e); 
                 sigCtx.beginPath(); 
                 sigCtx.moveTo(pos.x, pos.y); 
