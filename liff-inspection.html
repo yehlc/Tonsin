@@ -391,6 +391,9 @@
             });
         }
 
+        // ==========================================
+        // ★ 多人簽名機制：畫布初始化與舊紀錄疊加
+        // ==========================================
         function initSigCanvas() {
             sigCanvas = document.getElementById('sigCanvas');
             sigCtx = sigCanvas.getContext('2d');
@@ -403,22 +406,27 @@
             sigCtx.lineCap = "round";
             sigCtx.strokeStyle = "#2d3436";
 
-            // ★ 新增多人簽名機制：嘗試撈取已存在的歷史簽名
+            // 去後端撈撈看有沒有之前簽過的紀錄
             fetch(`${apiBaseUrl}/room-signature?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(currentRound)}`, {
                 headers: { "ngrok-skip-browser-warning": "true" }
             }).then(r => r.json()).then(res => {
                 if (res.success && res.signature) {
                     let img = new Image();
+                    img.crossOrigin = "Anonymous";
                     img.onload = () => {
-                        // 將先前的簽名當作背景畫上去
+                        // 把舊的簽名當作背景畫上去
                         sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
                         hasSigned = true; // 既然有舊紀錄，允許直接送出
-                        document.getElementById('sigHint').innerText = "⚠️ 已經有簽名紀錄囉！若有多人需確認，可於空白處繼續簽名。";
-                        document.getElementById('sigHint').style.color = "#d63031";
+                        
+                        let hintEl = document.getElementById('sigHint');
+                        if (hintEl) {
+                            hintEl.innerText = "⚠️ 已有簽名紀錄，新確認者請簽於旁邊空白處";
+                            hintEl.style.color = "#e17055";
+                        }
                     };
                     img.src = res.signature;
                 }
-            }).catch(e => console.error("無法載入舊簽名"));
+            }).catch(e => console.log("無歷史簽名或載入失敗"));
 
             let getPos = (e) => {
                 let r = sigCanvas.getBoundingClientRect();
@@ -431,7 +439,8 @@
                 e.preventDefault(); 
                 isSigning = true; 
                 hasSigned = true; 
-                document.getElementById('sigHint').style.display = "none"; // 開始畫畫就隱藏提示
+                let hintEl = document.getElementById('sigHint');
+                if(hintEl) hintEl.style.display = "none"; // 開始畫畫就隱藏文字提示
                 let pos = getPos(e); 
                 sigCtx.beginPath(); 
                 sigCtx.moveTo(pos.x, pos.y); 
@@ -442,14 +451,19 @@
             sigCanvas.ontouchstart = start; sigCanvas.ontouchmove = draw; sigCanvas.ontouchend = end;
             sigCanvas.onmousedown = start; sigCanvas.onmousemove = draw; sigCanvas.onmouseup = end;
         }
-
         function clearSigCanvas() {
             if(sigCtx && sigCanvas) {
-                sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-                hasSigned = false;
-                document.getElementById('sigHint').innerText = "請在此處簽名...";
-                document.getElementById('sigHint').style.color = "#ccc";
-                document.getElementById('sigHint').style.display = "block";
+                // 加個防呆，以免不小心把一家人的歷史簽名都清掉
+                if(confirm("確定要清除畫布嗎？這將會把之前所有的簽名紀錄一併清除。\n(若不小心清除，可重新整理網頁復原舊簽名)")) {
+                    sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+                    hasSigned = false;
+                    let hintEl = document.getElementById('sigHint');
+                    if(hintEl) {
+                        hintEl.innerText = "請在此處簽名...";
+                        hintEl.style.color = "#ccc";
+                        hintEl.style.display = "block";
+                    }
+                }
             }
         }
 
@@ -1175,36 +1189,55 @@
             window.open(url, '_blank');
         }
 
-        // ★ 修正：發送給客戶電子簽名要求 (確保傳入 round)
+        // ==========================================
+        // ★ 修正：分享電子簽名要求 (使用 LINE 原生分享對象選擇器)
+        // ==========================================
         function sendSignatureRequest() {
             if (!lineUserId) return alert("無法取得您的 LINE ID，請確認已授權！");
             
-            // ★ 確保抓到畫面上下拉選單的期數
             let selectedRound = document.getElementById('inspRound').value;
-            if (!selectedRound) selectedRound = currentRound; // fallback
+            if (!selectedRound) selectedRound = currentRound;
 
-            if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】${selectedRound}的電子簽名連結嗎？\n(系統將會發送一張卡片到 LINE 聊天室中)`)) return;
+            if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】${selectedRound} 的電子簽名並分享給客戶嗎？`)) return;
             
-            fetch(`${apiBaseUrl}/send-sig-request`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', "ngrok-skip-browser-warning": "true" },
-                body: JSON.stringify({
-                    site: currentSite, 
-                    floor: currentFloor, 
-                    room: currentRoom, 
-                    round: selectedRound, // ★ 這裡正確傳入期數
-                    userId: lineUserId, 
-                    apiBaseUrl: apiBaseUrl
-                })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    alert("✅ 已成功傳送簽名卡片到您的 LINE 聊天室，請點擊左上角「X」關閉視窗並轉傳該卡片給客戶！");
-                    liff.closeWindow();
-                } else { alert("❌ 傳送失敗：" + res.error); }
-            })
-            .catch(e => alert("傳送失敗，網路異常"));
+            let signUrl = `https://liff.line.me/${myLiffId}/?page=inspection&mode=customer_sign&site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(selectedRound)}&api=${encodeURIComponent(apiBaseUrl)}&sharer=${encodeURIComponent(lineUserId)}`;
+
+            let flexBubble = {
+                "type": "bubble",
+                "header": { "type": "box", "layout": "vertical", "backgroundColor": "#8e44ad", "contents": [ { "type": "text", "text": "📝 驗屋修繕確認單", "weight": "bold", "color": "#ffffff", "size": "lg" } ] },
+                "body": {
+                    "type": "box", "layout": "vertical", "spacing": "sm",
+                    "contents": [
+                        { "type": "text", "text": `🏢 案場：${currentSite}`, "size": "sm" },
+                        { "type": "text", "text": `📍 戶別：${currentFloor} - ${currentRoom}`, "size": "sm" },
+                        { "type": "text", "text": `📅 期數：${selectedRound}`, "size": "sm", "weight": "bold", "color": "#e17055" },
+                        { "type": "text", "text": "本次驗屋已完成，請點擊下方按鈕，於線上檢視項目並完成電子簽名確認。", "wrap": true, "color": "#555555", "size": "sm", "margin": "md" }
+                    ]
+                },
+                "footer": {
+                    "type": "box", "layout": "vertical",
+                    "contents": [ { "type": "button", "style": "primary", "color": "#8e44ad", "action": { "type": "uri", "label": "✍️ 前往電子簽名", "uri": signUrl } } ]
+                }
+            };
+
+            // ★ 完美解法：直接呼叫 LIFF 的 shareTargetPicker 讓使用者選擇要分享的好友
+            if (liff.isApiAvailable('shareTargetPicker')) {
+                liff.shareTargetPicker([
+                    {
+                        "type": "flex",
+                        "altText": `驗屋修繕電子簽名單 - ${selectedRound}`,
+                        "contents": flexBubble
+                    }
+                ]).then(function (res) {
+                    if (res) {
+                        showToast("✅ 已成功分享給客戶！");
+                    }
+                }).catch(function (error) {
+                    alert("❌ 分享失敗：" + error.message);
+                });
+            } else {
+                alert("⚠️ 您的裝置環境不支援快速分享，請複製以下連結傳送給客戶：\n\n" + signUrl);
+            }
         }
 
         function fileToBase64(file) {
