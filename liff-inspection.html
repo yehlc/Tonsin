@@ -1043,7 +1043,8 @@
 
             let base64Img = null;
             if (canvasBox.style.display === 'block') {
-                base64Img = canvasBox.toDataURL('image/jpeg', 0.8).split(',')[1];
+                // 品質調降至 0.7 以節省離線暫存與資料庫空間
+                base64Img = canvasBox.toDataURL('image/jpeg', 0.7).split(',')[1];
             } else if (fileInput.files && fileInput.files.length > 0) {
                 base64Img = await fileToBase64(fileInput.files[0]);
                 base64Img = base64Img.split(',')[1];
@@ -1071,12 +1072,19 @@
                 payload.xyCoord = `[座標] X:${xPercent}%, Y:${yPercent}%`; 
             }
 
+            // ★ 修正：更安全的離線暫存機制
             if (!navigator.onLine) {
                 let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
-                offlineQueue.push({ url: url, payload: payload, isEdit: !!editId });
-                localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
+                // 注意這裡不再寫死 URL，避免 ngrok 重開導致網址失效
+                offlineQueue.push({ payload: payload, isEdit: !!editId });
                 
-                showToast("📶 已離線暫存！恢復網路後點擊上方橫幅上傳");
+                try {
+                    localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
+                    showToast("📶 已離線暫存！恢復網路後點擊上方橫幅上傳");
+                } catch (err) {
+                    alert("⚠️ 儲存失敗：手機暫存空間 (LocalStorage) 已滿，請先連上網路進行同步！");
+                }
+                
                 cancelInspection();
                 checkOfflineData(); 
                 btn.disabled = false; btn.innerText = "📤 儲存並送出";
@@ -1095,16 +1103,21 @@
                 } else { alert("❌ 操作失敗：" + res.error); }
             }).catch(e => {
                 let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
-                offlineQueue.push({ url: url, payload: payload, isEdit: !!editId });
-                localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
-                showToast("連線異常，已為您自動切換至離線暫存！");
+                offlineQueue.push({ payload: payload, isEdit: !!editId });
+                
+                try {
+                    localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
+                    showToast("連線異常，已為您自動切換至離線暫存！");
+                } catch (err) {
+                    alert("連線異常，且手機暫存空間不足，請稍後再試。");
+                }
+
                 cancelInspection();
                 checkOfflineData();
             }).finally(() => {
                 btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存並送出";
             });
         }
-
         window.checkOfflineData = function() {
             let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
             let banner = document.getElementById('offlineBanner');
@@ -1139,7 +1152,10 @@
             for (let i = 0; i < offlineQueue.length; i++) {
                 let item = offlineQueue[i];
                 try {
-                    let r = await fetch(item.url, {
+                    // ★ 修正：動態組合當下的 apiBaseUrl，避免 ngrok 網址更新後死連結
+                    let targetUrl = item.isEdit ? `${apiBaseUrl}/update-inspection-defect` : `${apiBaseUrl}/submit-inspection`;
+                    
+                    let r = await fetch(targetUrl, {
                         method: "POST", 
                         headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                         body: JSON.stringify(item.payload)
