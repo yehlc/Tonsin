@@ -805,11 +805,24 @@ async function submitRating() {
 }
 
 // ── Utils ──
-function apiFetch(path, opts = {}) {
-  return fetch(apiBase + path, {
+async function apiFetch(path, opts = {}) {
+  const r = await fetch(apiBase + path, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...(opts.headers || {}) }
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...(opts.headers || {})
+    }
   });
+  // ★ 檢查回應型別，避免把 HTML 錯誤頁當 JSON 解析
+  const ct = r.headers.get('content-type') || '';
+  if (!ct.includes('application/json') && !ct.includes('text/plain')) {
+    // 伺服器傳回 HTML（通常是 404、ngrok 警告、或伺服器錯誤）
+    const text = await r.text();
+    const hint = text.includes('ngrok') ? '(ngrok 警告頁面，請確認 header 設定)' : '';
+    throw new Error(`API 非 JSON 回應 ${hint}: ${r.status} ${r.statusText}`);
+  }
+  return r;
 }
 function fileToBase64(file) {
   return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result); r.onerror = rej; });
