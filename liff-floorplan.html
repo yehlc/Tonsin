@@ -83,7 +83,7 @@ textarea.ff{height:72px;resize:none}
 /* Detail card */
 .detail-card{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:18px 18px 0 0;z-index:500;max-height:88vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s ease;display:none}
 .detail-card.open{display:block;transform:translateY(0)}
-.detail-img{width: auto; max-width: 100%; max-height: 220px; object-fit: contain;}
+.detail-img{width:100%;max-height:200px;object-fit:cover;background:#111;display:none}
 .detail-body{padding:13px 15px}
 .d-status{display:inline-block;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:9px}
 .d-todo{background:#fdecea;color:var(--red)}
@@ -266,9 +266,6 @@ const myUser    = decodeURIComponent(urlP.get('user')  || '');
 const myUserId  = urlP.get('userId') || '';
 const LIFF_ID   = "2009287087-4LSCRAq4";
 const GH_PAGES  = "https://yehlc.github.io/Tonsin";
-  // 1. URL 參數讀取（加 level 和 role）
-const myLevel = parseFloat(urlP.get('level') || '0');
-const myRole  = decodeURIComponent(urlP.get('role') || '');
 
 /* ─── Floor image map ─── */
 const FLOOR_IMG = {
@@ -561,136 +558,34 @@ function filterList(s,el){listFilter=s;document.querySelectorAll('.filter-chip')
 
 /* ─── Detail ─── */
 function openDetailById(id){const d=allDefects.find(x=>x.ID==id);if(d)openDetail(d);}
-// 4. 修改後的 openDetail 函式（顯示雙照片）
-async function openDetail_FIXED(d) {
-  currentDetailId = d.ID;
-  document.getElementById('detailMask').style.display = 'block';
-  const card = document.getElementById('detailCard');
-  card.style.display = 'block';
-  setTimeout(() => card.classList.add('open'), 10);
- 
-  const cls = d.Status.includes('待改善') ? 'd-todo' : d.Status.includes('待驗收') ? 'd-review' : 'd-done';
-  const st = document.getElementById('detailStatus');
-  st.className = 'd-status ' + cls;
-  st.textContent = d.Status;
- 
-  document.getElementById('detailTitle').textContent = d.Description || '無說明';
-  document.getElementById('detailMeta').innerHTML =
-    `#${d.ID} | 🔧 ${d.Dept} | 📍 ${d.Floor}<br>👤 ${d.UserName} | 🕒 ${(d.TimeStamp || '').substring(0, 16)}`;
-  document.getElementById('editDescInput').value = d.Description || '';
- 
-  // ★ 顯示改善前照片 (original)
-  const imgEl = document.getElementById('detailImg');
-  imgEl.style.cssText = 'display:none;width:auto;max-width:100%;max-height:220px;object-fit:contain;border-radius:8px;margin:8px auto;display:block';
-  imgEl.style.display = 'none';
- 
-  try {
-    const r = await fetch(`${apiBase}/image/${d.ID}/original?cb=${Date.now()}`,
-      { headers: { 'ngrok-skip-browser-warning': 'true' } });
-    if (r.ok) {
-      const b = await r.blob();
-      imgEl.src = URL.createObjectURL(b);
-      imgEl.style.display = 'block';
-    }
-  } catch (e) {}
- 
-  // ★ 待驗收/已改善時，額外顯示改善後照片
-  const fixImgSection = document.getElementById('fixImgSection');
-  if (fixImgSection) fixImgSection.remove();
- 
-  if (d.Status.includes('待驗收') || d.Status.includes('已改善')) {
-    try {
-      const rf = await fetch(`${apiBase}/image/${d.ID}/fixed?cb=${Date.now()}`,
-        { headers: { 'ngrok-skip-browser-warning': 'true' } });
-      if (rf.ok && rf.headers.get('content-type')?.includes('image')) {
-        const bf = await rf.blob();
-        const section = document.createElement('div');
-        section.id = 'fixImgSection';
-        section.style.cssText = 'padding:0 15px;margin-bottom:8px;';
-        section.innerHTML = '<p style="font-size:12px;color:#27ae60;font-weight:700;margin-bottom:4px;">✅ 改善後照片：</p>';
-        const fixImg = document.createElement('img');
-        fixImg.src = URL.createObjectURL(bf);
-        fixImg.style.cssText = 'width:auto;max-width:100%;max-height:200px;object-fit:contain;border-radius:8px;display:block;border:2px solid #27ae60;';
-        section.appendChild(fixImg);
-        document.getElementById('detailCard').querySelector('.detail-body').prepend(section);
-      }
-    } catch (e) {}
-  }
- 
-  // 改善照片上傳：只在「待改善」且「任何人」都可以上傳
-  document.getElementById('fixPhotoWrap').style.display = d.Status.includes('待改善') ? 'block' : 'none';
-  fixPhotoBase64 = null;
-  document.getElementById('fixPhotoPreview').style.display = 'none';
- 
-  buildActBtns_FIXED(d);
+async function openDetail(d){
+  currentDetailId=d.ID;
+  document.getElementById('detailMask').style.display='block';
+  const card=document.getElementById('detailCard');card.style.display='block';setTimeout(()=>card.classList.add('open'),10);
+  const cls=d.Status.includes('待改善')?'d-todo':d.Status.includes('待驗收')?'d-review':'d-done';
+  const st=document.getElementById('detailStatus');st.className='d-status '+cls;st.textContent=d.Status;
+  document.getElementById('detailTitle').textContent=d.Description||'無說明';
+  document.getElementById('detailMeta').innerHTML=`#${d.ID} | 🔧 ${d.Dept} | 📍 ${d.Floor}<br>👤 ${d.UserName} | 🕒 ${(d.TimeStamp||'').substring(0,16)}`;
+  document.getElementById('editDescInput').value=d.Description||'';
+  document.getElementById('fixPhotoWrap').style.display=d.Status.includes('待改善')?'block':'none';
+  fixPhotoBase64=null;document.getElementById('fixPhotoPreview').style.display='none';
+  const imgEl=document.getElementById('detailImg');imgEl.style.display='none';
+  try{
+    const type=(d.Status.includes('待驗收')||d.Status.includes('已改善'))?'fixed':'original';
+    const r=await fetch(`${apiBase}/image/${d.ID}/${type}?cb=${Date.now()}`,{headers:{'ngrok-skip-browser-warning':'true'}});
+    if(r.ok){const b=await r.blob();imgEl.src=URL.createObjectURL(b);imgEl.style.display='block';}
+  }catch(e){}
+  buildActBtns(d);
 }
-// 2. 判斷是否有驗收權限
-function canApprove(defectDept) {
-  // 水電/機電 工種：機電主任(3) 或 機電副理(3.5+)
-  if (defectDept && (defectDept.includes('水電') || defectDept.includes('機電'))) {
-    return (myRole.includes('機電') && myLevel >= 3) || myLevel >= 3.5;
-  }
-  // 其他工種：Level 3 (工地主任) 以上
-  return myLevel >= 3;
-}
- 
-// 3. 修改後的 buildActBtns 函式（完整替換）
-function buildActBtns_FIXED(d) {
-  const row = document.getElementById('actionRow');
-  row.innerHTML = '';
- 
-  if (d.Status.includes('待改善')) {
-    // 所有人都可以送交驗收，但必須先上傳改善照片
-    const btn = document.createElement('button');
-    btn.className = 'act-btn a-orange';
-    btn.textContent = '📷 上傳改善照片並送交驗收';
-    btn.onclick = () => {
-      if (!fixPhotoBase64) {
-        showToast('⚠️ 請先上傳改善後照片才能送交驗收');
-        return;
-      }
-      updateStatus(d.ID, '🔵 待驗收');
-    };
-    row.appendChild(btn);
- 
-    // 顯示「必須拍照」的提示
-    if (!fixPhotoBase64) {
-      const hint = document.createElement('p');
-      hint.style.cssText = 'font-size:12px;color:#e74c3c;margin-top:8px;text-align:center;';
-      hint.textContent = '⚠️ 必須上傳改善後照片才能送交驗收';
-      row.appendChild(hint);
-    }
- 
-  } else if (d.Status.includes('待驗收')) {
-    if (canApprove(d.Dept)) {
-      // Level 3+ 可以驗收或退回
-      const ba = document.createElement('button');
-      ba.className = 'act-btn a-green';
-      ba.textContent = '✅ 驗收通過';
-      ba.onclick = () => updateStatus(d.ID, '🟢 已改善');
-      row.appendChild(ba);
- 
-      const br = document.createElement('button');
-      br.className = 'act-btn a-red';
-      br.textContent = '❌ 退回重修';
-      br.onclick = () => updateStatus(d.ID, '🔴 待改善');
-      row.appendChild(br);
-    } else {
-      // Level 2 只能查看，不能驗收
-      const info = document.createElement('p');
-      info.style.cssText = 'font-size:13px;color:#2980b9;padding:10px;background:#e3f2fd;border-radius:8px;text-align:center;';
-      info.textContent = '🔵 待主任驗收中，請等待工地主任確認';
-      row.appendChild(info);
-    }
- 
-  } else if (d.Status.includes('已改善')) {
-    if (canApprove(d.Dept)) {
-      const b = document.createElement('button');
-      b.className = 'act-btn a-gray';
-      b.textContent = '🔄 重設待改善';
-      b.onclick = () => updateStatus(d.ID, '🔴 待改善');
-      row.appendChild(b);
-    }
+function buildActBtns(d){
+  const row=document.getElementById('actionRow');row.innerHTML='';
+  if(d.Status.includes('待改善')){
+    const b=document.createElement('button');b.className='act-btn a-orange';b.textContent='📤 送交驗收';b.onclick=()=>updateStatus(d.ID,'🔵 待驗收');row.appendChild(b);
+  }else if(d.Status.includes('待驗收')){
+    const ba=document.createElement('button');ba.className='act-btn a-green';ba.textContent='✅ 驗收通過';ba.onclick=()=>updateStatus(d.ID,'🟢 已改善');row.appendChild(ba);
+    const br=document.createElement('button');br.className='act-btn a-red';br.textContent='❌ 退回重修';br.onclick=()=>updateStatus(d.ID,'🔴 待改善');row.appendChild(br);
+  }else{
+    const b=document.createElement('button');b.className='act-btn a-gray';b.textContent='🔄 重設待改善';b.onclick=()=>updateStatus(d.ID,'🔴 待改善');row.appendChild(b);
   }
 }
 function closeDetail(){
