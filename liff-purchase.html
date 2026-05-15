@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>同興營造 — 發包作業</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root {
+    --primary: #00b894;
+    --primary-dark: #00897b;
+    --accent: #fdcb6e;
+    --danger: #e17055;
+    --info: #6c5ce7;
+    --text: #2d3436;
+    --muted: #636e72;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #dfe6e9;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
+
+  /* ── Header ── */
+  .header {
+    background: var(--primary);
+    color: white;
+    padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 200;
+    box-shadow: 0 2px 8px rgba(0,184,148,0.4);
+  }
+  .header-title { font-size: 17px; font-weight: 700; letter-spacing: 0.5px; }
+  .header-badge {
+    background: var(--accent); color: #333; font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 10px; display: none;
+  }
+
+  /* ── Tab Bar ── */
+  .tabs {
+    display: flex; background: white;
+    border-bottom: 2px solid var(--border);
+    position: sticky; top: 54px; z-index: 100;
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 13px 4px;
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: 0.2s; border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+  }
+  .tab.active { color: var(--primary); border-color: var(--primary); }
+
+  /* ── Common ── */
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  .card {
+    background: var(--card); border-radius: 12px;
+    box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden;
+  }
+  .card-header {
+    background: var(--primary); color: white;
+    padding: 12px 16px; font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-body { padding: 16px; }
+
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+  .form-label span { color: var(--danger); margin-left: 2px; }
+  select, textarea, input[type=text] {
+    width: 100%; padding: 11px 12px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 15px; background: #f8f9fa; color: var(--text);
+    appearance: none; transition: border 0.2s;
+  }
+  select:focus, textarea:focus, input[type=text]:focus {
+    border-color: var(--primary); outline: none; background: white;
+  }
+  textarea { height: 90px; resize: vertical; line-height: 1.5; }
+
+  .select-wrapper { position: relative; }
+  .select-wrapper::after {
+    content: '▾'; position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%); color: var(--muted); pointer-events: none;
+  }
+
+  /* ── Validation hint ── */
+  .valid-hint { font-size: 12px; margin-top: 4px; display: none; }
+  .valid-hint.error { color: var(--danger); display: block; }
+  .valid-hint.warn  { color: #f39c12; display: block; }
+
+  /* ── File Upload ── */
+  .file-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 20px; text-align: center; cursor: pointer;
+    transition: 0.2s; position: relative; background: #fafbfc;
+  }
+  .file-zone:hover, .file-zone.drag { border-color: var(--primary); background: #e8f8f5; }
+  .file-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .file-zone-icon { font-size: 32px; margin-bottom: 6px; }
+  .file-zone-text { font-size: 13px; color: var(--muted); }
+
+  .file-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .file-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: #e8f8f5; border: 1px solid var(--primary);
+    border-radius: 6px; padding: 7px 10px; font-size: 13px;
+  }
+  .file-chip .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-chip .fsize { color: var(--muted); font-size: 11px; }
+  .file-chip .remove { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 0; }
+
+  /* ── Submit Button ── */
+  .btn-submit {
+    width: 100%; padding: 16px;
+    background: var(--primary); color: white;
+    border: none; border-radius: 10px;
+    font-size: 17px; font-weight: 700; cursor: pointer;
+    transition: 0.2s; box-shadow: 0 4px 12px rgba(0,184,148,0.4);
+    margin-top: 8px;
+  }
+  .btn-submit:disabled { background: #b2bec3; box-shadow: none; cursor: not-allowed; }
+  .btn-submit:active { transform: scale(0.98); }
+
+  /* ── Status Tracker ── */
+  .pr-card {
+    background: var(--card); border-radius: 12px;
+    box-shadow: var(--shadow); margin-bottom: 12px; overflow: hidden;
+  }
+  .pr-card-header {
+    padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .pr-card-title { font-weight: 700; font-size: 14px; flex: 1; margin-right: 8px; }
+  .pr-status-badge {
+    font-size: 11px; font-weight: 700; padding: 4px 8px;
+    border-radius: 6px; white-space: nowrap;
+  }
+  .st-pending  { background: #fff3cd; color: #856404; }
+  .st-approved { background: #d4edda; color: #155724; }
+  .st-rejected { background: #f8d7da; color: #721c24; }
+  .st-done     { background: #d1ecf1; color: #0c5460; }
+
+  .pr-card-body { padding: 12px 14px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .pr-chain { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .chain-node {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; padding: 3px 8px; border-radius: 12px;
+    font-weight: 600;
+  }
+  .chain-done    { background: #d4edda; color: #155724; }
+  .chain-current { background: #fff3cd; color: #856404; }
+  .chain-future  { background: #f1f1f1; color: #aaa; }
+  .chain-arrow   { color: #aaa; font-size: 12px; }
+
+  /* ── Material Delivery (New Feature) ── */
+  .delivery-item {
+    background: var(--card); border-radius: 10px;
+    box-shadow: var(--shadow); margin-bottom: 10px;
+    padding: 14px;
+  }
+  .delivery-item .d-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .delivery-item .d-meta  { font-size: 12px; color: var(--muted); }
+  .btn-confirm-delivery {
+    margin-top: 10px; width: 100%; padding: 10px;
+    background: var(--primary); color: white; border: none;
+    border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .btn-confirm-delivery.confirmed { background: #b2bec3; }
+
+  /* ── Contractor Rating (New Feature) ── */
+  .star-row { display: flex; gap: 8px; margin: 8px 0; }
+  .star { font-size: 28px; cursor: pointer; opacity: 0.3; transition: 0.15s; }
+  .star.lit { opacity: 1; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: rgba(0,0,0,0.8); color: white; padding: 12px 20px;
+    border-radius: 24px; font-size: 14px; font-weight: 600;
+    z-index: 9999; transition: transform 0.3s ease; white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Loading ── */
+  #globalLoader {
+    position: fixed; inset: 0; background: rgba(255,255,255,0.9);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 9000;
+  }
+  .spinner {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 4px solid #ddd; border-top-color: var(--primary);
+    animation: spin 0.8s linear infinite; margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #globalLoader p { font-size: 14px; color: var(--muted); font-weight: 600; }
+
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  .section-title { font-size: 13px; font-weight: 700; color: var(--muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .filter-row { display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
+  .filter-chip {
+    padding: 6px 14px; border-radius: 16px; font-size: 13px; font-weight: 600;
+    border: 1.5px solid var(--border); background: white; color: var(--muted);
+    cursor: pointer; white-space: nowrap; transition: 0.2s;
+  }
+  .filter-chip.active { border-color: var(--primary); background: #e8f8f5; color: var(--primary); }
+</style>
+</head>
+<body>
+
+<div id="globalLoader">
+  <div class="spinner"></div>
+  <p>系統載入中...</p>
+</div>
+
+<div class="header">
+  <div class="header-title">📑 工程發包作業</div>
+  <div class="header-badge" id="pendingBadge">0 待辦</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('new')">➕ 新增請簽</div>
+  <div class="tab" onclick="switchTab('track')">📊 追蹤查詢</div>
+  <div class="tab" onclick="switchTab('delivery')">🚛 到場確認</div>
+  <div class="tab" onclick="switchTab('rating')">⭐ 廠商評分</div>
+</div>
+
+<!-- ══════════════ TAB 1: 新增請簽 ══════════════ -->
+<div class="page active" id="page-new">
+  <div class="card">
+    <div class="card-header">📋 填寫發包請簽單</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">案場<span>*</span></label>
+        <div class="select-wrapper">
+          <select id="prSite" onchange="onSiteChange()">
+            <option value="">— 請選擇案場 —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">工程大項<span>*</span></label>
+        <div class="select-wrapper">
+          <select id="prCat" onchange="onCatChange()" disabled>
+            <option value="">— 請先選擇案場 —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">中項分類<span>*</span></label>
+        <div class="select-wrapper">
+          <select id="prSub" onchange="onSubChange()" disabled>
+            <option value="">— 請先選擇大項 —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">工程細項<span>*</span></label>
+        <div class="select-wrapper">
+          <select id="prItem" onchange="onItemChange()" disabled>
+            <option value="">— 請先選擇中項 —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">規格 / 數量 / 備註<span>*</span></label>
+        <textarea id="prDetails" placeholder="例：室內地磚 60×60 cm，約 50 坪&#10;包含材料費及施工費"></textarea>
+        <div class="valid-hint" id="validHint"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">附件上傳（圖面、估價單、合約草稿）</label>
+        <div class="file-zone" id="fileZone">
+          <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" onchange="handleFiles(this.files)">
+          <div class="file-zone-icon">📎</div>
+          <div class="file-zone-text">點擊或拖拉上傳（最多 5 個）<br>支援：PDF / 圖片 / Excel / Word</div>
+        </div>
+        <div class="file-list" id="fileList"></div>
+      </div>
+
+      <button class="btn-submit" id="btnSubmit" onclick="submitPR()">📤 送出請簽申請</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB 2: 追蹤查詢 ══════════════ -->
+<div class="page" id="page-track">
+  <div class="filter-row" id="statusFilters">
+    <div class="filter-chip active" onclick="filterStatus('ALL',this)">全部</div>
+    <div class="filter-chip" onclick="filterStatus('PENDING',this)">審核中</div>
+    <div class="filter-chip" onclick="filterStatus('APPROVED',this)">已發包</div>
+    <div class="filter-chip" onclick="filterStatus('REJECTED',this)">已退回</div>
+  </div>
+  <div id="prList"><div class="empty-state"><div class="icon">📭</div><p>載入中...</p></div></div>
+</div>
+
+<!-- ══════════════ TAB 3: 到場確認 (New Industry Feature) ══════════════ -->
+<div class="page" id="page-delivery">
+  <div class="card">
+    <div class="card-header">🚛 材料到場確認</div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">確認材料已實際到場，可附上到場照片或磅單，系統將自動通知工地主任。</p>
+      <div class="form-group">
+        <label class="form-label">選擇發包單<span>*</span></label>
+        <div class="select-wrapper">
+          <select id="deliveryPR">
+            <option value="">— 請先選擇 —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">到場日期<span>*</span></label>
+        <input type="date" id="deliveryDate" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">數量確認（噸 / 方 / 坪 / 件）</label>
+        <input type="text" id="deliveryQty" placeholder="例：混凝土 50 方，磅單號 A2024-0531">
+      </div>
+      <div class="form-group">
+        <label class="form-label">到場照片</label>
+        <div class="file-zone">
+          <input type="file" id="deliveryPhoto" accept="image/*" capture="environment">
+          <div class="file-zone-icon">📷</div>
+          <div class="file-zone-text">點擊拍照或上傳到場照片</div>
+        </div>
+        <img id="deliveryPhotoPreview" style="display:none;width:100%;border-radius:8px;margin-top:8px;">
+      </div>
+      <button class="btn-submit" onclick="submitDelivery()">✅ 確認到場並通知主任</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB 4: 廠商評分 (New Industry Feature) ══════════════ -->
+<div class="page" id="page-rating">
+  <div class="card">
+    <div class="card-header">⭐ 廠商施工品質評分</div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">工程驗收後，請為本次施工廠商留下評分，協助未來發包參考。</p>
+      <div class="form-group">
+        <label class="form-label">選擇已完成發包單<span>*</span></label>
+        <div class="select-wrapper">
+          <select id="ratingPR" onchange="loadRatingVendor()">
+            <option value="">— 請選擇 —</option>
+          </select>
+        </div>
+      </div>
+      <div id="ratingForm" style="display:none;">
+        <div id="vendorName" style="font-weight:700;font-size:15px;margin-bottom:14px;color:var(--primary);"></div>
+        <div class="form-group">
+          <label class="form-label">施工品質</label>
+          <div class="star-row" id="stars-quality" data-key="quality"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">施工進度</label>
+          <div class="star-row" id="stars-schedule" data-key="schedule"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">安全衛生配合</label>
+          <div class="star-row" id="stars-hse" data-key="hse"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">整體溝通協調</label>
+          <div class="star-row" id="stars-comm" data-key="comm"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">評語（選填）</label>
+          <textarea id="ratingComment" placeholder="填寫此次合作的優缺點..."></textarea>
+        </div>
+        <button class="btn-submit" onclick="submitRating()">📝 送出廠商評分</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ──
+const urlParams = new URLSearchParams(window.location.search);
+const apiBase   = urlParams.get('api') || '';
+const myUserId  = urlParams.get('userId') || '';
+const myUser    = decodeURIComponent(urlParams.get('user') || '');
+const myRole    = decodeURIComponent(urlParams.get('role') || '');
+const initTab   = urlParams.get('tab') || 'new';
+
+// ── PR Tree (same as Config.gs) ──
+const PR_TREE = {
+  "基礎工程": {
+    "預壘樁": ["預壘樁工程"],
+    "鄰房擋土措施": ["攪拌樁","鄰房保護微型樁","鄰房保護措施用水泥","擋土措施"],
+    "連續壁": ["連續壁工程","地中壁工程","擋土牆工程","止水灌漿"],
+    "地質改良": ["地質改良工程","微型樁工程"],
+    "地下室安全措施": ["地下室安全措施工程","鋼軌樁工程","安全支撐工程","中間樁孔防水"],
+    "土方工程": ["土方挖運棄","透水層施工","安全觀測","基礎零星材料"]
+  },
+  "結構工程": {
+    "鋼筋工程": ["鋼筋材料","鋼筋材料綁紮"],
+    "混凝土工程": ["混凝土材料","混凝土材料澆築"],
+    "模板工程": ["模板組立","清水模板組立","地面層模板組立","地下層模板組立","景觀模板組立"],
+    "粉光工程": ["地坪整體粉光","金鋼砂粉光"],
+    "中空樓板工程": ["中空樓板","隔音墊"],
+    "鋼構工程": ["鋼構"],
+    "防潮&植筋&鷹架&圍牆工程": ["防潮工程","植筋工程","鷹架工程","圍牆工程"]
+  },
+  "泥作工程": {
+    "砌磚工程": ["砌磚"],
+    "地坪工程": ["防水粉刷","水泥粉光"],
+    "內牆工程": ["防水粉刷打底","防水粉光","水泥粉光","內牆粉刷打底貼磚"],
+    "外牆工程": ["外牆打底","外牆粉刷","外牆粉光"],
+    "門窗砂漿崁縫": ["鋁門窗","鋼板門","鐵捲門","電梯門","帷幕牆","鐵板門","木門","不鏽鋼門"],
+    "防水工程": ["陽台地坪","浴廁地坪牆面防水","廚房地坪牆面防水","屋頂地坪","外牆窗框","外牆防水"]
+  },
+  "裝修工程": {
+    "梯廳裝修工程": ["梯廳裝修"],
+    "停車場工程": ["停車場地坪"],
+    "地坪裝修工程": ["地坪EOPXY"],
+    "木作地板工程": ["木地板工程"],
+    "平頂裝修工程": ["騎樓平頂","梯廳平頂","浴廁.廚房平頂","陽台平頂"],
+    "輕量隔間工程": ["水泥纖維板灌漿牆","矽酸鈣板灌漿牆","石膏板隔間牆","輕隔間拆除"],
+    "油漆工程": ["地下室平頂&牆面","標準層平頂&牆面","樓梯間","外牆","木門"],
+    "石材工程": ["外牆石材","戶外地坪","室內地坪"],
+    "金屬外牆&格柵&欄杆工程": ["外牆金屬","入口造型雨遮","格柵","金屬","欄杆"],
+    "浴廁隔間等工程": ["浴廁搗擺隔間","淋浴拉門","長條型排水溝"],
+    "鋁門窗&帷幕牆&不鏽鋼門工程": ["鋁門窗","帷幕牆","不鏽鋼門"],
+    "玻璃&採光罩工程": ["玻璃","採光罩"]
+  },
+  "水電空調工程": {
+    "弱電工程": ["接地工程","燈具工程"],
+    "污水工程": ["衛浴設備","污水設備"],
+    "空調工程": ["風管發包工程","空調設備"],
+    "監控工程": ["監控設備"]
+  },
+  "雜項工程": {
+    "水溝工程": ["不鏽鋼人孔框蓋","排水溝"],
+    "路損工程": ["土方挖運","整地及PC地坪","柏油路面","紅磚人行道"],
+    "停車場工程": ["防撞護角","防撞護墊材料及安裝費","車道凸面鏡","機汽車停車位劃線"],
+    "標誌工程": ["標示牌","公司名稱標示牌","樓層標示牌","公共指標","廁所指示牌","門牌標示","電扶梯指示牌"],
+    "植栽工程": ["植栽"],
+    "圍牆&景觀工程": ["圍牆工程","景觀工程"]
+  }
+};
+
+const VALIDATION_RULES = {
+  "磁磚": { kw: ["坪","m2","平方"], msg: "⚠️ 磁磚請填寫「坪數」或「面積」" },
+  "混凝土": { kw: ["方","m3","強度","psi","kg"], msg: "⚠️ 混凝土請填寫「強度」與「方數」" },
+  "鋼筋": { kw: ["噸","t","T"], msg: "⚠️ 鋼筋請填寫「噸數」" },
+  "油漆": { kw: ["坪","m2","平"], msg: "⚠️ 油漆請填寫「施作面積」" }
+};
+
+const SITE_LIST = ["98工地","99工地","95工地","鼎隆大苑","毅聯R8","毅聯寧夏","廣宇江南","內湖富樂群","中壢映象","測試工地"];
+
+// ── State ──
+let lineUserId = '';
+let uploadedFiles = [];
+let myPRs = [];
+let currentStatusFilter = 'ALL';
+let ratingData = { quality: 0, schedule: 0, hse: 0, comm: 0 };
+
+// ── Init ──
+liff.init({ liffId: "2009287087-4LSCRAq4" }).then(async () => {
+  if (liff.isLoggedIn()) {
+    const profile = await liff.getProfile();
+    lineUserId = profile.userId;
+  }
+  initUI();
+  hideLoader();
+  if (initTab !== 'new') switchTab(initTab);
+}).catch(() => { hideLoader(); initUI(); });
+
+function hideLoader() { document.getElementById('globalLoader').style.display = 'none'; }
+
+function initUI() {
+  // Populate sites (filter by role for 機電)
+  const siteEl = document.getElementById('prSite');
+  SITE_LIST.forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s;
+    siteEl.appendChild(o);
+  });
+
+  // Populate categories (filter by role)
+  const catEl = document.getElementById('prCat');
+  catEl.innerHTML = '<option value="">— 請選擇工程大項 —</option>';
+  const isElec = myRole.indexOf('機電') > -1;
+  Object.keys(PR_TREE).forEach(cat => {
+    if (isElec && cat !== '水電空調工程') return;
+    if (!isElec && cat === '水電空調工程') return;
+    const o = document.createElement('option'); o.value = cat; o.textContent = cat;
+    catEl.appendChild(o);
+  });
+
+  // File input events
+  const zone = document.getElementById('fileZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+
+  // Today's date for delivery
+  document.getElementById('deliveryDate').value = new Date().toISOString().split('T')[0];
+
+  // Delivery photo preview
+  document.getElementById('deliveryPhoto').addEventListener('change', function() {
+    if (this.files[0]) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = document.getElementById('deliveryPhotoPreview');
+        img.src = e.target.result; img.style.display = 'block';
+      };
+      reader.readAsDataURL(this.files[0]);
+    }
+  });
+
+  // Stars init
+  ['quality','schedule','hse','comm'].forEach(key => {
+    const row = document.getElementById('stars-' + key);
+    for (let i = 1; i <= 5; i++) {
+      const s = document.createElement('span');
+      s.className = 'star'; s.textContent = '★'; s.dataset.v = i;
+      s.onclick = () => setStar(key, i);
+      row.appendChild(s);
+    }
+  });
+
+  loadMyPRs();
+  loadDeliveryPRs();
+}
+
+// ── Tab Switch ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['new','track','delivery','rating'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'track') renderPRList();
+}
+
+// ── PR Tree Cascade ──
+function onSiteChange() {
+  const c = document.getElementById('prCat');
+  c.disabled = false;
+  document.getElementById('prSub').disabled = true;
+  document.getElementById('prItem').disabled = true;
+  document.getElementById('prSub').innerHTML = '<option value="">— 請先選擇大項 —</option>';
+  document.getElementById('prItem').innerHTML = '<option value="">— 請先選擇中項 —</option>';
+}
+function onCatChange() {
+  const cat = document.getElementById('prCat').value;
+  const sub = document.getElementById('prSub');
+  sub.innerHTML = '<option value="">— 請選擇中項分類 —</option>';
+  sub.disabled = !cat;
+  document.getElementById('prItem').disabled = true;
+  document.getElementById('prItem').innerHTML = '<option value="">— 請先選擇中項 —</option>';
+  if (cat) Object.keys(PR_TREE[cat]).forEach(k => {
+    const o = document.createElement('option'); o.value = k; o.textContent = k; sub.appendChild(o);
+  });
+}
+function onSubChange() {
+  const cat = document.getElementById('prCat').value;
+  const sub = document.getElementById('prSub').value;
+  const item = document.getElementById('prItem');
+  item.innerHTML = '<option value="">— 請選擇工程細項 —</option>';
+  item.disabled = !sub;
+  if (cat && sub) PR_TREE[cat][sub].forEach(k => {
+    const o = document.createElement('option'); o.value = k; o.textContent = k; item.appendChild(o);
+  });
+}
+function onItemChange() {
+  const item = document.getElementById('prItem').value;
+  validateDetails(item, document.getElementById('prDetails').value);
+}
+
+// ── Validation ──
+document.getElementById('prDetails').addEventListener('input', function() {
+  validateDetails(document.getElementById('prItem').value, this.value);
+});
+function validateDetails(item, text) {
+  const hint = document.getElementById('validHint');
+  hint.className = 'valid-hint';
+  if (!item || !text) return;
+  for (const key of Object.keys(VALIDATION_RULES)) {
+    if (item.indexOf(key) > -1) {
+      const rule = VALIDATION_RULES[key];
+      const ok = rule.kw.some(k => text.indexOf(k) > -1);
+      hint.textContent = ok ? '' : rule.msg;
+      hint.className = 'valid-hint ' + (ok ? '' : 'error');
+      return;
+    }
+  }
+  if (text.length > 5) { hint.textContent = '✓ 格式看起來正確'; hint.className = 'valid-hint'; }
+}
+
+// ── File Handling ──
+function handleFiles(files) {
+  const remaining = 5 - uploadedFiles.length;
+  if (remaining <= 0) { showToast('最多上傳 5 個附件'); return; }
+  Array.from(files).slice(0, remaining).forEach(f => {
+    uploadedFiles.push(f);
+    renderFileChip(f);
+  });
+}
+function renderFileChip(file) {
+  const chip = document.createElement('div');
+  chip.className = 'file-chip';
+  const icon = file.type.startsWith('image') ? '🖼️' : (file.name.endsWith('.pdf') ? '📄' : '📊');
+  chip.innerHTML = `<span>${icon}</span><span class="fname">${file.name}</span><span class="fsize">${(file.size/1024).toFixed(0)}KB</span><button class="remove" onclick="removeFile(this,'${file.name}')">✕</button>`;
+  document.getElementById('fileList').appendChild(chip);
+}
+function removeFile(btn, name) {
+  uploadedFiles = uploadedFiles.filter(f => f.name !== name);
+  btn.closest('.file-chip').remove();
+}
+
+// ── Submit PR ──
+async function submitPR() {
+  const site    = document.getElementById('prSite').value;
+  const cat     = document.getElementById('prCat').value;
+  const sub     = document.getElementById('prSub').value;
+  const item    = document.getElementById('prItem').value;
+  const details = document.getElementById('prDetails').value.trim();
+
+  if (!site || !cat || !sub || !item || !details) { showToast('⚠️ 請填寫所有必填欄位'); return; }
+  const hint = document.getElementById('validHint');
+  if (hint.classList.contains('error') && hint.textContent) { showToast(hint.textContent); return; }
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true; btn.textContent = '⏳ 送出中...';
+
+  try {
+    // Step 1: Create PR record
+    const body = {
+      action: 'create', site, applicant: myUser, applicantId: lineUserId || myUserId,
+      applicantRole: myRole, category: cat, subCat: sub, item, details
+    };
+    const r = await apiFetch('/pr-action', { method: 'POST', body: JSON.stringify(body) });
+    const res = await r.json();
+
+    if (!res.success) throw new Error(res.error || '送出失敗');
+
+    // Step 2: Upload attachments
+    for (const file of uploadedFiles) {
+      const b64 = await fileToBase64(file);
+      await apiFetch('/upload-attachment', {
+        method: 'POST',
+        body: JSON.stringify({ requestNo: res.requestNo, fileName: file.name, fileType: file.type, fileBase64: b64, uploader: myUser })
+      });
+    }
+
+    showToast('✅ 已送出！單號 ' + res.requestNo);
+    // Reset form
+    ['prSite','prCat','prSub','prItem'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('prCat').disabled = true;
+    document.getElementById('prSub').disabled = true;
+    document.getElementById('prItem').disabled = true;
+    document.getElementById('prDetails').value = '';
+    document.getElementById('fileList').innerHTML = '';
+    uploadedFiles = [];
+    loadMyPRs();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '📤 送出請簽申請';
+  }
+}
+
+// ── Load / Render My PRs ──
+async function loadMyPRs() {
+  try {
+    const r = await apiFetch(`/purchase/my-requests?userId=${lineUserId || myUserId}`);
+    myPRs = await r.json();
+    renderPRList();
+    // Update delivery dropdowns
+    const delivEl = document.getElementById('deliveryPR');
+    const ratingEl = document.getElementById('ratingPR');
+    delivEl.innerHTML = '<option value="">— 請選擇發包單 —</option>';
+    ratingEl.innerHTML = '<option value="">— 請選擇已完成發包單 —</option>';
+    myPRs.forEach(pr => {
+      const o1 = document.createElement('option'); o1.value = pr.RequestID; o1.textContent = pr.RequestID + ' — ' + pr.ItemName;
+      delivEl.appendChild(o1);
+      if (pr.Status === 'APPROVED') {
+        const o2 = document.createElement('option'); o2.value = pr.RequestID;
+        o2.textContent = pr.RequestID + ' — ' + pr.ItemName; ratingEl.appendChild(o2);
+      }
+    });
+  } catch(e) { console.warn(e); }
+}
+
+function renderPRList() {
+  const el = document.getElementById('prList');
+  const filtered = currentStatusFilter === 'ALL' ? myPRs : myPRs.filter(p => p.Status === currentStatusFilter);
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>目前沒有符合條件的記錄</p></div>';
+    return;
+  }
+  el.innerHTML = filtered.map(pr => {
+    const statusMap = {
+      'PENDING':  { cls: 'st-pending',  txt: '審核中' },
+      'APPROVED': { cls: 'st-approved', txt: '已發包' },
+      'REJECTED': { cls: 'st-rejected', txt: '已退回' },
+      'RETURNED': { cls: 'st-rejected', txt: '退回修改' },
+      'DRAFT':    { cls: 'st-pending',  txt: '草稿' }
+    };
+    const s = statusMap[pr.Status] || { cls: 'st-pending', txt: pr.Status };
+    const chainHtml = buildChainHtml(pr);
+    return `<div class="pr-card">
+      <div class="pr-card-header">
+        <div class="pr-card-title">${pr.ItemName}</div>
+        <div class="pr-status-badge ${s.cls}">${s.txt}</div>
+      </div>
+      <div class="pr-card-body">
+        <div>📍 ${pr.SiteName} &nbsp;|&nbsp; 申請日：${pr.CreatedAt ? pr.CreatedAt.substring(0,10) : '-'}</div>
+        <div style="margin-top:4px;color:var(--text);">📄 ${pr.Details || '無備註'}</div>
+        ${pr.RejectReason ? `<div style="margin-top:4px;color:var(--danger);">🛑 退回理由：${pr.RejectReason}</div>` : ''}
+        ${chainHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildChainHtml(pr) {
+  // Simplified chain based on level progression
+  const stages = [
+    { name: '工地主任', level: 3 },
+    { name: '工務部協理', level: 5 },
+    { name: '總經理', level: 6 }
+  ];
+  const currentStage = pr.CurrentStage || 3;
+  const isDone = pr.Status === 'APPROVED';
+  const html = stages.map(s => {
+    let cls = 'chain-future'; let icon = '○';
+    if (isDone || s.level < currentStage) { cls = 'chain-done'; icon = '✓'; }
+    else if (s.level === currentStage) { cls = 'chain-current'; icon = '⧖'; }
+    return `<span class="chain-node ${cls}">${icon} ${s.name}</span>`;
+  }).join('<span class="chain-arrow">›</span>');
+  return `<div class="pr-chain">${html}</div>`;
+}
+
+function filterStatus(status, el) {
+  currentStatusFilter = status;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderPRList();
+}
+
+// ── Delivery ──
+function loadDeliveryPRs() { loadMyPRs(); } // reuse same fetch
+async function submitDelivery() {
+  const prId = document.getElementById('deliveryPR').value;
+  const date  = document.getElementById('deliveryDate').value;
+  const qty   = document.getElementById('deliveryQty').value;
+  const photoInput = document.getElementById('deliveryPhoto');
+  if (!prId || !date) { showToast('⚠️ 請選擇發包單與到場日期'); return; }
+
+  let photoB64 = null;
+  if (photoInput.files[0]) photoB64 = await fileToBase64(photoInput.files[0]);
+
+  try {
+    const r = await apiFetch('/purchase/mark-delivery', {
+      method: 'POST',
+      body: JSON.stringify({ requestId: prId, deliveryDate: date, deliveredQty: qty, photoBase64: photoB64, confirmer: myUser, confirmerId: lineUserId || myUserId })
+    });
+    const res = await r.json();
+    if (res.success) showToast('✅ 到場已確認，已通知工地主任！');
+    else throw new Error(res.error);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+// ── Rating ──
+function loadRatingVendor() {
+  const prId = document.getElementById('ratingPR').value;
+  if (!prId) { document.getElementById('ratingForm').style.display = 'none'; return; }
+  const pr = myPRs.find(p => p.RequestID == prId);
+  document.getElementById('vendorName').textContent = '廠商：' + (pr ? (pr.VendorName || '未登記廠商') : '-');
+  document.getElementById('ratingForm').style.display = 'block';
+}
+function setStar(key, val) {
+  ratingData[key] = val;
+  const row = document.getElementById('stars-' + key);
+  row.querySelectorAll('.star').forEach(s => s.classList.toggle('lit', parseInt(s.dataset.v) <= val));
+}
+async function submitRating() {
+  const prId = document.getElementById('ratingPR').value;
+  if (!prId) { showToast('⚠️ 請選擇發包單'); return; }
+  if (!ratingData.quality) { showToast('⚠️ 請至少評分「施工品質」'); return; }
+  try {
+    const r = await apiFetch('/purchase/rate-contractor', {
+      method: 'POST',
+      body: JSON.stringify({ requestId: prId, rater: myUser, ...ratingData, comment: document.getElementById('ratingComment').value })
+    });
+    const res = await r.json();
+    if (res.success) { showToast('✅ 評分已送出，感謝您的回饋！'); document.getElementById('ratingForm').style.display = 'none'; }
+    else throw new Error(res.error);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+// ── Utils ──
+function apiFetch(path, opts = {}) {
+  return fetch(apiBase + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...(opts.headers || {}) }
+  });
+}
+function fileToBase64(file) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result); r.onerror = rej; });
+}
+let _toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>
