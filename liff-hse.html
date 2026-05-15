@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>同興營造 — 安衛電子表單</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+:root {
+  --green: #27ae60; --green-dark: #1e8449;
+  --red: #e74c3c; --orange: #f39c12;
+  --gray: #95a5a6; --text: #2d3436; --muted: #636e72;
+  --bg: #f0f4f1; --card: #fff; --border: #dfe6e9;
+  --shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans TC','PingFang TC',sans-serif; background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
+
+/* Header */
+.header { background: var(--green); color: #fff; padding: 13px 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 8px rgba(39,174,96,.4); }
+.header-title { font-size: 17px; font-weight: 700; }
+.step-badge { background: rgba(255,255,255,.22); font-size: 12px; padding: 3px 9px; border-radius: 10px; font-weight: 700; }
+
+/* Progress */
+.prog-bar { height: 4px; background: #c8e6c9; }
+.prog-fill { height: 4px; background: var(--green); transition: width .35s ease; }
+
+/* Steps */
+.step { display: none; padding-bottom: 90px; }
+.step.active { display: block; }
+
+/* Card */
+.card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); margin: 14px; overflow: hidden; }
+.card-hd { background: var(--green); color: #fff; padding: 11px 15px; font-weight: 700; font-size: 14px; }
+.card-bd { padding: 15px; }
+
+/* Form */
+.fg { margin-bottom: 13px; }
+.fl { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+.fl .req { color: var(--red); }
+select, input[type=date], input[type=text], textarea {
+  width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 15px; background: #f8f9fa; color: var(--text); appearance: none; -webkit-appearance: none;
+}
+.sel-wrap { position: relative; }
+.sel-wrap::after { content: '▾'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+/* Chips */
+.chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.chip { padding: 7px 13px; border-radius: 15px; font-size: 13px; font-weight: 600; border: 1.5px solid var(--border); background: #fff; color: var(--muted); cursor: pointer; transition: .15s; user-select: none; }
+.chip.active { border-color: var(--green); background: #e8f8ee; color: var(--green); }
+.chip.active-red { border-color: var(--red); background: #fdecea; color: var(--red); }
+
+/* Summary bar */
+.sum-bar { display: flex; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 54px; z-index: 99; }
+.sum-cell { flex: 1; text-align: center; padding: 9px 4px; border-right: 1px solid var(--border); }
+.sum-cell:last-child { border: none; }
+.sum-num { font-size: 19px; font-weight: 700; display: block; }
+.sum-label { font-size: 10px; color: var(--muted); }
+.c-pass { color: var(--green); } .c-fail { color: var(--red); } .c-na { color: var(--gray); } .c-tot { color: var(--text); }
+
+/* Check item */
+.check-section { margin: 12px 14px 4px; }
+.section-title { font-size: 14px; font-weight: 700; color: var(--green); padding: 8px 0 5px; border-bottom: 2px solid var(--green); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.ci-card { background: #fff; border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 9px; overflow: hidden; border-left: 4px solid var(--border); transition: border-color .2s; }
+.ci-card.ci-pass { border-color: var(--green); }
+.ci-card.ci-fail { border-color: var(--red); }
+.ci-card.ci-na   { border-color: var(--gray); }
+.ci-header { padding: 11px 13px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.ci-num { font-size: 11px; color: var(--muted); font-weight: 700; min-width: 24px; }
+.ci-text { font-size: 13.5px; font-weight: 600; flex: 1; line-height: 1.4; }
+.ci-btns { display: flex; gap: 5px; flex-shrink: 0; }
+.ci-btn { padding: 6px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; border: 1.5px solid var(--border); background: #fff; color: var(--muted); cursor: pointer; transition: .15s; white-space: nowrap; }
+.ci-btn.sel-pass { border-color: var(--green); background: #e8f8ee; color: var(--green); }
+.ci-btn.sel-fail { border-color: var(--red);   background: #fdecea; color: var(--red); }
+.ci-btn.sel-na   { border-color: var(--gray);   background: #f5f5f5; color: var(--gray); }
+.ci-detail { display: none; padding: 10px 13px 12px; border-top: 1px solid #fde8e6; background: #fffaf9; }
+.ci-detail.show { display: block; }
+.ci-detail textarea { width: 100%; border: 1px solid #fcc; border-radius: 6px; padding: 8px; height: 60px; font-size: 13px; resize: none; background: #fff; }
+.photo-btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 9px; margin-top: 8px; background: #fff; border: 1.5px dashed var(--red); border-radius: 6px; color: var(--red); font-size: 13px; font-weight: 700; cursor: pointer; position: relative; }
+.photo-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.photo-preview { width: 100%; max-height: 150px; object-fit: cover; border-radius: 6px; margin-top: 7px; display: none; }
+
+/* Signature */
+.sig-wrap { border: 2px dashed var(--border); border-radius: 8px; background: #fff; position: relative; height: 130px; }
+.sig-wrap canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; border-radius: 8px; display: block; }
+.sig-clear { position: absolute; top: 6px; right: 6px; background: var(--red); color: #fff; border: none; padding: 4px 9px; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; z-index: 10; }
+
+/* Summary step */
+.summary-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.summary-row:last-child { border: none; }
+.sr-label { color: var(--muted); font-size: 13px; }
+.fail-list { background: #fdecea; border-radius: 8px; padding: 10px; margin-top: 10px; }
+.fail-row { font-size: 13px; color: var(--red); padding: 4px 0; border-bottom: 1px solid rgba(231,76,60,.15); }
+.fail-row:last-child { border: none; }
+
+/* Buttons */
+.btn-row { display: flex; gap: 10px; padding: 14px 14px 0; }
+.btn { flex: 1; padding: 14px; font-size: 16px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; transition: .2s; }
+.btn:disabled { background: #b2bec3 !important; cursor: not-allowed; }
+.btn-green { background: var(--green); color: #fff; box-shadow: 0 3px 10px rgba(39,174,96,.35); }
+.btn-gray  { background: #dfe6e9; color: var(--muted); }
+.btn-float { position: fixed; bottom: 16px; left: 14px; right: 14px; padding: 16px; background: var(--green); color: #fff; border: none; border-radius: 12px; font-size: 17px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(39,174,96,.45); z-index: 150; }
+.btn-float:disabled { background: #b2bec3; box-shadow: none; }
+
+/* Patrol */
+.patrol-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; }
+.patrol-btn { background: #fff; border-radius: 12px; box-shadow: var(--shadow); text-align: center; padding: 22px 10px; cursor: pointer; border: 2px solid var(--border); font-weight: 700; font-size: 14px; transition: .2s; }
+.patrol-btn:active { transform: scale(.96); border-color: var(--green); }
+.patrol-btn .pb-ico { font-size: 30px; display: block; margin-bottom: 7px; }
+
+/* Toast */
+#toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(80px); background: rgba(0,0,0,.82); color: #fff; padding: 12px 20px; border-radius: 22px; font-size: 14px; font-weight: 600; z-index: 9999; transition: transform .28s; white-space: nowrap; pointer-events: none; }
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Loader */
+#loader { position: fixed; inset: 0; background: rgba(240,244,241,.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; }
+.spinner { width: 44px; height: 44px; border-radius: 50%; border: 4px solid #ddd; border-top-color: var(--green); animation: spin .8s linear infinite; margin-bottom: 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loader p { font-size: 14px; color: var(--muted); font-weight: 600; }
+
+.approve-view { padding: 14px; }
+.approve-info { background: #fff; border-radius: 10px; box-shadow: var(--shadow); padding: 14px; margin-bottom: 12px; font-size: 14px; line-height: 1.8; }
+.approve-btn-row { display: flex; gap: 10px; }
+.approve-btn { flex: 1; padding: 15px; font-size: 15px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; }
+.approve-green { background: var(--green); color: #fff; }
+.approve-red   { background: var(--red);   color: #fff; }
+
+/* History list */
+.hist-card { background: #fff; border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 10px; overflow: hidden; }
+.hist-header { padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+.hist-title { font-weight: 700; font-size: 14px; }
+.hist-status { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+.hs-done { background: #d4edda; color: #155724; }
+.hs-pend { background: #fff3cd; color: #856404; }
+.hist-body { padding: 10px 14px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+.hist-actions { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); }
+.hist-btn { flex: 1; padding: 9px; font-size: 13px; font-weight: 700; border: none; border-radius: 7px; cursor: pointer; }
+.hb-view { background: #e8f8ee; color: var(--green); }
+.hb-word { background: #e8f0fe; color: #1a73e8; }
+</style>
+</head>
+<body>
+
+<div id="loader"><div class="spinner"></div><p>安衛系統載入中...</p></div>
+
+<div class="header">
+  <div class="header-title">📋 安衛電子表單</div>
+  <div class="step-badge" id="stepBadge">步驟 1 / 3</div>
+</div>
+<div class="prog-bar"><div class="prog-fill" id="progFill" style="width:33%"></div></div>
+
+<!-- ═══ STEP 1：基本資訊 ═══ -->
+<div class="step active" id="step1">
+  <div class="card" style="margin-top:14px;">
+    <div class="card-hd">📍 基本資訊</div>
+    <div class="card-bd">
+      <div class="fg">
+        <label class="fl">案場 <span class="req">*</span></label>
+        <div class="sel-wrap"><select id="s1Site" onchange="checkDuplicate()"><option value="">— 請選擇案場 —</option></select></div>
+      </div>
+      <div class="fg">
+        <label class="fl">檢查日期 <span class="req">*</span></label>
+        <input type="date" id="s1Date" onchange="checkDuplicate()">
+      </div>
+      <div class="fg">
+        <label class="fl">表單類型 <span class="req">*</span></label>
+        <div class="chip-row" id="formTypeChips"></div>
+      </div>
+      <div class="fg">
+        <label class="fl">檢查人員</label>
+        <input type="text" id="s1Inspector" placeholder="填寫者姓名">
+      </div>
+      <div id="dupWarn" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px;font-size:13px;color:#856404;margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <!-- 快速功能入口 -->
+  <div style="padding:0 14px;">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;letter-spacing:.5px;">⚡ 快速功能</div>
+    <div class="patrol-grid" style="padding:0;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="patrol-btn" onclick="showPatrol()">
+        <span class="pb-ico">🦺</span>工安巡邏打卡
+      </div>
+      <div class="patrol-btn" onclick="showHistory()">
+        <span class="pb-ico">📁</span>歷史表單查詢
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-green" onclick="goStep2()">下一步 ➜ 填寫項目</button>
+  </div>
+</div>
+
+<!-- ═══ STEP 2：檢查項目 ═══ -->
+<div class="step" id="step2">
+  <div class="sum-bar">
+    <div class="sum-cell c-pass"><span class="sum-num" id="cntPass">0</span><span class="sum-label">✓ 符合</span></div>
+    <div class="sum-cell c-fail"><span class="sum-num" id="cntFail">0</span><span class="sum-label">✗ 異常</span></div>
+    <div class="sum-cell c-na">  <span class="sum-num" id="cntNA">0</span>  <span class="sum-label">— 不適用</span></div>
+    <div class="sum-cell c-tot"><span class="sum-num" id="cntTot">0</span> <span class="sum-label">📋 總計</span></div>
+  </div>
+  <div id="checkArea"></div>
+  <button class="btn-float" onclick="goStep3()">下一步 ➜ 簽名送出</button>
+</div>
+
+<!-- ═══ STEP 3：簽名送出 ═══ -->
+<div class="step" id="step3">
+  <div class="card" style="margin-top:14px;">
+    <div class="card-hd">📊 填寫總結</div>
+    <div class="card-bd" id="summaryContent"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">✍️ 檢查人員簽名</div>
+    <div class="card-bd">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:9px;">請用手指在下方白框內簽名：</p>
+      <div class="sig-wrap">
+        <canvas id="sigCanvas"></canvas>
+        <button class="sig-clear" onclick="clearSig()">清除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-gray" onclick="gotoStep(1)" style="flex:.4;">← 返回</button>
+    <button class="btn btn-green" id="btnSubmit" onclick="submitForm()">📤 送出並通知主任</button>
+  </div>
+</div>
+
+<!-- ═══ 工安巡邏 STEP (New Feature) ═══ -->
+<div class="step" id="stepPatrol">
+  <div class="card" style="margin-top:14px;">
+    <div class="card-hd">🦺 工安巡邏打卡</div>
+    <div class="card-bd">
+      <div class="fg">
+        <label class="fl">巡邏案場 <span class="req">*</span></label>
+        <div class="sel-wrap"><select id="patrolSite"><option value="">— 請選擇 —</option></select></div>
+      </div>
+      <div class="fg">
+        <label class="fl">巡邏區域 / 樓層</label>
+        <input type="text" id="patrolArea" placeholder="例：B2F 停車場 / A棟5F 外牆">
+      </div>
+      <div class="fg">
+        <label class="fl">巡邏結果</label>
+        <div class="chip-row">
+          <div class="chip active" id="chipOK"  onclick="setPatrol('ok')">✅ 正常</div>
+          <div class="chip" id="chipNG" onclick="setPatrol('ng')">⚠️ 發現異常</div>
+        </div>
+      </div>
+      <div id="patrolNG" style="display:none;">
+        <div class="fg" style="margin-top:10px;">
+          <label class="fl">異常描述 <span class="req">*</span></label>
+          <textarea id="patrolDesc" placeholder="描述異常情況、危害程度..." style="height:70px;"></textarea>
+        </div>
+        <div class="fg">
+          <label class="fl">異常照片</label>
+          <div class="photo-btn">
+            <input type="file" id="patrolPhoto" accept="image/*" capture="environment" onchange="previewPatrolPhoto(this)">
+            📷 拍攝異常照片
+          </div>
+          <img id="patrolPhotoPreview" class="photo-preview">
+        </div>
+      </div>
+      <div class="btn-row" style="padding:14px 0 0;">
+        <button class="btn btn-gray"  style="flex:.4;" onclick="gotoStep(1)">← 返回</button>
+        <button class="btn btn-green" onclick="submitPatrol()">📍 完成打卡並通知</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 歷史表單列表 ═══ -->
+<div class="step" id="stepHistory">
+  <div class="card" style="margin-top:14px;">
+    <div class="card-hd">📁 歷史表單查詢</div>
+    <div class="card-bd">
+      <div class="sel-wrap" style="margin-bottom:10px;">
+        <select id="histSite" onchange="loadHistory()"><option value="">— 選擇案場 —</option></select>
+      </div>
+    </div>
+  </div>
+  <div id="histList" style="padding:0 14px;"></div>
+  <div class="btn-row"><button class="btn btn-gray" onclick="gotoStep(1)">← 返回</button></div>
+</div>
+
+<!-- ═══ 審核模式 (approve) ═══ -->
+<div class="step" id="stepApprove">
+  <div class="approve-view">
+    <div class="approve-info" id="approveInfo"></div>
+    <div id="approveItems"></div>
+    <div class="card">
+      <div class="card-hd">✍️ 主任 / 安衛 覆核簽名</div>
+      <div class="card-bd">
+        <div class="sig-wrap"><canvas id="sigCanvas2"></canvas><button class="sig-clear" onclick="clearSig2()">清除</button></div>
+      </div>
+    </div>
+    <div class="approve-btn-row" style="padding:14px;">
+      <button class="approve-btn approve-green" onclick="submitApproval('APPROVED')">✅ 覆核通過</button>
+      <button class="approve-btn approve-red"   onclick="submitApproval('REJECTED')">❌ 退回重填</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ─── Config ─── */
+const urlP      = new URLSearchParams(window.location.search);
+const apiBase   = urlP.get('api')      || '';
+const myUser    = decodeURIComponent(urlP.get('user') || '');
+const myUserId  = urlP.get('userId')   || '';
+const viewMode  = urlP.get('mode')     || '';   // hse_view | hse_approve_director | hse_approve_safety
+const initLogId = urlP.get('logId')    || '';
+const initSite  = decodeURIComponent(urlP.get('site') || '');
+let lineId = '';
+
+const SITES = ["98工地","99工地","95工地","鼎隆大苑","毅聯R8","毅聯寧夏","廣宇江南","內湖富樂群","中壢映象","測試工地"];
+
+const FORM_TYPES = [
+  "一般安全檢查表","施工架作業檢查","開口防護檢查",
+  "電氣設備檢查","起重吊掛作業檢查","個人防護具使用","消防設備檢查"
+];
+
+/* HSE check items (expandable per form type) */
+const HSE_DB = {
+  "default": {
+    "🔲 開口防護": [
+      "電梯開口設有防護措施（護欄或蓋板）",
+      "樓板開口邊緣設有防護欄杆或安全網",
+      "預留孔覆蓋板承重足夠且固定牢靠",
+      "開口警示標誌清楚可見"
+    ],
+    "🏗️ 施工架作業": [
+      "施工架設置水平垂直度符合規定",
+      "施工架鋪板緊密無空隙且固定良好",
+      "施工架上下通道安全梯完備",
+      "施工架材料無明顯腐蝕損壞"
+    ],
+    "🦺 個人防護具": [
+      "現場所有人員配戴安全帽",
+      "高空作業人員配戴安全帶並有效掛置",
+      "研磨切割作業時配戴護目鏡",
+      "有害化學品作業時配戴防毒口罩"
+    ],
+    "⚡ 電氣設備": [
+      "臨時配電箱加裝漏電斷路器（ELCB）",
+      "電線避免浸水且無破皮老化現象",
+      "電器設備附近無易燃物堆放",
+      "夜間施工照明充足（≥50 Lux）"
+    ],
+    "🏗️ 起重吊掛": [
+      "起重機作業前確認機況並有日誌紀錄",
+      "吊掛物件確實固定，嚴禁人員在吊掛下方",
+      "吊索、吊鉤、卡環等符合規格且定期檢查",
+      "設置起重作業警戒區域及旗手"
+    ],
+    "🧹 環境整潔": [
+      "廢棄物定期清除，走道保持暢通",
+      "材料分區整齊堆置，高度符合規定",
+      "化學品正確標示並存放於通風良好處",
+      "廁所、盥洗設備保持清潔"
+    ],
+    "🔥 消防設備": [
+      "滅火器定期檢查且在有效期限內",
+      "逃生通道保持暢通無障礙物",
+      "動火作業具有熱工許可並備置滅火器",
+      "消防箱及警報設備位置標示清楚"
+    ]
+  }
+};
+
+const FORM_TYPE_FOCUS = {
+  "施工架作業檢查":   ["🏗️ 施工架作業","🦺 個人防護具"],
+  "開口防護檢查":     ["🔲 開口防護","🦺 個人防護具"],
+  "電氣設備檢查":     ["⚡ 電氣設備","🔥 消防設備"],
+  "起重吊掛作業檢查": ["🏗️ 起重吊掛","🦺 個人防護具"],
+  "個人防護具使用":   ["🦺 個人防護具"],
+  "消防設備檢查":     ["🔥 消防設備","⚡ 電氣設備"]
+};
+
+/* ─── State ─── */
+let currentStep = 1;
+let selectedFormType = '';
+let checkResults = {};     // { sectionIdx_itemIdx: {result, note, photoB64} }
+let patrolMode = 'ok';
+let sigCanvas, sigCtx, sigDrawing = false, sigHasData = false;
+let sigCanvas2, sigCtx2, sigDrawing2 = false, sigHasData2 = false;
+let currentSections = [];  // [{title, items}]
+
+/* ─── LIFF Init ─── */
+liff.init({ liffId: "2009287087-4LSCRAq4" }).then(async () => {
+  if (liff.isLoggedIn()) { const p = await liff.getProfile(); lineId = p.userId; }
+  initUI();
+  document.getElementById('loader').style.display = 'none';
+}).catch(() => { document.getElementById('loader').style.display = 'none'; initUI(); });
+
+function initUI() {
+  // Populate selects
+  [document.getElementById('s1Site'), document.getElementById('patrolSite'), document.getElementById('histSite')].forEach(sel => {
+    sel.innerHTML = '<option value="">— 請選擇案場 —</option>';
+    SITES.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o); });
+  });
+  if (initSite) { ['s1Site','patrolSite','histSite'].forEach(id => { const el = document.getElementById(id); if(el) el.value = initSite; }); }
+  document.getElementById('s1Date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('s1Inspector').value = myUser;
+
+  // Form type chips
+  const chipsEl = document.getElementById('formTypeChips');
+  FORM_TYPES.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'chip'; d.textContent = t;
+    d.onclick = () => {
+      chipsEl.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      d.classList.add('active'); selectedFormType = t; checkDuplicate();
+    };
+    chipsEl.appendChild(d);
+  });
+  // Default select first
+  if (chipsEl.children[0]) { chipsEl.children[0].click(); }
+
+  initSig();
+
+  // If opened in approve/view mode
+  if (viewMode && initLogId) { loadFormForApproval(); return; }
+}
+
+/* ─── Signature ─── */
+function initSig() {
+  sigCanvas = document.getElementById('sigCanvas');
+  sigCtx = sigCanvas.getContext('2d');
+  resizeSig(sigCanvas, sigCtx);
+  addSigEvents(sigCanvas, sigCtx, () => sigHasData = true, () => sigDrawing, v => sigDrawing = v);
+
+  sigCanvas2 = document.getElementById('sigCanvas2');
+  sigCtx2 = sigCanvas2.getContext('2d');
+  resizeSig(sigCanvas2, sigCtx2);
+  addSigEvents(sigCanvas2, sigCtx2, () => sigHasData2 = true, () => sigDrawing2, v => sigDrawing2 = v);
+}
+function resizeSig(canvas, ctx) {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width || 340; canvas.height = 130;
+  ctx.strokeStyle = '#2d3436'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+}
+function addSigEvents(canvas, ctx, onData, getDrawing, setDrawing) {
+  const getPos = e => {
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  };
+  canvas.addEventListener('mousedown', e => { setDrawing(true); const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove', e => { if (!getDrawing()) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); onData(); });
+  canvas.addEventListener('mouseup',   () => setDrawing(false));
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); setDrawing(true); const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!getDrawing()) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); onData(); }, { passive: false });
+  canvas.addEventListener('touchend',   () => setDrawing(false));
+}
+function clearSig()  { resizeSig(sigCanvas, sigCtx);   sigHasData = false; }
+function clearSig2() { resizeSig(sigCanvas2, sigCtx2); sigHasData2 = false; }
+
+/* ─── Step Nav ─── */
+const STEPS = ['step1','step2','step3'];
+function gotoStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  if (n === 'patrol')  { document.getElementById('stepPatrol').classList.add('active'); updateStepUI(-1); return; }
+  if (n === 'history') { document.getElementById('stepHistory').classList.add('active'); updateStepUI(-1); return; }
+  if (n === 'approve') { document.getElementById('stepApprove').classList.add('active'); updateStepUI(-1); return; }
+  document.getElementById('step' + n).classList.add('active');
+  currentStep = n; updateStepUI(n);
+  if (n === 2) window.scrollTo(0, 0);
+  if (n === 3) buildSummary();
+}
+function updateStepUI(n) {
+  const pct = n === 1 ? 33 : n === 2 ? 66 : n === 3 ? 100 : 50;
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('stepBadge').textContent = n > 0 ? `步驟 ${n} / 3` : '功能模式';
+}
+
+/* ─── Step 1 ─── */
+async function checkDuplicate() {
+  const site = document.getElementById('s1Site').value;
+  const date = document.getElementById('s1Date').value;
+  const type = selectedFormType;
+  const warn = document.getElementById('dupWarn');
+  if (!site || !date || !type) { warn.style.display = 'none'; return; }
+  try {
+    const r = await apiFetch(`/check-duplicate-form?site=${encodeURIComponent(site)}&date=${date}&formType=${encodeURIComponent(type)}`);
+    const res = await r.json();
+    if (res.exists) {
+      warn.style.display = 'block';
+      warn.innerHTML = `⚠️ 本日「${type}」表單已存在（LogID: ${res.logId}），繼續送出將建立新紀錄。`;
+    } else { warn.style.display = 'none'; }
+  } catch(e) { warn.style.display = 'none'; }
+}
+
+function goStep2() {
+  if (!document.getElementById('s1Site').value) { showToast('⚠️ 請選擇案場'); return; }
+  if (!selectedFormType) { showToast('⚠️ 請選擇表單類型'); return; }
+  buildCheckItems();
+  gotoStep(2);
+}
+
+/* ─── Step 2：Build Check Items ─── */
+function buildCheckItems() {
+  checkResults = {};
+  const area = document.getElementById('checkArea');
+  area.innerHTML = '';
+
+  const db = HSE_DB['default'];
+  const focusKeys = FORM_TYPE_FOCUS[selectedFormType];
+  const sections = focusKeys ? Object.keys(db).filter(k => focusKeys.includes(k)) : Object.keys(db);
+  currentSections = sections.map(title => ({ title, items: db[title] }));
+
+  sections.forEach((sectionTitle, si) => {
+    const items = db[sectionTitle];
+    const secDiv = document.createElement('div');
+    secDiv.className = 'check-section';
+    secDiv.innerHTML = `<div class="section-title">${sectionTitle}</div>`;
+
+    items.forEach((text, ii) => {
+      const key = `${si}_${ii}`;
+      checkResults[key] = { result: '', note: '', photoB64: null };
+      const card = document.createElement('div');
+      card.className = 'ci-card'; card.id = 'ci_' + key;
+      card.innerHTML = `
+        <div class="ci-header">
+          <span class="ci-num">${si+1}.${ii+1}</span>
+          <span class="ci-text">${text}</span>
+          <div class="ci-btns">
+            <button class="ci-btn" id="btn_pass_${key}" onclick="setResult('${key}','pass')">✓ 符合</button>
+            <button class="ci-btn" id="btn_fail_${key}" onclick="setResult('${key}','fail')">✗ 異常</button>
+            <button class="ci-btn" id="btn_na_${key}"   onclick="setResult('${key}','na')">— N/A</button>
+          </div>
+        </div>
+        <div class="ci-detail" id="detail_${key}">
+          <textarea placeholder="異常說明（必填）..." id="note_${key}" oninput="checkResults['${key}'].note=this.value"></textarea>
+          <div class="photo-btn">
+            <input type="file" accept="image/*" capture="environment" onchange="attachPhoto(this,'${key}')">
+            📷 拍攝異常照片
+          </div>
+          <img class="photo-preview" id="prev_${key}">
+        </div>`;
+      secDiv.appendChild(card);
+    });
+    area.appendChild(secDiv);
+  });
+  updateCount();
+}
+
+function setResult(key, result) {
+  checkResults[key].result = result;
+  const card = document.getElementById('ci_' + key);
+  card.className = 'ci-card ci-' + result;
+  ['pass','fail','na'].forEach(r => {
+    document.getElementById(`btn_${r}_${key}`).className = 'ci-btn' + (r === result ? ` sel-${r}` : '');
+  });
+  const detail = document.getElementById('detail_' + key);
+  detail.className = 'ci-detail' + (result === 'fail' ? ' show' : '');
+  updateCount();
+}
+
+function attachPhoto(input, key) {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    checkResults[key].photoB64 = e.target.result;
+    const img = document.getElementById('prev_' + key);
+    img.src = e.target.result; img.style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function updateCount() {
+  const vals = Object.values(checkResults);
+  let pass = 0, fail = 0, na = 0;
+  vals.forEach(v => { if(v.result==='pass') pass++; else if(v.result==='fail') fail++; else if(v.result==='na') na++; });
+  document.getElementById('cntPass').textContent = pass;
+  document.getElementById('cntFail').textContent = fail;
+  document.getElementById('cntNA').textContent   = na;
+  document.getElementById('cntTot').textContent  = vals.length;
+}
+
+function goStep3() {
+  const unanswered = Object.values(checkResults).filter(v => !v.result).length;
+  if (unanswered > 0) {
+    if (!confirm(`還有 ${unanswered} 個項目未填寫，確定繼續送出？`)) return;
+  }
+  gotoStep(3);
+  setTimeout(() => resizeSig(sigCanvas, sigCtx), 100);
+}
+
+/* ─── Step 3：Summary & Submit ─── */
+function buildSummary() {
+  const vals = Object.values(checkResults);
+  let pass = 0, fail = 0, na = 0;
+  vals.forEach(v => { if(v.result==='pass') pass++; else if(v.result==='fail') fail++; else if(v.result==='na') na++; });
+  const failItems = [];
+  currentSections.forEach((sec, si) => {
+    sec.items.forEach((text, ii) => {
+      const k = `${si}_${ii}`;
+      if (checkResults[k] && checkResults[k].result === 'fail') failItems.push(text);
+    });
+  });
+
+  let html = `
+    <div class="summary-row"><span class="sr-label">案場</span><strong>${document.getElementById('s1Site').value}</strong></div>
+    <div class="summary-row"><span class="sr-label">日期</span><strong>${document.getElementById('s1Date').value}</strong></div>
+    <div class="summary-row"><span class="sr-label">表單類型</span><strong>${selectedFormType}</strong></div>
+    <div class="summary-row"><span class="sr-label">檢查人員</span><strong>${document.getElementById('s1Inspector').value || myUser}</strong></div>
+    <div class="summary-row"><span class="sr-label">符合</span><strong style="color:var(--green)">${pass} 項</strong></div>
+    <div class="summary-row"><span class="sr-label">異常</span><strong style="color:var(--red)">${fail} 項</strong></div>
+    <div class="summary-row"><span class="sr-label">不適用</span><strong style="color:var(--gray)">${na} 項</strong></div>`;
+
+  if (failItems.length) {
+    html += `<div class="fail-list" style="margin-top:10px;"><div style="font-weight:700;color:var(--red);margin-bottom:6px;font-size:13px;">⚠️ 異常項目清單：</div>`;
+    failItems.forEach(t => { html += `<div class="fail-row">• ${t}</div>`; });
+    html += '</div>';
+  }
+  document.getElementById('summaryContent').innerHTML = html;
+}
+
+async function submitForm() {
+  const site      = document.getElementById('s1Site').value;
+  const date      = document.getElementById('s1Date').value;
+  const inspector = document.getElementById('s1Inspector').value || myUser;
+
+  if (!sigHasData) { showToast('⚠️ 請先完成簽名'); return; }
+
+  const sigData = sigCanvas.toDataURL('image/png');
+  const vals = Object.values(checkResults);
+  let pass = 0, fail = 0, na = 0;
+  vals.forEach(v => { if(v.result==='pass') pass++; else if(v.result==='fail') fail++; else if(v.result==='na') na++; });
+
+  // Build content JSON
+  const contentItems = [];
+  currentSections.forEach((sec, si) => {
+    sec.items.forEach((text, ii) => {
+      const k = `${si}_${ii}`, v = checkResults[k];
+      contentItems.push({ section: sec.title, item: text, result: v?.result || '', note: v?.note || '', hasPhoto: !!v?.photoB64 });
+    });
+  });
+
+  const statsSummary = `符合 ${pass} / 異常 ${fail} / 不適用 ${na} / 共 ${vals.length} 項`;
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true; btn.textContent = '⏳ 送出中...';
+
+  try {
+    const body = {
+      site, date, formType: selectedFormType, inspector,
+      inspectorId: lineId || myUserId,
+      contentJson: JSON.stringify(contentItems),
+      statsSummary,
+      signatureBase64: sigData,
+      passCount: pass, failCount: fail, naCount: na
+    };
+    const r = await apiFetch('/submit-form', { method: 'POST', body: JSON.stringify(body) });
+    const res = await r.json();
+    if (!res.success) throw new Error(res.error || '送出失敗');
+
+    // Upload fail photos
+    for (const [k, v] of Object.entries(checkResults)) {
+      if (v.result === 'fail' && v.photoB64 && res.logId) {
+        const [si, ii] = k.split('_');
+        await apiFetch('/hse/upload-fail-photo', {
+          method: 'POST',
+          body: JSON.stringify({ logId: res.logId, itemKey: k, sectionTitle: currentSections[si]?.title, itemText: currentSections[si]?.items[ii], photoBase64: v.photoB64 })
+        }).catch(() => {});
+      }
+    }
+
+    showToast('✅ 表單已送出！即將通知主任簽核。');
+    setTimeout(() => liff.closeWindow(), 2500);
+  } catch(e) {
+    showToast('❌ ' + e.message);
+    btn.disabled = false; btn.textContent = '📤 送出並通知主任';
+  }
+}
+
+/* ─── Patrol (New Feature) ─── */
+function showPatrol() { gotoStep('patrol'); }
+function setPatrol(mode) {
+  patrolMode = mode;
+  document.getElementById('chipOK').className  = 'chip' + (mode==='ok' ? ' active' : '');
+  document.getElementById('chipNG').className  = 'chip' + (mode==='ng' ? ' active-red' : '');
+  document.getElementById('patrolNG').style.display = mode === 'ng' ? 'block' : 'none';
+}
+function previewPatrolPhoto(input) {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('patrolPhotoPreview');
+    img.src = e.target.result; img.style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+async function submitPatrol() {
+  const site = document.getElementById('patrolSite').value;
+  if (!site) { showToast('⚠️ 請選擇案場'); return; }
+  if (patrolMode === 'ng' && !document.getElementById('patrolDesc').value.trim()) {
+    showToast('⚠️ 請描述異常情況'); return;
+  }
+  const photoInput = document.getElementById('patrolPhoto');
+  let photoB64 = null;
+  if (photoInput.files[0]) {
+    photoB64 = await new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(photoInput.files[0]); r.onload = () => res(r.result); r.onerror = rej; });
+  }
+  try {
+    const r = await apiFetch('/hse/patrol-record', {
+      method: 'POST',
+      body: JSON.stringify({
+        site, area: document.getElementById('patrolArea').value,
+        result: patrolMode, description: patrolMode === 'ng' ? document.getElementById('patrolDesc').value : '巡邏正常',
+        photoBase64: photoB64, inspector: myUser, inspectorId: lineId || myUserId,
+        patrolTime: new Date().toISOString()
+      })
+    });
+    const res = await r.json();
+    if (res.success) { showToast(patrolMode === 'ng' ? '⚠️ 異常已記錄，已通知主任！' : '✅ 巡邏打卡完成！'); setTimeout(() => gotoStep(1), 1800); }
+    else throw new Error(res.error);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+/* ─── History ─── */
+function showHistory() { gotoStep('history'); }
+async function loadHistory() {
+  const site = document.getElementById('histSite').value;
+  const el = document.getElementById('histList');
+  if (!site) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">載入中...</div>';
+  try {
+    const r = await apiFetch(`/hse/my-forms?site=${encodeURIComponent(site)}&userId=${lineId || myUserId}`);
+    const rows = await r.json();
+    if (!rows.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">無歷史紀錄</div>'; return; }
+    el.innerHTML = rows.map(row => {
+      const isDone = row.FormStatus === '已結案';
+      return `<div class="hist-card">
+        <div class="hist-header">
+          <div class="hist-title">${row.FormType}</div>
+          <div class="hist-status ${isDone ? 'hs-done' : 'hs-pend'}">${row.FormStatus}</div>
+        </div>
+        <div class="hist-body">
+          📍 ${row.SiteName} &nbsp;|&nbsp; 📅 ${row.CheckDate}<br>
+          👤 ${row.Inspector} &nbsp;|&nbsp; 📊 ${row.StatsSummary || ''}
+        </div>
+        <div class="hist-actions">
+          <button class="hist-btn hb-view" onclick="window.open('${apiBase}/get-form-detail/${row.LogID}','_blank')">📄 查看</button>
+          <button class="hist-btn hb-word" onclick="window.open('${apiBase}/export-word/${row.LogID}','_blank')">💾 Word</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--red);">載入失敗</div>'; }
+}
+
+/* ─── Approval Mode ─── */
+async function loadFormForApproval() {
+  gotoStep('approve');
+  try {
+    const r = await apiFetch(`/get-form-detail/${initLogId}`);
+    const res = await r.json();
+    if (!res.success) { showToast('❌ 載入失敗'); return; }
+    const d = res.data;
+    document.getElementById('approveInfo').innerHTML = `
+      <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--green);">${d.FormType}</div>
+      📍 案場：${d.SiteName}<br>
+      📅 日期：${d.CheckDate}<br>
+      👤 檢查人：${d.Inspector}<br>
+      📊 結果：${d.StatsSummary || ''}<br>
+      🔖 狀態：${d.FormStatus}`;
+    // Show fail items
+    const items = d.Defects || [];
+    if (items.length) {
+      document.getElementById('approveItems').innerHTML =
+        `<div class="card" style="margin:0 0 12px;"><div class="card-hd">⚠️ 異常項目</div><div class="card-bd">` +
+        items.map(i => `<div style="font-size:13px;padding:6px 0;border-bottom:1px solid #eee;">${i.Description}</div>`).join('') +
+        `</div></div>`;
+    }
+    setTimeout(() => resizeSig(sigCanvas2, sigCtx2), 100);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function submitApproval(decision) {
+  if (!sigHasData2) { showToast('⚠️ 請先完成覆核簽名'); return; }
+  const sigData = sigCanvas2.toDataURL('image/png');
+  const isDirector = viewMode === 'hse_approve_director';
+  try {
+    const r = await apiFetch('/approve-form', {
+      method: 'POST',
+      body: JSON.stringify({
+        logId: initLogId, decision, reviewer: myUser, reviewerId: lineId || myUserId,
+        isDirector, signatureBase64: sigData
+      })
+    });
+    const res = await r.json();
+    if (res.success) { showToast(decision === 'APPROVED' ? '✅ 覆核通過！' : '❌ 已退回重填'); setTimeout(() => liff.closeWindow(), 2000); }
+    else throw new Error(res.error);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+/* ─── Utils ─── */
+function apiFetch(path, opts = {}) {
+  return fetch(apiBase + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...(opts.headers||{}) }
+  });
+}
+let _tTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(_tTimer); _tTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>
