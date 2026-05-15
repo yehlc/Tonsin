@@ -657,7 +657,7 @@ async function submitPR() {
       });
     }
 
-    showToast('✅ 已送出！單號 ' + res.requestNo);
+    showToast(`✅ 已送出！ 單號 ${res.requestNo}\n📨 已通知：${res.nextStageUser} 審核中`);
     // Reset form
     ['prSite','prCat','prSub','prItem'].forEach(id => { document.getElementById(id).value = ''; });
     document.getElementById('prCat').disabled = true;
