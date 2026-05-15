@@ -1,762 +1,873 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>同興營造 - 工程管理系統</title>
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { margin: 0; padding: 0; background: #f0f0f0; font-family: sans-serif; }
-        .header { background: #007bff; color: white; padding: 15px; font-size: 18px; font-weight: bold; text-align:center; position:sticky; top:0; z-index:100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right:8px;}
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+<title>同興營造 — 現場缺失管理</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+:root {
+  --orange:#f39c12; --red:#e74c3c; --green:#27ae60;
+  --blue:#2980b9; --gray:#7f8c8d; --dark:#2c3e50;
+  --bg:#f4f4f4; --card:#fff; --border:#ddd;
+  --shadow:0 2px 10px rgba(0,0,0,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans TC','PingFang TC',sans-serif;background:var(--bg);color:var(--dark);overflow-x:hidden}
 
-        /* ================= 圖紙模式樣式 ================= */
-        #mapView { display: none; text-align: center; }
-        .hint { padding: 10px; font-size: 14px; color: #555; font-weight: bold; background: #e9ecef; z-index: 100; position: relative;}
-        
-        #canvas-container { position: relative; width: 100%; display: flex; justify-content: center; overflow: auto; background: #ccc;}
-        #floorPlan { width: 100%; height: auto; background: #fff; cursor: crosshair; }
-        
-        #sendBtn { display: none; position: fixed; bottom: 20px; left: 10%; width: 80%; padding: 15px; font-size: 18px; font-weight: bold; background: #1DB446; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 9999;}
-        #filterContainer { display: none; padding: 8px 10px; text-align: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; }
-        .filter-select { padding: 8px; font-size: 14px; font-weight: bold; border-radius: 6px; border: 1px solid #007bff; width: 48%; margin: 2px; }
-        
-        #defectInfoCard { display: none; position: fixed; bottom: 20px; left: 5%; width: 90%; background: rgba(255, 255, 255, 0.98); padding: 15px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); text-align: left; z-index: 100; box-sizing: border-box; border-left: 6px solid #ff9800; max-height: 85vh; overflow-y: auto; }
-        .tab-container { display: flex; margin-bottom: 8px; border-radius: 6px; overflow: hidden; border: 1px solid #007bff; }
-        .tab-btn { flex: 1; padding: 8px; font-size: 14px; font-weight: bold; border: none; background: white; color: #007bff; cursor: pointer; transition: 0.2s; }
-        .tab-btn.active { background: #007bff; color: white; }
-        #infoImg { width: 100%; max-height: 250px; height: auto; object-fit: contain; border-radius: 8px; background-color: #111; cursor: zoom-in; margin-bottom: 5px; }
-        .close-btn { position: absolute; right: 15px; top: 10px; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
-        .history-btn { width: 100%; padding: 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-weight: bold; color: #444; margin-top: 10px; }
-        #historyContainer { display: none; font-size: 13px; color: #444; background: #fafafa; padding: 10px; border-radius: 6px; margin-top: 5px; border: 1px inset #eee; }
-        .history-item { margin-bottom: 6px; }
-        .history-time { font-size: 11px; color: #888; }
+/* ── Header ── */
+.header{background:var(--orange);color:#fff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:300;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.header-left{display:flex;align-items:center;gap:8px}
+.header-title{font-size:16px;font-weight:700}
+.header-sub{font-size:11px;opacity:.85}
+.offline-badge{background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;display:none}
 
-        #fullscreenModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
-        #fullscreenImg { max-width: 95%; max-height: 90%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-radius: 8px; }
-        .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; cursor: pointer; background: none; border: none; }
+/* ── Tab Bar ── */
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:54px;z-index:200}
+.tab{flex:1;text-align:center;padding:11px 2px;font-size:13px;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.2s}
+.tab.active{color:var(--orange);border-color:var(--orange)}
 
-        /* ================= 表單模式樣式 ================= */
-        #formView { display: none; padding: 15px; max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.05); min-height: 100vh;}
-        .form-meta-card { background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; color: #495057; line-height: 1.6; }
-        .form-section { margin-bottom: 25px; border: 1px solid #dfe6e9; border-radius: 8px; overflow: hidden; background: #fff; }
-        .form-section-title { background: #2d3436; color: #fff; padding: 12px 15px; font-size: 16px; font-weight: bold; }
-        .form-item { padding: 15px; border-bottom: 1px solid #f1f2f6; }
-        .form-item:last-child { border-bottom: none; }
-        .item-title { font-size: 15px; font-weight: bold; color: #2d3436; margin-bottom: 12px; line-height: 1.5; }
-        
-        .radio-group { display: flex; gap: 10px; margin-bottom: 10px; }
-        .radio-label { flex: 1; text-align: center; padding: 12px; border: 2px solid #dfe6e9; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; color: #636e72; background: #fff; }
-        .radio-label.pass.selected { border-color: #00b894; background: #e8f8f5; color: #00b894; box-shadow: 0 2px 5px rgba(0,184,148,0.2); }
-        .radio-label.fail.selected { border-color: #d63031; background: #ffefef; color: #d63031; box-shadow: 0 2px 5px rgba(214,48,49,0.2); }
-        .radio-label.disabled { pointer-events: none; opacity: 0.7; }
-        
-        .fail-inputs { display: none; margin-top: 10px; background: #fafafa; padding: 12px; border-radius: 8px; border-left: 4px solid #d63031; }
-        .fail-inputs textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 8px; resize: vertical; height: 70px; font-family: inherit; }
-        
-        .camera-btn-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
-        .camera-btn { width: 100%; padding: 10px; background: #fff; border: 1px dashed #dc3545; color: #dc3545; font-weight: bold; border-radius: 6px; text-align: center; display: block; }
-        .camera-input { position: absolute; top: 0; left: 0; font-size: 100px; text-align: right; opacity: 0; outline: none; background: white; cursor: inherit; display: block; width: 100%; height: 100%; }
-        .camera-preview { max-width: 100%; height: auto; border-radius: 4px; margin-top: 10px; display: none; border: 1px solid #ddd; }
+/* ── Selector Bar ── */
+.sel-bar{display:flex;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--border)}
+.sel-bar select{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;background:#f8f9fa;appearance:none;font-weight:600}
+.btn-refresh{padding:8px 12px;background:var(--orange);color:#fff;border:none;border-radius:7px;font-size:14px;cursor:pointer;white-space:nowrap}
 
-        .sig-grid { display: flex; flex-direction: column; gap: 15px; }
-        .sig-block { border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #fafafa; }
-        .sig-block-title { font-weight: bold; color: #333; margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .signature-box { border: 2px dashed #74b9ff; border-radius: 6px; background: #fff; position: relative; height: 120px; }
-        .sig-canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
-        .clear-sig { position: absolute; top: 5px; right: 5px; background: #ff7675; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; z-index: 10; }
-        .sig-img-preview { width: 100%; height: 120px; object-fit: contain; background: #fff; }
-        .sig-placeholder { width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 14px; font-style: italic; background: #eee; border-radius: 6px; }
-        
-        .action-btn { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; }
-        .btn-submit { background: #0984e3; }
-        .btn-approve { background: #e17055; }
-        .btn-close { background: #636e72; }
-    </style>
+/* ── Map Canvas Area ── */
+#mapPage{display:none}
+.map-hint{background:rgba(255,234,167,.9);color:#c0392b;text-align:center;padding:9px;font-size:13px;font-weight:700;position:relative;z-index:10}
+.map-hint.add-mode{background:rgba(39,174,96,.15);color:var(--green)}
+.canvas-wrap{position:relative;overflow:auto;width:100%;background:#ccc;-webkit-overflow-scrolling:touch}
+canvas{display:block;width:100%;height:auto;cursor:crosshair}
+.add-mode canvas{cursor:crosshair}
+.view-mode canvas{cursor:default}
+
+/* ── FAB (Add button) ── */
+.fab{position:fixed;bottom:24px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--orange);color:#fff;border:none;font-size:26px;box-shadow:0 4px 14px rgba(243,156,18,.55);cursor:pointer;z-index:250;display:flex;align-items:center;justify-content:center;transition:.2s}
+.fab:active{transform:scale(.93)}
+
+/* ── Defect Form Sheet ── */
+.sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:none}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:18px 18px 0 0;z-index:500;padding:0 0 30px;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .35s ease;display:block}
+.sheet.open{transform:translateY(0)}
+.sheet-handle{width:40px;height:4px;background:#ddd;border-radius:2px;margin:12px auto 10px}
+.sheet-title{font-size:16px;font-weight:700;color:var(--dark);padding:0 16px 10px;border-bottom:1px solid var(--border)}
+.sheet-body{padding:14px 16px}
+
+/* ── Form elements ── */
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:5px}
+.fl .req{color:var(--red)}
+select.ff,textarea.ff,input.ff{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;background:#f8f9fa;color:var(--dark);appearance:none}
+select.ff:focus,textarea.ff:focus,input.ff:focus{border-color:var(--orange);outline:none;background:#fff}
+textarea.ff{height:75px;resize:none}
+
+/* ── Photo Upload ── */
+.photo-zone{border:2px dashed var(--border);border-radius:10px;padding:16px;text-align:center;position:relative;cursor:pointer;background:#fafafa;transition:.2s}
+.photo-zone:active{border-color:var(--orange);background:#fff8ec}
+.photo-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.photo-zone .ph-icon{font-size:28px;margin-bottom:5px}
+.photo-zone .ph-text{font-size:13px;color:var(--gray)}
+#photoPreview{width:100%;border-radius:8px;margin-top:8px;display:none;max-height:200px;object-fit:cover}
+
+/* ── Quick Tags ── */
+.chip-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.chip{padding:6px 12px;border-radius:14px;font-size:13px;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--gray);cursor:pointer;transition:.15s}
+.chip.active{border-color:var(--orange);background:#fff8ec;color:var(--orange)}
+
+/* ── Submit button ── */
+.btn-submit{width:100%;padding:15px;background:var(--orange);color:#fff;border:none;border-radius:10px;font-size:17px;font-weight:700;cursor:pointer;margin-top:8px;box-shadow:0 3px 10px rgba(243,156,18,.4);transition:.2s}
+.btn-submit:disabled{background:#b2bec3;box-shadow:none}
+.btn-cancel{width:100%;padding:12px;background:#f0f0f0;color:var(--gray);border:none;border-radius:10px;font-size:15px;cursor:pointer;margin-top:8px}
+
+/* ── Defect Detail Card ── */
+.detail-card{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:18px 18px 0 0;z-index:500;padding:0 0 30px;max-height:88vh;overflow-y:auto;transform:translateY(100%);transition:transform .35s ease}
+.detail-card.open{display:block;transform:translateY(0)}
+.detail-img{width:100%;max-height:220px;object-fit:cover;background:#111}
+.detail-body{padding:14px 16px}
+.detail-status{display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:10px}
+.st-todo{background:#fdecea;color:var(--red)}
+.st-review{background:#e3f2fd;color:var(--blue)}
+.st-done{background:#e8f8ee;color:var(--green)}
+.detail-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.detail-meta{font-size:12px;color:var(--gray);line-height:1.8}
+.action-row{display:flex;gap:8px;margin-top:12px}
+.act-btn{flex:1;padding:11px 6px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+.act-orange{background:var(--orange);color:#fff}
+.act-green{background:var(--green);color:#fff}
+.act-red{background:var(--red);color:#fff}
+.act-gray{background:#f0f0f0;color:var(--gray)}
+
+/* ── List Page ── */
+#listPage{display:none;padding:12px}
+.filter-row{display:flex;gap:7px;margin-bottom:10px;overflow-x:auto;padding-bottom:4px}
+.filter-chip{padding:6px 14px;border-radius:14px;font-size:13px;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--gray);cursor:pointer;white-space:nowrap;transition:.15s}
+.filter-chip.active{border-color:var(--orange);background:#fff8ec;color:var(--orange)}
+.defect-card{background:#fff;border-radius:10px;box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden;border-left:4px solid var(--border);cursor:pointer;transition:.15s}
+.defect-card.todo{border-color:var(--red)}
+.defect-card.review{border-color:var(--blue)}
+.defect-card.done{border-color:var(--green)}
+.defect-card:active{opacity:.85}
+.dc-header{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px}
+.dc-title{font-weight:700;font-size:14px;flex:1;margin-right:8px;line-height:1.4}
+.dc-status{font-size:11px;font-weight:700;padding:3px 7px;border-radius:5px;white-space:nowrap}
+.dc-meta{padding:0 12px 10px;font-size:12px;color:var(--gray);line-height:1.7}
+
+/* ── Offline queue indicator ── */
+.offline-bar{background:#e74c3c;color:#fff;text-align:center;padding:8px;font-size:13px;font-weight:700;display:none;cursor:pointer}
+
+/* ── Edit mode ── */
+.edit-field{display:flex;gap:8px;align-items:center}
+.edit-field input{flex:1;padding:8px;border:1.5px solid var(--orange);border-radius:6px;font-size:14px}
+.edit-field button{padding:8px 12px;background:var(--orange);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(80px);background:rgba(0,0,0,.82);color:#fff;padding:11px 20px;border-radius:22px;font-size:13px;font-weight:600;z-index:9999;transition:transform .28s;white-space:nowrap;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── Loader ── */
+#globalLoader{position:fixed;inset:0;background:rgba(244,244,244,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9000}
+.spinner{width:44px;height:44px;border-radius:50%;border:4px solid #ddd;border-top-color:var(--orange);animation:spin .8s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#globalLoader p{font-size:14px;color:var(--gray);font-weight:600}
+
+/* ── Defect pin ── */
+.pin-label{font-size:10px;font-weight:700;fill:#fff}
+</style>
 </head>
 <body>
-    <div class="header" id="pageTitle">系統載入中...</div>
 
-    <div id="mapView">
-        <div class="hint" id="hintText">載入圖紙中...</div>
-        <div id="filterContainer">
-            <select id="deptFilter" class="filter-select" onchange="applyFilter()"><option value="ALL">🛠️ 所有工種</option></select>
-            <select id="statusFilter" class="filter-select" onchange="applyFilter()">
-                <option value="ALL">🔍 所有狀態</option>
-                <option value="待改善">🔺 待改善</option>
-                <option value="待驗收">🔵 待驗收</option>
-                <option value="已改善">🟩 已改善</option>
-            </select>
-        </div>
-        <div id="canvas-container"><canvas id="floorPlan"></canvas></div>
-        <button id="sendBtn" onclick="sendCoordinate()">📍 送出標記座標</button>
+<div id="globalLoader"><div class="spinner"></div><p>系統載入中...</p></div>
 
-        <div id="defectInfoCard">
-            <button class="close-btn" onclick="document.getElementById('defectInfoCard').style.display='none'">✖</button>
-            <div id="infoStatus" style="font-weight:bold; font-size:16px; margin-bottom:10px;"></div>
-            <div class="tab-container" id="imgToggleTabs" style="display:none;">
-                <button id="btnAfter" class="tab-btn active" onclick="switchImg('fixed')">✨ 改善後</button>
-                <button id="btnBefore" class="tab-btn" onclick="switchImg('original')">📸 改善前</button>
-            </div>
-            <div id="imgLoading" style="display:none; text-align:center; padding:20px; color:#888;">
-                <div class="loader"></div> 讀取照片中...
-            </div>
-            <img id="infoImg" src="" alt="缺失照片" style="display:none;" />
-            <div id="imgZoomHint" style="display:none; text-align:center; font-size:12px; color:#1DB446; margin-bottom:8px;">🔍 點擊圖片可放大查看全圖</div>
-            <div id="infoDeptUser" style="color:#555; font-size:14px; margin-bottom:8px; margin-top:8px;"></div>
-            <div id="infoDesc" style="color:#222; font-size:15px; line-height:1.4;"></div>
-            <button class="history-btn" onclick="toggleHistory()">🕒 展開狀態歷程紀錄</button>
-            <div id="historyContainer"></div>
-        </div>
+<div class="offline-bar" id="offlineBar" onclick="syncOffline()">
+  📶 離線模式：有 <span id="offlineCount">0</span> 筆待同步資料，點擊立即同步
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <div>
+      <div class="header-title">🗺️ 現場缺失管理</div>
+      <div class="header-sub" id="headerSub">同興營造</div>
+    </div>
+  </div>
+  <div class="offline-badge" id="onlineBadge">📶 離線</div>
+</div>
+
+<!-- Tab Bar -->
+<div class="tabs">
+  <div class="tab active" id="tabMap" onclick="switchTab('map')">🗺️ 圖紙標記</div>
+  <div class="tab" id="tabList" onclick="switchTab('list')">📋 缺失清單</div>
+</div>
+
+<!-- ── Selector Bar ── -->
+<div class="sel-bar">
+  <select id="selSite" onchange="onSiteChange()">
+    <option value="">— 選擇案場 —</option>
+  </select>
+  <select id="selFloor" onchange="onFloorChange()" disabled>
+    <option value="">— 選擇樓層 —</option>
+  </select>
+  <button class="btn-refresh" onclick="loadDefects()">🔄</button>
+</div>
+
+<!-- ══════════ MAP TAB ══════════ -->
+<div id="mapPage">
+  <div class="map-hint" id="mapHint">📌 請選擇案場與樓層後，點擊圖紙新增缺失</div>
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="floorCanvas"></canvas>
+  </div>
+</div>
+
+<!-- ══════════ LIST TAB ══════════ -->
+<div id="listPage">
+  <div class="filter-row">
+    <div class="filter-chip active" onclick="filterList('ALL',this)">全部</div>
+    <div class="filter-chip" onclick="filterList('待改善',this)">🔴 待改善</div>
+    <div class="filter-chip" onclick="filterList('待驗收',this)">🔵 待驗收</div>
+    <div class="filter-chip" onclick="filterList('已改善',this)">🟢 已改善</div>
+  </div>
+  <div id="defectList"></div>
+</div>
+
+<!-- ── FAB ── -->
+<button class="fab" id="fabAdd" onclick="startAddMode()" title="新增缺失">＋</button>
+
+<!-- ══════════ Sheet Mask ══════════ -->
+<div class="sheet-mask" id="sheetMask" onclick="closeSheet()"></div>
+
+<!-- ══════════ Add/Edit Defect Sheet ══════════ -->
+<div class="sheet" id="defectSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="sheetTitle">📍 新增缺失</div>
+  <div class="sheet-body">
+    <input type="hidden" id="editDefectId">
+    <input type="hidden" id="pinX">
+    <input type="hidden" id="pinY">
+
+    <!-- 位置顯示 -->
+    <div id="pinConfirm" style="background:#fff8ec;border:1.5px solid var(--orange);border-radius:8px;padding:9px 12px;font-size:13px;font-weight:700;margin-bottom:12px;display:none;">
+      📌 已標記位置：<span id="pinCoordText"></span>
+    </div>
+    <div id="pinWaiting" style="background:#fdecea;border:1.5px solid var(--red);border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:12px;color:var(--red);font-weight:700;">
+      ⚠️ 請先在圖紙上點選缺失位置，再填寫以下資料
     </div>
 
-    <div id="formView">
-        <div class="form-meta-card" id="formMeta"></div>
-        <div id="formContent"></div> 
-
-        <div class="form-section">
-            <div class="form-section-title">✍️ 簽章核定區</div>
-            <div class="sig-grid" style="padding: 15px;">
-                <div class="sig-block" id="blockInspector">
-                    <div class="sig-block-title">🧑‍🔧 檢查人員</div>
-                    <div id="boxInspector" class="signature-box" style="display:none;">
-                        <canvas id="sigInspector" class="sig-canvas"></canvas>
-                        <button class="clear-sig" onclick="clearCanvas('sigInspector')">重簽</button>
-                    </div>
-                    <img id="imgInspector" class="sig-img-preview" style="display:none;" />
-                    <div id="phInspector" class="sig-placeholder">等待填寫...</div>
-                </div>
-                <div class="sig-block" id="blockSafety">
-                    <div class="sig-block-title">⛑️ 安衛人員</div>
-                    <div id="boxSafety" class="signature-box" style="display:none;">
-                        <canvas id="sigSafety" class="sig-canvas"></canvas>
-                        <button class="clear-sig" onclick="clearCanvas('sigSafety')">重簽</button>
-                    </div>
-                    <img id="imgSafety" class="sig-img-preview" style="display:none;" />
-                    <div id="phSafety" class="sig-placeholder">等待簽核...</div>
-                </div>
-                <div class="sig-block" id="blockDirector">
-                    <div class="sig-block-title">👷‍♂️ 工地主任</div>
-                    <div id="boxDirector" class="signature-box" style="display:none;">
-                        <canvas id="sigDirector" class="sig-canvas"></canvas>
-                        <button class="clear-sig" onclick="clearCanvas('sigDirector')">重簽</button>
-                    </div>
-                    <img id="imgDirector" class="sig-img-preview" style="display:none;" />
-                    <div id="phDirector" class="sig-placeholder">等待簽核...</div>
-                </div>
-            </div>
-        </div>
-        <button id="btnSubmitForm" class="action-btn btn-submit" style="display:none;" onclick="submitHSEForm()">📤 儲存並送出</button>
-        <button id="btnCloseForm" class="action-btn btn-close" style="display:none;" onclick="liff.closeWindow()">✖ 關閉視窗</button>
+    <!-- 工種 -->
+    <div class="fg">
+      <label class="fl">工程類別 <span class="req">*</span></label>
+      <div class="chip-row" id="deptChips"></div>
     </div>
 
-    <div id="fullscreenModal" onclick="closeFullscreen()">
-        <button class="modal-close">✖</button>
-        <img id="fullscreenImg" src="" />
+    <!-- 說明 -->
+    <div class="fg">
+      <label class="fl">缺失說明 <span class="req">*</span></label>
+      <textarea class="ff" id="defectDesc" placeholder="請描述缺失狀況，例如：裂縫、漏水、施工不符規定..."></textarea>
     </div>
 
-    <script>
-        const myLiffId = "2009287087-4LSCRAq4"; 
-        const githubPagesUrl = "https://yehlc.github.io/Tonsin/"; 
-        
-        let apiBaseUrl = ""; 
-        let currentMode = ""; 
-        let currentSite = "";
-        let currentDate = "";
-        let currentUser = "";
-        let currentUserRole = "檢查人員";
-        let currentFormType = "";
-        let currentLogId = "";
+    <!-- 照片 -->
+    <div class="fg">
+      <label class="fl">現場照片</label>
+      <div class="photo-zone">
+        <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="onPhotoSelected(this)">
+        <div class="ph-icon">📷</div>
+        <div class="ph-text">點擊拍攝現場照片</div>
+      </div>
+      <img id="photoPreview">
+    </div>
 
-        let floorCanvas, floorCtx, floorImg;
-        let globalDefectsList = [];
-        let selectedX = 0, selectedY = 0, isSelected = false;
-        let currentZoom = 1; // ★ 新增縮放倍率紀錄
+    <button class="btn-submit" id="btnSubmitDefect" onclick="submitDefect()">📤 送出缺失紀錄</button>
+    <button class="btn-cancel" onclick="closeSheet()">取消</button>
+  </div>
+</div>
 
-        // ★ 新增縮放功能函數
-        window.zoomMap = function(factor) {
-            currentZoom *= factor;
-            if (currentZoom < 0.5) currentZoom = 0.5; // 最小縮放限制
-            if (currentZoom > 4) currentZoom = 4;     // 最大放大限制
-            document.getElementById('floorPlan').style.transform = `scale(${currentZoom})`;
-        };
+<!-- ══════════ Defect Detail Card ══════════ -->
+<div class="sheet-mask" id="detailMask" onclick="closeDetail()" style="display:none"></div>
+<div class="detail-card" id="detailCard">
+  <div class="sheet-handle" style="margin:12px auto 0;"></div>
+  <img id="detailImg" class="detail-img" style="display:none">
+  <div class="detail-body">
+    <div class="detail-status" id="detailStatus"></div>
+    <div class="detail-title" id="detailTitle"></div>
+    <div class="detail-meta" id="detailMeta"></div>
 
-        const FORM_TEMPLATES = {
-            "一般安全檢查表": [
-                { section: "門禁管制", items: [ { id: "Q1", text: "人員、車輛進出工區應指派專人管制" }, { id: "Q2", text: "人員進出工區應依規定辦理工作証並配掛胸前，以茲識別" }, { id: "Q3", text: "人員進入工區應配戴安全帽、著安全鞋" }, { id: "Q4", text: "工區出入口應設立警示標誌" }, { id: "Q5", text: "應指派交通指揮人員，並著反光衣及指揮捧" } ]},
-                { section: "開口防護", items: [ { id: "Q6", text: "開口部、坑洞墜落防護措施應設置" }, { id: "Q7", text: "從事高架作業勞工應佩戴安全帶" }, { id: "Q8", text: "安全護欄因作業需要拆除，應事先報備 (並做好後續安全防護措施)。" } ]},
-                { section: "感電防止", items: [ { id: "Q9", text: "各分電箱應設置漏電斷路器" }, { id: "Q10", text: "電線應架高，不得橫越地面或浸泡水中" }, { id: "Q11", text: "電線絕緣劣化應更換新品" }, { id: "Q12", text: "應使用有插頭裝置之電線插入插座" }, { id: "Q13", text: "電焊機應設置自動電擊防止裝置" }, { id: "Q14", text: "夜間及黑暗工作場所應有足夠照明及警示標誌" }, { id: "Q15", text: "高壓電線下作業應有安全措施如遷移或加裝絕綠套管" } ]},
-                { section: "圍籬環境整潔", items: [ { id: "Q16", text: "工地圍籬應完整無隨意拆卸及損壞未修情形" }, { id: "Q17", text: "夜間圍籬警示燈應保留正常" }, { id: "Q18", text: "颱風來襲圍籬大門應加強牢固並做好安全防護措施" }, { id: "Q19", text: "工區環境應保持清潔" }, { id: "Q20", text: "車輛駛出工地時輪胎之沖洗應確實" }, { id: "Q21", text: "工地附近環境不得遭受本工程污染" }, { id: "Q22", text: "人行道、車道公共安全衛生狀況應保持良好" }, { id: "Q23", text: "應指派專人每日不定時巡視檢點，並維持工區內外清潔" } ]},
-                { section: "消防急救", items: [ { id: "Q24", text: "滅火器有效日期應定期檢點" }, { id: "Q25", text: "滅火器數量應足夠" }, { id: "Q26", text: "易燃物堆置處應設置滅火器及「嚴禁煙火」之標誌" }, { id: "Q27", text: "工區內應設置急救站" }, { id: "Q28", text: "急救箱、擔架、空氣呼吸器應實施定期檢點" }, { id: "Q29", text: "應設置急救人員" } ]}
-            ],
-            "圍籬及大門作業檢查表": [
-                { section: "硬體設施", items: [ { id: "Q1", text: "施工圍籬是否依規定設置且穩固" }, { id: "Q2", text: "大門是否設有警告標示及照明設備" }, { id: "Q3", text: "門禁管制措施是否落實" } ]}
-            ],
-            "模板作業檢查表": [
-                { section: "支撐與組立", items: [ { id: "Q1", text: "模板支撐材料是否有明顯腐朽或變形" }, { id: "Q2", text: "支撐基底是否穩固且無積水" }, { id: "Q3", text: "上下設備(樓梯、爬梯)是否安全牢固" } ]}
-            ],
-            // ★ 為您 GAS 裡的其他表單建立基礎範本，避免畫面報錯空白
-            "混凝土澆置檢查表": [ { section: "混凝土作業", items: [ { id: "Q1", text: "澆置前模板內是否清理乾淨" }, { id: "Q2", text: "是否具備足夠照明與安全上下設備" } ]} ],
-            "連續壁作業檢查表": [ { section: "連續壁作業", items: [ { id: "Q1", text: "導溝兩側是否有設置安全護欄" }, { id: "Q2", text: "吊掛鋼筋籠是否由合格起重機手操作" } ]} ],
-            "開挖作業檢查表": [ { section: "開挖作業", items: [ { id: "Q1", text: "開挖面是否有防止土石崩塌之擋土支撐" }, { id: "Q2", text: "怪手等重機具作業半徑內是否禁止人員進入" } ]} ],
-            "施工架作業檢查表": [ { section: "施工架", items: [ { id: "Q1", text: "施工架基礎是否穩固且無下沉" }, { id: "Q2", text: "是否設置交叉拉桿及踏板" } ]} ]
-        };
+    <!-- 編輯說明 -->
+    <div class="fg" id="editDescSection" style="display:none;margin-top:12px;">
+      <label class="fl">修改說明</label>
+      <div class="edit-field">
+        <input type="text" id="editDescInput" placeholder="輸入新說明...">
+        <button onclick="saveDesc()">儲存</button>
+      </div>
+    </div>
 
-        const DEFAULT_TEMPLATE = FORM_TEMPLATES["一般安全檢查表"];
+    <!-- 改善照片上傳 -->
+    <div class="fg" id="fixPhotoSection" style="display:none;margin-top:12px;">
+      <label class="fl">上傳改善照片</label>
+      <div class="photo-zone">
+        <input type="file" id="fixPhotoInput" accept="image/*" capture="environment" onchange="onFixPhotoSelected(this)">
+        <div class="ph-icon">📷</div>
+        <div class="ph-text">拍攝改善後照片</div>
+      </div>
+      <img id="fixPhotoPreview" style="display:none;width:100%;border-radius:8px;margin-top:8px;max-height:150px;object-fit:cover;">
+    </div>
 
-        liff.init({ liffId: myLiffId }).then(() => {
-            // ★ 直接讀取乾淨的網址參數
-            const urlParams = new URLSearchParams(window.location.search);
+    <!-- 狀態操作按鈕 -->
+    <div class="action-row" id="actionRow"></div>
+    <button class="btn-cancel" style="margin-top:10px;" onclick="closeDetail()">關閉</button>
+  </div>
+</div>
 
-            currentSite = decodeURIComponent(urlParams.get('site') || "").trim(); 
-            const floor = decodeURIComponent(urlParams.get('floor') || "").trim().toUpperCase(); 
-            currentMode = urlParams.get('mode');
-            
-            let paramApi = urlParams.get('api');
-            if (paramApi && paramApi.includes('ngrok-free.dev')) {
-                apiBaseUrl = decodeURIComponent(paramApi);
-            } else {
-                apiBaseUrl = "https://unpregnant-tonically-caitlyn.ngrok-free.dev";
-            }
-            
-            currentDate = urlParams.get('date');
-            currentUser = decodeURIComponent(urlParams.get('user') || "未知");
-            currentUserRole = decodeURIComponent(urlParams.get('role') || "檢查人員");
-            currentFormType = decodeURIComponent(urlParams.get('formType') || "一般安全檢查表");
-            currentLogId = urlParams.get('logId');
+<div id="toast"></div>
 
-            if (currentMode && currentMode.startsWith('hse_')) {
-                document.getElementById('mapView').style.display = 'none';
-                document.getElementById('formView').style.display = 'block';
-                initFormMode();
-            } else {
-                document.getElementById('formView').style.display = 'none';
-                document.getElementById('mapView').style.display = 'block';
-                initMapMode(currentSite, floor, urlParams.get('x'), urlParams.get('y'), urlParams.get('focusId'));
-            }
-        }).catch(err => {
-            document.getElementById('pageTitle').innerText = "系統初始化失敗";
-            console.error(err);
-        });
+<script>
+/* ─── Config ─── */
+const urlP    = new URLSearchParams(window.location.search);
+const apiBase = urlP.get('api') || 'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
+const initSite  = decodeURIComponent(urlP.get('site')  || '');
+const initFloor = decodeURIComponent(urlP.get('floor') || '');
+const initMode  = urlP.get('mode') || 'mark';   // mark | overview
+const initFocus = urlP.get('focusId') || '';
+const myUser    = decodeURIComponent(urlP.get('user')   || '');
+const myUserId  = urlP.get('userId') || '';
+const LIFF_ID   = "2009287087-4LSCRAq4";
+const GH_PAGES  = "https://yehlc.github.io/Tonsin/";
 
-        // ==========================================
-        // 模塊 1：動態電子表單邏輯 (三層簽核)
-        // ==========================================
-        function initFormMode() {
-            document.getElementById('pageTitle').innerText = currentFormType;
-            let metaHtml = `<b>🏢 案場：</b>${currentSite} <br><b>📅 日期：</b>${currentDate} <br><b>👤 操作人：</b>${currentUser} (${currentUserRole})`;
-            document.getElementById('formMeta').innerHTML = metaHtml;
-
-            let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
-            // 編輯模式下，檢查人員依然可以修改題目
-            let isQuestionsReadOnly = (currentMode !== 'hse_form' && currentMode !== 'hse_edit' && currentUserRole !== '檢查人員');
-
-            let container = document.getElementById('formContent');
-            let html = "";
-            template.forEach(sec => {
-                html += `<div class="form-section"><div class="form-section-title">📋 ${sec.section}</div>`;
-                sec.items.forEach(item => {
-                    let disabledClass = isQuestionsReadOnly ? "disabled" : "";
-                    html += `
-                    <div class="form-item">
-                        <div class="item-title">${item.id}. ${item.text}</div>
-                        <div class="radio-group" id="group_${item.id}" data-text="${item.text}">
-                            <div class="radio-label pass selected ${disabledClass}" onclick="selectRadio('${item.id}', 'PASS', ${isQuestionsReadOnly})">✅ 合格</div>
-                            <div class="radio-label fail ${disabledClass}" onclick="selectRadio('${item.id}', 'FAIL', ${isQuestionsReadOnly})">❌ 異常</div>
-                        </div>
-                        
-                        <div class="fail-inputs" id="failBox_${item.id}">
-                            <textarea id="desc_${item.id}" placeholder="請輸入不合格改善措施..." ${isQuestionsReadOnly?'disabled':''}></textarea>
-                            
-                            ${!isQuestionsReadOnly ? `
-                            <div class="camera-btn-wrapper">
-                                <span class="camera-btn">📷 點擊拍照佐證</span>
-                                <input type="file" id="file_${item.id}" accept="image/*" capture="environment" class="camera-input" onchange="previewImage(this, '${item.id}')">
-                            </div>
-                            ` : ''}
-                            
-                            <img id="preview_${item.id}" class="camera-preview" style="width: 100%; margin-top: 10px; border-radius: 8px; display: none;">
-                        </div>
-                    </div>`;
-                });
-                html += `</div>`;
-            });
-            container.innerHTML = html;
-            // ★ 強化版：明確區分「新增」與「載入(包含編輯/簽核/查詢)」
-            if (currentMode === 'hse_form') {
-                document.getElementById('pageTitle').innerText = "檢查重複紀錄中...";
-                fetch(`${apiBaseUrl}/check-duplicate-form?site=${encodeURIComponent(currentSite)}&date=${currentDate}&formType=${encodeURIComponent(currentFormType)}`, { headers: { "ngrok-skip-browser-warning": "true" }})
-                .then(r => r.json())
-                .then(res => {
-                    if (res.exists) {
-                        alert("⚠️ 本日已存在此表單，系統自動為您切換至「編輯模式」。");
-                        currentMode = 'hse_edit';
-                        currentLogId = res.logId;
-                        loadFormDetail(template); // 載入舊資料
-                    } else {
-                        // 真正的新增模式 (空表單)
-                        document.getElementById('pageTitle').innerText = currentFormType;
-                        document.getElementById('phInspector').style.display = 'none';
-                        document.getElementById('boxInspector').style.display = 'block';
-                        document.getElementById('btnSubmitForm').style.display = 'block';
-                        initCanvas('sigInspector');
-                    }
-                }).catch(e => {
-                    // 若 API 異常，Fallback 退回一般新增模式
-                    document.getElementById('pageTitle').innerText = currentFormType;
-                    document.getElementById('phInspector').style.display = 'none';
-                    document.getElementById('boxInspector').style.display = 'block';
-                    document.getElementById('btnSubmitForm').style.display = 'block';
-                    initCanvas('sigInspector');
-                });
-            } else {
-                // 如果是 hse_edit (從剛剛的檢查切換過來), hse_approve_safety, hse_approve_director, hse_view
-                // 這些模式統統只要負責「把資料載入畫面」就好
-                loadFormDetail(template);
-            }
-        }
-
-        // 獨立出「載入詳細資料」的模塊
-        function loadFormDetail(template) {
-            document.getElementById('pageTitle').innerText = "載入資料中...";
-            fetch(`${apiBaseUrl}/get-form-detail/${currentLogId}`, { headers: { "ngrok-skip-browser-warning": "true" }})
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    let dbData = res.data;
-                    // ★ 加上這段，用資料庫的資料覆蓋當前的變數
-                    currentSite = dbData.SiteName;
-                    currentFormType = dbData.FormType;
-                    if (currentUserRole === 'safety') currentUserRole = '安衛人員';
-                    if (currentUserRole === 'director') currentUserRole = '工地主任';
-                    document.getElementById('pageTitle').innerText = dbData.FormType;
-                    document.getElementById('formMeta').innerHTML = `
-                        <b>🏢 案場：</b>${dbData.SiteName} <br>
-                        <b>📅 日期：</b>${dbData.CheckDate} <br>
-                        <b>👤 建立者：</b>${dbData.Inspector} <br>
-                        <b>📊 狀態：</b><span style="color:#d63031; font-weight:bold;">${dbData.FormStatus}</span>
-                    `;
-
-                    let results = JSON.parse(dbData.ContentJson || "{}");
-                    let defects = dbData.Defects || []; // ★ 取得後端傳來的異常紀錄
-
-                    template.forEach(sec => {
-                        sec.items.forEach(item => {
-                            let ans = results[item.text] || 'PASS';
-                            // ★ 關鍵修復：這裡直接傳入 false，讓程式強制更新畫面狀態！
-                            // (不用擔心被亂點，因為若是簽核模式，按鈕本身已經被加上 disabled 無法點擊了)
-                            selectRadio(item.id, ans, false);
-                            
-                            if (ans === 'FAIL') {
-                                // ★ 關鍵修復：因為資料庫存的 Dept 可能有空白或特殊字元，用 includes 最保險
-                                let targetDept = "安衛-" + item.text;
-                                let matchedDefect = defects.find(d => d.Dept.includes(item.text) || targetDept.includes(d.Dept));
-                                
-                                if (matchedDefect) {
-                                    let descInput = document.getElementById(`desc_${item.id}`);
-                                    if(descInput) descInput.value = matchedDefect.Description || "";
-                                    
-                                    let previewImg = document.getElementById(`preview_${item.id}`);
-                                    if(previewImg) {
-                                        // 將正確的 Defect ID 綁定在圖片元素上
-                                        previewImg.dataset.defectId = matchedDefect.ID;
-                                        
-                                        // ★ 替換為這段：
-if (matchedDefect.HasImage === 1) {
-    previewImg.style.display = 'none'; // 先隱藏，避免閃爍破圖
-    // 改用 fetch 取得 Blob，可以正確帶入 Header，徹底解決 ngrok 阻擋 <img> 標籤的問題
-    fetch(`${apiBaseUrl}/image/${matchedDefect.ID}/original?cb=${new Date().getTime()}`, { 
-        headers: { "ngrok-skip-browser-warning": "true" } 
-    })
-    .then(r => { if(r.ok) return r.blob(); throw new Error(); })
-    .then(blob => {
-        previewImg.src = URL.createObjectURL(blob);
-        previewImg.style.display = 'block';
-    })
-    .catch(e => console.warn("載入預覽圖失敗", e));
-}
-                                    }
-                                } else {
-                                    let descInput = document.getElementById(`desc_${item.id}`);
-                                    if(descInput) descInput.value = "未填寫理由";
-                                }
-                            } 
-                        });
-                    });
-
-                    loadSigImage('inspector', 'imgInspector', 'phInspector');
-                    if(dbData.FormStatus !== '待安衛簽核') loadSigImage('safety', 'imgSafety', 'phSafety');
-                    if(dbData.FormStatus === '已結案') loadSigImage('director', 'imgDirector', 'phDirector');
-
-                    if (currentMode === 'hse_approve_safety') {
-                        document.getElementById('phSafety').style.display = 'none';
-                        document.getElementById('boxSafety').style.display = 'block';
-                        document.getElementById('btnSubmitForm').style.display = 'block';
-                        initCanvas('sigSafety');
-                    } 
-                    else if (currentMode === 'hse_approve_director') {
-                        document.getElementById('phDirector').style.display = 'none';
-                        document.getElementById('boxDirector').style.display = 'block';
-                        document.getElementById('btnSubmitForm').innerText = "✅ 確認覆核並結案";
-                        document.getElementById('btnSubmitForm').style.display = 'block';
-                        initCanvas('sigDirector');
-                    }
-                    else if (currentMode === 'hse_edit') {
-                        // 編輯模式：顯示舊簽名，並開放畫布讓人員重簽以示負責
-                        document.getElementById('phInspector').style.display = 'none';
-                        document.getElementById('boxInspector').style.display = 'block';
-                        document.getElementById('btnSubmitForm').innerText = "📤 更新紀錄";
-                        document.getElementById('btnSubmitForm').style.display = 'block';
-                        initCanvas('sigInspector');
-                    }
-                    else {
-                        document.getElementById('btnCloseForm').style.display = 'block';
-                    }
-                } else { alert("找不到表單資料"); liff.closeWindow(); }
-            }).catch(e => { alert("連線異常"); liff.closeWindow(); });
-        }
-
-        function loadSigImage(type, imgId, phId) {
-            let img = document.getElementById(imgId);
-            // ★ 加上 ngrok-skip-browser-warning
-            img.src = `${apiBaseUrl}/image-sig/${currentLogId}/${type}?cb=${new Date().getTime()}&ngrok-skip-browser-warning=true`;
-            img.onload = () => { document.getElementById(phId).style.display = 'none'; img.style.display = 'block'; };
-        }
-
-        window.previewImage = function(input, qId) {
-            let preview = document.getElementById(`preview_${qId}`);
-            if (input.files && input.files[0]) {
-                let reader = new FileReader();
-                reader.onload = function(e) { preview.src = e.target.result; preview.style.display = 'block'; }
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        window.selectRadio = function(qId, val, isReadOnly) {
-            if(isReadOnly) return;
-            let group = document.getElementById(`group_${qId}`);
-            let passBtn = group.querySelector('.pass');
-            let failBtn = group.querySelector('.fail');
-            let failBox = document.getElementById(`failBox_${qId}`);
-
-            if (val === 'PASS') {
-                passBtn.classList.add('selected'); failBtn.classList.remove('selected');
-                failBox.style.display = 'none';
-            } else {
-                failBtn.classList.add('selected'); passBtn.classList.remove('selected');
-                failBox.style.display = 'block';
-            }
-            group.dataset.value = val;
-        };
-
-        // --- 簽名板控制 ---
-        let canvases = {}; let ctxs = {};
-        function initCanvas(id) {
-            let cvs = document.getElementById(id);
-            setTimeout(() => {
-                cvs.width = cvs.offsetWidth; cvs.height = cvs.offsetHeight;
-                let ctx = cvs.getContext('2d');
-                ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.strokeStyle = "#2d3436";
-                canvases[id] = cvs; ctxs[id] = ctx;
-                
-                let drawing = false;
-                let getPos = (e) => {
-                    let rect = cvs.getBoundingClientRect();
-                    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                    return { x: clientX - rect.left, y: clientY - rect.top };
-                };
-                let start = (e) => { e.preventDefault(); drawing = true; let pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); };
-                let draw = (e) => { e.preventDefault(); if(!drawing) return; let pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); };
-                let stop = (e) => { e.preventDefault(); drawing = false; };
-
-                cvs.addEventListener('mousedown', start); cvs.addEventListener('mousemove', draw); cvs.addEventListener('mouseup', stop);
-                cvs.addEventListener('touchstart', start, {passive: false}); 
-                cvs.addEventListener('touchmove', draw, {passive: false}); 
-                cvs.addEventListener('touchend', stop);
-            }, 300);
-        }
-
-        window.clearCanvas = function(id) {
-            let cvs = canvases[id];
-            if(cvs && ctxs[id]) ctxs[id].clearRect(0, 0, cvs.width, cvs.height);
-        };
-
-        function isCanvasBlank(canvas) {
-            if(!canvas) return true;
-            const blank = document.createElement('canvas');
-            blank.width = canvas.width; blank.height = canvas.height;
-            return canvas.toDataURL() === blank.toDataURL();
-        }
-
-        window.submitHSEForm = async function() {
-            let btn = document.getElementById('btnSubmitForm');
-            btn.innerText = "⏳ 處理中..."; btn.disabled = true;
-
-            let targetCanvasId = 'sigInspector';
-            if (currentMode === 'hse_approve_safety') targetCanvasId = 'sigSafety';
-            if (currentMode === 'hse_approve_director') targetCanvasId = 'sigDirector';
-
-            if (isCanvasBlank(canvases[targetCanvasId])) {
-                alert("請在您的簽名區完成手寫簽名！");
-                btn.innerText = "📤 儲存並送出"; btn.disabled = false; return;
-            }
-            let sigBase64 = canvases[targetCanvasId].toDataURL('image/png').split(',')[1];
-
-            let formResults = {};
-            let defectsToUpload = [];
-            let template = FORM_TEMPLATES[currentFormType] || DEFAULT_TEMPLATE;
-
-            for (let sec of template) {
-                for (let item of sec.items) {
-                    let group = document.getElementById(`group_${item.id}`);
-                    let val = group.dataset.value || 'PASS'; 
-                    formResults[item.text] = val;
-
-                    // 替換這一段
-if (val === 'FAIL') { // ★ 移除 && currentMode === 'hse_form' 的限制
-    let descInput = document.getElementById(`desc_${item.id}`);
-    let desc = descInput ? descInput.value : '';
-    let fileInput = document.getElementById(`file_${item.id}`);
-    let base64Img = null;
-    
-    // 如果有重新上傳照片才轉 Base64，否則保留 null 讓後端不覆蓋舊圖
-    if (fileInput && fileInput.files && fileInput.files.length > 0) {
-        let rawBase64 = await fileToBase64(fileInput.files[0]);
-        base64Img = rawBase64.split(',')[1]; 
-    }
-    defectsToUpload.push({ dept: "安衛-" + item.text, desc: desc, imageBase64: base64Img });
-}
-                }
-            }
-
-            let payload = {
-                site: currentSite, date: currentDate, formType: currentFormType,
-                inspector: currentUser, role: currentUserRole, 
-                resultsJson: JSON.stringify(formResults),
-                signature: sigBase64, defects: defectsToUpload,
-                apiBaseUrl: apiBaseUrl // ★ 關鍵修復：把網址傳給後端供推播使用
-            };
-
-            fetch(`${apiBaseUrl}/submit-hse-form`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-                body: JSON.stringify(payload)
-            }).then(res => res.json()).then(data => {
-                if (data.success) {
-                    alert("✅ 作業成功！系統已更新狀態。");
-                    if (liff.isInClient()) liff.closeWindow();
-                } else { alert("❌ 儲存失敗：" + data.error); btn.innerText = "📤 儲存並送出"; btn.disabled = false; }
-            }).catch(e => { alert("❌ 網路連線錯誤"); btn.innerText = "📤 儲存並送出"; btn.disabled = false; });
-        };
-
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader(); reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error);
-            });
-        }
-
-        // ==========================================
-        // 模塊 2：圖紙模式邏輯
-        // ==========================================
-        const floorPlanDB = {
-            "98工地": { "全區配置圖": "/98地號/98_1F.png","CBF": "/98地號/98_CBF.png","B4F": "/98地號/98_B4F.png","B3F": "/98地號/98_B3F.png","B2F": "/98地號/98_B2F.png","B1F": "/98地號/98_B1F.png", "1F": "/98地號/98_1F.png", "2F": "/98地號/98_2F.png", "3F_A": "/98地號/98_3F_A.png", "4F_A": "/98地號/98_4F_A.png", "5F_A": "/98地號/98_5F_A.png", "6F_A": "/98地號/98_6F_A.png", "7F_A": "/98地號/98_7F_A.png", "8F_A": "/98地號/98_8F_A.png", "9F_A": "/98地號/98_9F_A.png", "10F_A": "/98地號/98_10F_A.png", "11F_A": "/98地號/98_11F_A.png", "12F_A": "/98地號/98_12F_A.png", "13F_A": "/98地號/98_13F_A.png", "14F_A": "/98地號/98_14F_A.png", "15F_A": "/98地號/98_15F_A.png", "16F_A": "/98地號/98_16F_A.png","17F_A": "/98地號/98_17F_A.png" ,"18F_A": "/98地號/98_18F_A.png" ,"19F_A": "/98地號/98_19F_A.png" ,"20F_A": "/98地號/98_20F_A.png" ,"3F_B": "/98地號/98_3F_B.png", "4F_B": "/98地號/98_4F_B.png", "5F_B": "/98地號/98_5F_B.png", "6F_B": "/98地號/98_6F_B.png", "7F_B": "/98地號/98_7F_B.png", "8F_B": "/98地號/98_8F_B.png", "9F_B": "/98地號/98_9F_B.png", "10F_B": "/98地號/98_10F_B.png", "11F_B": "/98地號/98_11F_B.png", "12F_B": "/98地號/98_12F_B.png", "13F_B": "/98地號/98_13F_B.png", "14F_B": "/98地號/98_14F_B.png", "15F_B": "/98地號/98_15F_B.png", "16F_B": "/98地號/98_16F_B.png","17F_B": "/98地號/98_17F_B.png" ,"18F_B": "/98地號/98_18F_B.png" ,"19F_B": "/98地號/98_19F_B.png" , "R1F": "/98地號/98_R1F.png", "R2F": "/98地號/98_R2F.png", "R3F": "/98地號/98_R3F.png", "PRF": "/98地號/98_PRF.png" },
-            "99工地": { "全區配置圖": "/99地號/99_1F.png","CBF": "/99地號/99_CBF.png","B4F": "/99地號/99_B4F.png","B3F": "/99地號/99_B3F.png","B2F": "/99地號/99_B2F.png","B1F": "/99地號/98_B1F.png", "1F": "/99地號/99_1F.png", "2F": "/99地號/99_2F.png", "3F": "/99地號/99_3F.png", "4F": "/99地號/99_4F.png", "5F": "/99地號/99_5F.png", "6F": "/99地號/99_6F.png", "7F": "/99地號/99_7F.png", "8F": "/99地號/99_8F.png", "9F": "/99地號/99_9F.png", "10F": "/99地號/99_10F.png", "11F": "/99地號/99_11F.png", "12F": "/99地號/99_12F.png", "13F": "/99地號/99_13F.png", "14F": "/99地號/99_14F.png", "R1F": "/99地號/99_R1F.png", "R2F": "/99地號/99_R2F.png", "R3F": "/99地號/99_R3F.png", "PRF": "/99地號/99_PRF.png" },
-            "95工地": { "全區配置圖": "/95地號/95_1F.png","CBF": "/95地號/95_CBF.png","B1F": "/95地號/95_B1F.png", "1F": "/95地號/95_1F.png", "2F": "/95地號/95_2F.png", "3F": "/95地號/95_3F.png", "4F": "/95地號/95_4F.png", "5F": "/95地號/95_5F.png", "6F": "/95地號/95_6F.png", "7F": "/95地號/95_7F.png" , "R1F": "/95地號/95_R1F.png", "R2F": "/95地號/95_R2F.png", "R3F": "/95地號/95_R3F.png" },
-            "鼎隆大苑": { "全區配置圖": "/鼎隆/鼎隆_1F.png","B4F": "/鼎隆/鼎隆_B4F.png","B3F": "/鼎隆/鼎隆_B3F.png","B2F": "/鼎隆/鼎隆_B2F.png","B1F": "/鼎隆/鼎隆_B1F.png", "1F": "/鼎隆/鼎隆_1F.png", "2F": "/鼎隆/鼎隆_2F.png", "3F": "/鼎隆/鼎隆_3F.png", "4F": "/鼎隆/鼎隆_4F.png", "5F": "/鼎隆/鼎隆_5F.png", "6F": "/鼎隆/鼎隆_6F.png", "7F": "/鼎隆/鼎隆_7F.png", "8F": "/鼎隆/鼎隆_8F.png", "9F": "/鼎隆/鼎隆_9F.png", "10F": "/鼎隆/鼎隆_10F.png", "11F": "/鼎隆/鼎隆_11F.png", "12F": "/鼎隆/鼎隆_12F.png", "13F": "/鼎隆/鼎隆_13F.png", "14F": "/鼎隆/鼎隆_14F.png","15F": "/鼎隆/鼎隆_15F.png","16F": "/鼎隆/鼎隆_16F.png","17F": "/鼎隆/鼎隆_17F.png","18F": "/鼎隆/鼎隆_18F.png","19F": "/鼎隆/鼎隆_19F.png", "R1F": "/鼎隆/鼎隆_R1F.png", "R2F": "/鼎隆/鼎隆_R2F.png", "R3F": "/鼎隆/鼎隆_R3F.png" }
+/* ─── Site / Floor Config (same as Config.gs) ─── */
+const SITE_FLOOR_CONFIG = {
+  "98工地": { "全區與戶外":["全區配置圖"], "地下室(B1-B4)":["B1F","B2F","B3F","B4F"], "共通樓層(1F-2F)":["1F","1MF","2F"], "A棟低樓層(3F-10F)":["3F_A","4F_A","5F_A","6F_A","7F_A","8F_A","9F_A","10F_A"], "B棟低樓層(3F-10F)":["3F_B","4F_B","5F_B","6F_B","7F_B","8F_B","9F_B","10F_B"], "A棟高樓層(11F-20F)":["11F_A","12F_A","13F_A","14F_A","15F_A","16F_A","17F_A","18F_A","19F_A","20F_A"], "B棟高樓層(11F-19F)":["11F_B","12F_B","13F_B","14F_B","15F_B","16F_B","17F_B","18F_B","19F_B"], "R樓層(R1-R3)":["R1F","R2F","R3F","PRF"], "地工階段":["地工階段"] },
+  "99工地": { "全區與戶外":["全區配置圖"], "CBF(轉換層)":["CBF"], "地下室(B1-B3)":["B1F","B2F","B3F","B4F"], "低樓層(1F-10F)":["1F","2F","3F","4F","5F","6F","7F","8F","9F","10F"], "高樓層(11F-14F)":["11F","12F","13F","14F"], "R樓層(R1-R3)":["R1F","R2F","R3F"], "地工階段":["地工階段"] },
+  "95工地": { "全區與戶外":["全區配置圖"], "CBF(轉換層)":["CBF"], "地下室(B1-B3)":["B1F","B2F","B3F"], "標準層(1F-7F)":["1F","1MF","2F","3F","4F","5F","6F","7F"], "R樓層(R1-R3)":["R1F","R2F","R3F"], "地工階段":["地工階段"] },
+  "鼎隆大苑": { "全區與戶外":["全區配置圖"], "地下室(B1-B4)":["B1F","B2F","B3F","B4F"], "低樓層(1F-10F)":["1F","2F","3F","4F","5F","6F","7F","8F","9F","10F"], "高樓層(11F-19F)":["11F","12F","13F","14F","15F","16F","17F","18F","19F"], "R樓層(R1-R3)":["R1F","R2F","R3F"], "地工階段":["地工階段"] },
 };
+const DEFAULT_FLOORS = { "全區與戶外":["全區配置圖","戶外周邊","屋頂外觀"], "地下室(B1-B4)":["B1F","B2F","B3F","B4F"], "標準層(1F-10F)":["1F","2F","3F","4F","5F","6F","7F","8F","9F","10F"], "地工階段":["地工階段"] };
+const SITES = Object.keys(SITE_FLOOR_CONFIG).concat(["毅聯R8","毅聯寧夏","廣宇江南","內湖富樂群","中壢映象","測試工地"]);
+const DEPT_LIST = ["鋼筋工程","模板工程","混凝土","水電/機電","裝修/其他","安全衛生"];
+const NO_MAP_FLOORS = ["地工階段","戶外周邊","屋頂外觀"];
 
-        function initMapMode(site, floor, viewX, viewY, focusId) {
-            try {
-                document.getElementById('pageTitle').innerText = `${site} - ${floor}`;
-                floorCanvas = document.getElementById('floorPlan');
-                floorCtx = floorCanvas.getContext('2d');
-                floorImg = new Image(); floorImg.crossOrigin = "Anonymous";
-                
-                let targetImgUrl = 'https://via.placeholder.com/800x600.png?text=No+Floor+Plan+Found';
-                if (floorPlanDB[site] && floorPlanDB[site][floor]) {
-                    targetImgUrl = githubPagesUrl + floorPlanDB[site][floor];
-                }
-                floorImg.src = targetImgUrl;
+/* ─── State ─── */
+let lineId = '';
+let currentSite = initSite, currentFloor = initFloor;
+let allDefects = [], listFilter = 'ALL';
+let addModeActive = false;
+let pendingX = 0, pendingY = 0, hasPendingPin = false;
+let photoBase64 = null, fixPhotoBase64 = null;
+let selectedDept = '';
+let currentDetailId = null;
+let floorImg = new Image();
+let canvas, ctx;
+let isOnline = navigator.onLine;
 
-                floorImg.onload = () => {
-                    floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; 
-                    floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
+/* ─── IndexedDB for offline queue ─── */
+let db;
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('TonsinOffline', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('queue')) d.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror   = () => rej(req.error);
+  });
+}
+function addToQueue(payload) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction('queue', 'readwrite');
+    const req = tx.objectStore('queue').add({ payload, ts: Date.now() });
+    req.onsuccess = () => res(req.result);
+    req.onerror   = () => rej(req.error);
+  });
+}
+function getAllQueue() {
+  return new Promise((res, rej) => {
+    const tx = db.transaction('queue', 'readonly');
+    const req = tx.objectStore('queue').getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror   = () => rej(req.error);
+  });
+}
+function deleteFromQueue(id) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction('queue', 'readwrite');
+    tx.objectStore('queue').delete(id).onsuccess = () => res();
+  });
+}
 
-                    if (currentMode === 'view' && !focusId) {
-                        document.getElementById('hintText').innerText = "📍 請點選缺失發生位置";
-                        if(viewX && viewY) drawSinglePin((parseInt(viewX)/100)*floorCanvas.width, (parseInt(viewY)/100)*floorCanvas.height, '待改善', null);
-                    } else if (currentMode === 'overview' && apiBaseUrl) {
-                        if(!focusId) document.getElementById('filterContainer').style.display = 'block';
-                        document.getElementById('hintText').innerText = "🔄 載入缺失資料中...";
-                        
-                        fetch(`${apiBaseUrl}/defects-overview?site=${encodeURIComponent(site)}&floor=${encodeURIComponent(floor)}`, { headers: { "ngrok-skip-browser-warning": "true" } })
-                        .then(res => res.json())
-                        .then(json => {
-                            if (json.success && json.data.length > 0) {
-                                globalDefectsList = json.data; 
-                                
-                                let deptSelect = document.getElementById('deptFilter');
-                                let uniqueDepts = [...new Set(globalDefectsList.map(d => d.Dept))];
-                                uniqueDepts.forEach(dept => { if(dept) { let opt = document.createElement('option'); opt.value = dept; opt.innerText = "🛠️ " + dept; deptSelect.appendChild(opt); } });
+/* ─── LIFF Init ─── */
+Promise.all([
+  liff.init({ liffId: LIFF_ID }).then(async () => {
+    if (liff.isLoggedIn()) { const p = await liff.getProfile(); lineId = p.userId; }
+  }).catch(() => {}),
+  openDB()
+]).then(() => {
+  initUI();
+  document.getElementById('globalLoader').style.display = 'none';
+  checkOfflineQueue();
+});
 
-                                window.drawAllPins = function() {
-                                    let filterStatus = document.getElementById('statusFilter').value;
-                                    let filterDept = document.getElementById('deptFilter').value;
-                                    globalDefectsList.forEach(d => {
-                                        if (!focusId && filterStatus !== 'ALL' && !d.Status.includes(filterStatus)) return;
-                                        if (!focusId && filterDept !== 'ALL' && !d.Dept.includes(filterDept)) return;
-                                        let match = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
-                                        if (match) {
-                                            d.px = (parseInt(match[1]) / 100) * floorCanvas.width;
-                                            d.py = (parseInt(match[2]) / 100) * floorCanvas.height;
-                                            drawSinglePin(d.px, d.py, d.Status, d.ID);
-                                        }
-                                    });
-                                };
+/* ─── UI Init ─── */
+function initUI() {
+  // Populate sites
+  const selSite = document.getElementById('selSite');
+  SITES.forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s; selSite.appendChild(o);
+  });
+  if (initSite) { selSite.value = initSite; onSiteChange(); }
 
-                                window.applyFilter = function() {
-                                    floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height); 
-                                    floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
-                                    drawAllPins(); 
-                                    document.getElementById('defectInfoCard').style.display = 'none';
-                                };
+  // Canvas
+  canvas = document.getElementById('floorCanvas');
+  ctx = canvas.getContext('2d');
+  canvas.addEventListener('click', onCanvasClick);
+  canvas.addEventListener('touchend', onCanvasTouch, { passive: false });
 
-                                drawAllPins();
+  // Dept chips
+  const chipRow = document.getElementById('deptChips');
+  DEPT_LIST.forEach(d => {
+    const c = document.createElement('div');
+    c.className = 'chip'; c.textContent = d;
+    c.onclick = () => { chipRow.querySelectorAll('.chip').forEach(x => x.classList.remove('active')); c.classList.add('active'); selectedDept = d; };
+    chipRow.appendChild(c);
+  });
 
-                                if (focusId) {
-                                    let focusDefect = globalDefectsList.find(d => d.ID.toString() === focusId);
-                                    if (focusDefect) { document.getElementById('hintText').innerText = `📍 缺失 #${focusId} 位置`; showDefectCard(focusDefect); } 
-                                    else { document.getElementById('hintText').innerText = "⚠️ 找不到該筆缺失資料"; }
-                                } else { document.getElementById('hintText').innerText = `📍 點擊圖釘查看詳細 (共 ${globalDefectsList.length} 筆)`; }
-                            } else { document.getElementById('hintText').innerText = "✅ 本樓層目前無缺失紀錄"; }
-                        }).catch(err => { document.getElementById('hintText').innerText = "❌ 資料載入失敗"; });
-                    }
-                };
+  // Online/offline
+  window.addEventListener('online',  () => { isOnline = true;  updateOnlineUI(); });
+  window.addEventListener('offline', () => { isOnline = false; updateOnlineUI(); });
+  updateOnlineUI();
 
-                floorCanvas.addEventListener('click', function(e) {
-            const rect = floorCanvas.getBoundingClientRect();
-            
-            // ★ 完美支援雙指原生縮放的座標算法
-            const scaleX = floorCanvas.width / rect.width; 
-            const scaleY = floorCanvas.height / rect.height;  
-            const clickX = (e.clientX - rect.left) * scaleX; 
-            const clickY = (e.clientY - rect.top) * scaleY;
+  // Load initial data
+  if (initSite && initFloor) {
+    setTimeout(() => { loadFloorPlan(); loadDefects(); }, 100);
+  }
 
-            if (currentMode === 'overview') {
-                let clickedDefect = null; let threshold = Math.max(floorCanvas.width * 0.04, 30); 
-                for (let d of globalDefectsList) {
-                    if (d.px && d.py && Math.sqrt(Math.pow(clickX - d.px, 2) + Math.pow(clickY - d.py, 2)) <= threshold) {
-                        clickedDefect = d; break; 
-                    }
-                }
-                if (clickedDefect) showDefectCard(clickedDefect);
-                else document.getElementById('defectInfoCard').style.display = 'none';
-                return; 
-            }
+  // Focus specific defect
+  if (initFocus) setTimeout(() => { const d = allDefects.find(x => x.ID == initFocus); if (d) openDetail(d); }, 1500);
+}
 
-            if (currentMode === 'view') return; 
-            
-            selectedX = clickX; selectedY = clickY;
-            floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height); 
-            floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
-            drawSinglePin(selectedX, selectedY, '待改善', null);
-            isSelected = true; 
-            document.getElementById('sendBtn').style.display = 'block';
-        });
-            } catch(e) {
-                document.getElementById('pageTitle').innerText = "圖紙載入發生錯誤";
-                console.error(e);
-            }
-        }
+function updateOnlineUI() {
+  const b = document.getElementById('onlineBadge');
+  if (!isOnline) { b.style.display = 'block'; b.textContent = '📵 離線'; }
+  else { b.style.display = 'none'; }
+}
 
-        function drawSinglePin(px, py, status, textId) {
-            let size = Math.max(floorCanvas.width * 0.007, 5); floorCtx.lineWidth = 2; floorCtx.strokeStyle = '#fff';
-            if (status.includes('待驗收')) { floorCtx.beginPath(); floorCtx.arc(px, py, size, 0, 2 * Math.PI); floorCtx.fillStyle = '#007bff'; floorCtx.fill(); floorCtx.stroke(); } 
-            else if (status.includes('已改善')) { floorCtx.beginPath(); floorCtx.rect(px - size, py - size, size * 2, size * 2); floorCtx.fillStyle = '#1DB446'; floorCtx.fill(); floorCtx.stroke(); } 
-            else { floorCtx.beginPath(); floorCtx.moveTo(px, py - size * 1.3); floorCtx.lineTo(px + size * 1.2, py + size * 1.1); floorCtx.lineTo(px - size * 1.2, py + size * 1.1); floorCtx.closePath(); floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke(); }
-            if (textId) {
-                let fontSize = Math.max(floorCanvas.width * 0.016, 12); floorCtx.font = `bold ${fontSize}px sans-serif`;
-                floorCtx.lineWidth = 3; floorCtx.strokeStyle = 'rgba(255,255,255,0.8)'; floorCtx.strokeText("#" + textId, px + size * 1.2, py - size * 0.5);
-                floorCtx.fillStyle = status.includes('待驗收') ? '#0056b3' : (status.includes('已改善') ? '#127a2c' : '#a71d2a');
-                floorCtx.fillText("#" + textId, px + size * 1.2, py - size * 0.5);
-            }
-        }
+/* ─── Site/Floor Cascade ─── */
+function onSiteChange() {
+  currentSite = document.getElementById('selSite').value;
+  currentFloor = '';
+  const selFloor = document.getElementById('selFloor');
+  selFloor.innerHTML = '<option value="">— 選擇樓層 —</option>';
+  selFloor.disabled = !currentSite;
+  if (!currentSite) return;
 
-        function showDefectCard(defectData) {
-            currentLogId = defectData.ID; 
-            let cCard = document.getElementById('defectInfoCard');
-            let color = defectData.Status.includes('待驗收') ? '#007bff' : (defectData.Status.includes('已改善') ? '#1DB446' : '#dc3545');
-            cCard.style.borderLeftColor = color;
-            document.getElementById('infoStatus').innerText = `狀態：${defectData.Status} (#${defectData.ID})`;
-            document.getElementById('infoStatus').style.color = color;
-            document.getElementById('infoDeptUser').innerText = `👷‍♂️ ${defectData.Dept} | 回報：${defectData.UserName}`;
-            document.getElementById('infoDesc').innerText = defectData.Description || "無備註說明";
-            document.getElementById('historyContainer').style.display = 'none';
+  const cfg = SITE_FLOOR_CONFIG[currentSite] || DEFAULT_FLOORS;
+  Object.values(cfg).flat().forEach(f => {
+    const o = document.createElement('option'); o.value = f; o.textContent = f; selFloor.appendChild(o);
+  });
+  if (initFloor) { selFloor.value = initFloor; onFloorChange(); }
+  document.getElementById('headerSub').textContent = currentSite;
+}
+function onFloorChange() {
+  currentFloor = document.getElementById('selFloor').value;
+  document.getElementById('headerSub').textContent = currentSite + (currentFloor ? ' / ' + currentFloor : '');
+  if (currentSite && currentFloor) { loadFloorPlan(); loadDefects(); }
+}
 
-            let isFixedPhase = defectData.Status.includes('待驗收') || defectData.Status.includes('已改善');
-            if (isFixedPhase) { document.getElementById('imgToggleTabs').style.display = 'flex'; switchImg('fixed'); } 
-            else { document.getElementById('imgToggleTabs').style.display = 'none'; switchImg('original'); }
-            cCard.style.display = 'block';
-        }
+/* ─── Tab Switch ─── */
+function switchTab(tab) {
+  document.getElementById('tabMap').classList.toggle('active', tab === 'map');
+  document.getElementById('tabList').classList.toggle('active', tab === 'list');
+  document.getElementById('mapPage').style.display  = tab === 'map'  ? 'block' : 'none';
+  document.getElementById('listPage').style.display = tab === 'list' ? 'block' : 'none';
+  if (tab === 'list') renderList();
+}
+// init show map
+document.getElementById('mapPage').style.display = 'block';
 
-        window.switchImg = function(type) {
-            document.getElementById('btnAfter').classList.remove('active'); document.getElementById('btnBefore').classList.remove('active');
-            if(type === 'fixed') document.getElementById('btnAfter').classList.add('active');
-            if(type === 'original') document.getElementById('btnBefore').classList.add('active');
-            document.getElementById('infoImg').style.display = 'none'; document.getElementById('imgLoading').style.display = 'block';
-            
-            fetch(`${apiBaseUrl}/image/${currentLogId}/${type}?cb=${new Date().getTime()}`, { headers: { "ngrok-skip-browser-warning": "true" } })
-            .then(r => { if(r.ok) return r.blob(); throw new Error(); })
-            .then(blob => {
-                let objectURL = URL.createObjectURL(blob); let imgEle = document.getElementById('infoImg');
-                imgEle.src = objectURL; document.getElementById('imgLoading').style.display = 'none'; imgEle.style.display = 'block';
-                imgEle.onclick = () => { document.getElementById('fullscreenImg').src = objectURL; document.getElementById('fullscreenModal').style.display = 'flex'; };
-            }).catch(e => { document.getElementById('imgLoading').innerHTML = "⚠️ 無法載入照片"; });
-        };
+/* ─── Floor Plan Canvas ─── */
+function loadFloorPlan() {
+  const hint = document.getElementById('mapHint');
+  if (NO_MAP_FLOORS.includes(currentFloor)) {
+    hint.textContent = '⚠️ 此樓層無平面圖紙，仍可新增缺失（不標記位置）';
+    hint.className = 'map-hint';
+    drawDefects([]);
+    return;
+  }
+  hint.textContent = '⏳ 載入圖紙中...';
+  const imgUrl = `${GH_PAGES}${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}.png`;
+  floorImg = new Image();
+  floorImg.crossOrigin = 'anonymous';
+  floorImg.onload = () => {
+    canvas.width  = floorImg.naturalWidth;
+    canvas.height = floorImg.naturalHeight;
+    ctx.drawImage(floorImg, 0, 0);
+    drawDefects(allDefects);
+    hint.textContent = '📌 點擊圖面上的位置新增缺失，或點擊現有標記查看詳情';
+    hint.className = 'map-hint add-mode';
+  };
+  floorImg.onerror = () => {
+    canvas.width = 600; canvas.height = 400;
+    ctx.fillStyle = '#e0e0e0'; ctx.fillRect(0, 0, 600, 400);
+    ctx.fillStyle = '#999'; ctx.font = '18px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('圖紙尚未上傳', 300, 200);
+    hint.textContent = '⚠️ 圖紙尚未上傳，點擊任意位置仍可新增缺失';
+    hint.className = 'map-hint';
+    drawDefects(allDefects);
+  };
+  floorImg.src = imgUrl;
+}
 
-        window.toggleHistory = function() {
-            let container = document.getElementById('historyContainer');
-            if (container.style.display === 'block') { container.style.display = 'none'; return; }
-            container.style.display = 'block'; container.innerHTML = '<div class="loader"></div> 載入中...';
-            
-            fetch(`${apiBaseUrl}/defect-history/${currentLogId}`, { method: 'GET', headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" } })
-            .then(r => r.json()).then(res => {
-                if (res.success && res.data.length > 0) {
-                    let html = ""; res.data.forEach(log => { html += `<div class="history-item"><div class="history-time">${log.OpTimeStr}</div><b>${log.OpUser}</b>: <span style="color:#888;">${log.OldStatus}</span> ➡️ <b>${log.NewStatus}</b></div>`; });
-                    container.innerHTML = html;
-                } else { container.innerHTML = "📝 尚無狀態變更紀錄"; }
-            }).catch(e => container.innerHTML = "❌ 載入失敗");
-        };
-        // ★ 補回遺失的座標送出函數
-        window.sendCoordinate = function() {
-            if (!isSelected) {
-                alert("請先在地圖上點擊標記位置！");
-                return;
-            }
-            // 計算百分比座標
-            let xPercent = Math.round((selectedX / floorCanvas.width) * 100);
-            let yPercent = Math.round((selectedY / floorCanvas.height) * 100);
-            let coordText = `[座標] X:${xPercent}%, Y:${yPercent}%`;
+function redrawCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (floorImg.complete && floorImg.naturalWidth > 0) ctx.drawImage(floorImg, 0, 0);
+  drawDefects(allDefects);
+}
 
-            // 透過 LIFF 傳送訊息回 LINE 聊天室
-            if (liff.isInClient()) {
-                liff.sendMessages([{
-                    type: 'text',
-                    text: coordText
-                }]).then(() => {
-                    liff.closeWindow(); // 送出後自動關閉視窗
-                }).catch((err) => {
-                    alert("發送失敗：" + err);
-                });
-            } else {
-                alert("請在 LINE App 中操作以傳送座標：" + coordText);
-            }
-        };
+function drawDefects(defects) {
+  defects.forEach(d => {
+    if (!d.XY_Coord || d.XY_Coord === '略過') return;
+    const m = d.XY_Coord.match(/X:(\d+(?:\.\d+)?)%,\s*Y:(\d+(?:\.\d+)?)%/);
+    if (!m) return;
+    const px = parseFloat(m[1]) / 100 * canvas.width;
+    const py = parseFloat(m[2]) / 100 * canvas.height;
+    const color = d.Status.includes('待改善') ? '#e74c3c' : d.Status.includes('待驗收') ? '#2980b9' : '#27ae60';
+    drawPin(px, py, d.ID, color);
+  });
+}
 
-        function closeFullscreen() { document.getElementById('fullscreenModal').style.display = 'none'; }
-    </script>
+function drawPin(px, py, id, color) {
+  const r = Math.max(10, canvas.width * 0.018);
+  ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
+  ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${r}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(id).slice(-2), px, py);
+}
+
+function drawPendingPin(px, py) {
+  redrawCanvas();
+  ctx.beginPath(); ctx.arc(px, py, Math.max(10, canvas.width * 0.018), 0, Math.PI*2); ctx.fillStyle = 'rgba(243,156,18,.8)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(px, py, Math.max(10, canvas.width * 0.018), 0, Math.PI*2); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(10, canvas.width * 0.018)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('＋', px, py);
+}
+
+/* ─── Canvas Click / Touch ─── */
+function getCanvasPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / r.width;
+  const scaleY = canvas.height / r.height;
+  return { x: (e.clientX - r.left) * scaleX, y: (e.clientY - r.top) * scaleY };
+}
+function onCanvasClick(e) {
+  const pos = getCanvasPos(e);
+  handleCanvasTap(pos.x, pos.y);
+}
+function onCanvasTouch(e) {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  const pos = getCanvasPos(t);
+  handleCanvasTap(pos.x, pos.y);
+}
+function handleCanvasTap(px, py) {
+  if (!currentSite || !currentFloor) { showToast('⚠️ 請先選擇案場與樓層'); return; }
+
+  // Check if tapping on an existing defect
+  const hit = findDefectAtPos(px, py);
+  if (hit) { openDetail(hit); return; }
+
+  // Otherwise place new pin
+  const xPct = (px / canvas.width * 100).toFixed(1);
+  const yPct = (py / canvas.height * 100).toFixed(1);
+  pendingX = xPct; pendingY = yPct; hasPendingPin = true;
+
+  drawPendingPin(px, py);
+  openSheet();
+}
+
+function findDefectAtPos(px, py) {
+  const r = Math.max(12, canvas.width * 0.022);
+  return allDefects.find(d => {
+    if (!d.XY_Coord || d.XY_Coord === '略過') return false;
+    const m = d.XY_Coord.match(/X:(\d+(?:\.\d+)?)%,\s*Y:(\d+(?:\.\d+)?)%/);
+    if (!m) return false;
+    const dpx = parseFloat(m[1]) / 100 * canvas.width;
+    const dpy = parseFloat(m[2]) / 100 * canvas.height;
+    return Math.sqrt((px-dpx)**2 + (py-dpy)**2) < r;
+  });
+}
+
+/* ─── FAB / Start Add Mode ─── */
+function startAddMode() {
+  if (!currentSite || !currentFloor) { showToast('⚠️ 請先選擇案場與樓層'); return; }
+  if (NO_MAP_FLOORS.includes(currentFloor)) {
+    // No map needed — open sheet directly without pin
+    hasPendingPin = false; pendingX = 0; pendingY = 0;
+    openSheet();
+    return;
+  }
+  showToast('📌 請點選圖紙上的缺失位置');
+  document.getElementById('mapHint').textContent = '📌 請點選缺失位置...';
+}
+
+/* ─── Sheet ─── */
+function openSheet(editId) {
+  document.getElementById('sheetMask').style.display = 'block';
+  document.getElementById('defectSheet').classList.add('open');
+  document.getElementById('editDefectId').value = editId || '';
+  document.getElementById('sheetTitle').textContent = editId ? '✏️ 編輯缺失' : '📍 新增缺失';
+  document.getElementById('pinX').value = pendingX;
+  document.getElementById('pinY').value = pendingY;
+
+  // Update pin confirm display
+  if (hasPendingPin) {
+    document.getElementById('pinConfirm').style.display = 'block';
+    document.getElementById('pinWaiting').style.display = 'none';
+    document.getElementById('pinCoordText').textContent = `X:${pendingX}%, Y:${pendingY}%`;
+  } else {
+    document.getElementById('pinConfirm').style.display = 'none';
+    document.getElementById('pinWaiting').style.display = NO_MAP_FLOORS.includes(currentFloor) ? 'none' : 'block';
+  }
+
+  // Reset form
+  if (!editId) {
+    document.getElementById('defectDesc').value = '';
+    document.getElementById('photoPreview').style.display = 'none';
+    document.getElementById('photoInput').value = '';
+    photoBase64 = null; selectedDept = '';
+    document.getElementById('deptChips').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  }
+}
+function closeSheet() {
+  document.getElementById('sheetMask').style.display = 'none';
+  document.getElementById('defectSheet').classList.remove('open');
+  hasPendingPin = false;
+  redrawCanvas();
+}
+
+/* ─── Photo ─── */
+function onPhotoSelected(input) {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoBase64 = e.target.result;
+    const img = document.getElementById('photoPreview');
+    img.src = e.target.result; img.style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+function onFixPhotoSelected(input) {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    fixPhotoBase64 = e.target.result;
+    const img = document.getElementById('fixPhotoPreview');
+    img.src = e.target.result; img.style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+/* ─── Submit Defect ─── */
+async function submitDefect() {
+  if (!selectedDept) { showToast('⚠️ 請選擇工程類別'); return; }
+  const desc = document.getElementById('defectDesc').value.trim();
+  if (!desc) { showToast('⚠️ 請填寫缺失說明'); return; }
+
+  const xyCoord = hasPendingPin
+    ? `[座標] X:${pendingX}%, Y:${pendingY}%`
+    : (NO_MAP_FLOORS.includes(currentFloor) ? '略過' : '略過');
+
+  const btn = document.getElementById('btnSubmitDefect');
+  btn.disabled = true; btn.textContent = '⏳ 送出中...';
+
+  const payload = {
+    userId: lineId || myUserId, userName: myUser || '現場人員',
+    site: currentSite, floor: currentFloor,
+    dept: selectedDept, description: desc,
+    xyCoord, status: '🔴 待改善',
+    imageBase64: photoBase64 ? photoBase64.replace(/^data:image\/\w+;base64,/, '') : null
+  };
+
+  if (!isOnline) {
+    await addToQueue({ type: 'add', ...payload });
+    checkOfflineQueue();
+    showToast('📵 已存入離線佇列，連線後自動同步');
+    closeSheet();
+    btn.disabled = false; btn.textContent = '📤 送出缺失紀錄';
+    return;
+  }
+
+  try {
+    const r = await apiFetch('/add', { method: 'POST', body: JSON.stringify(payload) });
+    const res = await r.json();
+    if (res.success) {
+      showToast('✅ #' + res.newId + ' 缺失已建立！');
+      closeSheet();
+      await loadDefects();
+      // Ready for next defect immediately!
+      document.getElementById('mapHint').textContent = '📌 繼續點選圖紙新增下一筆缺失';
+    } else {
+      showToast('❌ 送出失敗：' + (res.error || '伺服器錯誤'));
+    }
+  } catch(e) {
+    showToast('❌ 連線異常，已存入離線佇列');
+    await addToQueue({ type: 'add', ...payload });
+    checkOfflineQueue();
+    closeSheet();
+  } finally {
+    btn.disabled = false; btn.textContent = '📤 送出缺失紀錄';
+    hasPendingPin = false; photoBase64 = null;
+  }
+}
+
+/* ─── Load Defects ─── */
+async function loadDefects() {
+  if (!currentSite || !currentFloor) return;
+  try {
+    const r = await apiFetch(`/query?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&status=`);
+    const rows = await r.json();
+    allDefects = Array.isArray(rows) ? rows : [];
+    redrawCanvas();
+    renderList();
+  } catch(e) {
+    console.warn('載入缺失失敗', e);
+  }
+}
+
+/* ─── List Render ─── */
+function renderList() {
+  const el = document.getElementById('defectList');
+  const filtered = listFilter === 'ALL' ? allDefects : allDefects.filter(d => d.Status.includes(listFilter));
+  if (!filtered.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray);">📭 本樓層暫無缺失紀錄</div>'; return;
+  }
+  el.innerHTML = filtered.map(d => {
+    const cls = d.Status.includes('待改善') ? 'todo' : d.Status.includes('待驗收') ? 'review' : 'done';
+    const stColor = cls === 'todo' ? '#fdecea' : cls === 'review' ? '#e3f2fd' : '#e8f8ee';
+    const stText  = cls === 'todo' ? 'var(--red)' : cls === 'review' ? 'var(--blue)' : 'var(--green)';
+    return `<div class="defect-card ${cls}" onclick="openDetailById(${d.ID})">
+      <div class="dc-header">
+        <div class="dc-title">${d.Description || '無說明'}</div>
+        <div class="dc-status" style="background:${stColor};color:${stText};">${d.Status}</div>
+      </div>
+      <div class="dc-meta">
+        🔧 ${d.Dept} &nbsp;|&nbsp; 📍 ${d.Floor} &nbsp;|&nbsp; 👤 ${d.UserName}<br>
+        🕒 ${(d.TimeStamp || '').substring(0, 16)}
+      </div>
+    </div>`;
+  }).join('');
+}
+function filterList(status, el) {
+  listFilter = status;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+/* ─── Detail Card ─── */
+function openDetailById(id) {
+  const d = allDefects.find(x => x.ID == id);
+  if (d) openDetail(d);
+}
+async function openDetail(d) {
+  currentDetailId = d.ID;
+  document.getElementById('detailMask').style.display = 'block';
+  const card = document.getElementById('detailCard');
+  card.style.display = 'block'; setTimeout(() => card.classList.add('open'), 10);
+
+  // Status badge
+  const statusEl = document.getElementById('detailStatus');
+  const cls = d.Status.includes('待改善') ? 'st-todo' : d.Status.includes('待驗收') ? 'st-review' : 'st-done';
+  statusEl.className = 'detail-status ' + cls; statusEl.textContent = d.Status;
+
+  document.getElementById('detailTitle').textContent = d.Description || '無說明';
+  document.getElementById('detailMeta').innerHTML =
+    `#${d.ID} &nbsp;|&nbsp; 🔧 ${d.Dept} &nbsp;|&nbsp; 📍 ${d.Floor}<br>👤 ${d.UserName} &nbsp;|&nbsp; 🕒 ${(d.TimeStamp||'').substring(0,16)}`;
+
+  // Load photo
+  const imgEl = document.getElementById('detailImg');
+  imgEl.style.display = 'none';
+  try {
+    const imgType = (d.Status.includes('待驗收') || d.Status.includes('已改善')) ? 'fixed' : 'original';
+    const r = await fetch(`${apiBase}/image/${d.ID}/${imgType}?cb=${Date.now()}`, { headers: { 'ngrok-skip-browser-warning':'true' } });
+    if (r.ok) { const blob = await r.blob(); imgEl.src = URL.createObjectURL(blob); imgEl.style.display = 'block'; }
+  } catch(e) {}
+
+  // Edit desc section
+  const editSec = document.getElementById('editDescSection');
+  editSec.style.display = 'block';
+  document.getElementById('editDescInput').value = d.Description || '';
+
+  // Fix photo upload - show only for "待改善" (reporter uploads improvement photo)
+  const fixSec = document.getElementById('fixPhotoSection');
+  fixSec.style.display = d.Status.includes('待改善') ? 'block' : 'none';
+  fixPhotoBase64 = null;
+  document.getElementById('fixPhotoPreview').style.display = 'none';
+
+  // Action buttons
+  buildActionButtons(d);
+}
+function buildActionButtons(d) {
+  const row = document.getElementById('actionRow');
+  row.innerHTML = '';
+  if (d.Status.includes('待改善')) {
+    const btn = document.createElement('button');
+    btn.className = 'act-btn act-orange'; btn.textContent = '📤 送交驗收';
+    btn.onclick = () => updateStatus(d.ID, '🔵 待驗收');
+    row.appendChild(btn);
+  } else if (d.Status.includes('待驗收')) {
+    const btnA = document.createElement('button');
+    btnA.className = 'act-btn act-green'; btnA.textContent = '✅ 驗收通過';
+    btnA.onclick = () => updateStatus(d.ID, '🟢 已改善');
+    const btnR = document.createElement('button');
+    btnR.className = 'act-btn act-red'; btnR.textContent = '❌ 退回重修';
+    btnR.onclick = () => updateStatus(d.ID, '🔴 待改善');
+    row.appendChild(btnA); row.appendChild(btnR);
+  } else {
+    const btn = document.createElement('button');
+    btn.className = 'act-btn act-gray'; btn.textContent = '🔄 重設待改善';
+    btn.onclick = () => updateStatus(d.ID, '🔴 待改善');
+    row.appendChild(btn);
+  }
+}
+function closeDetail() {
+  document.getElementById('detailCard').classList.remove('open');
+  document.getElementById('detailMask').style.display = 'none';
+  setTimeout(() => { document.getElementById('detailCard').style.display = 'none'; }, 350);
+  currentDetailId = null;
+}
+
+/* ─── Status Update ─── */
+async function updateStatus(id, newStatus) {
+  let imgB64 = null;
+  if (fixPhotoBase64) imgB64 = fixPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
+
+  const payload = { id, status: newStatus, operator: myUser || '現場人員', imageBase64: imgB64 };
+  try {
+    const r = await apiFetch('/update-status', { method: 'POST', body: JSON.stringify(payload) });
+    const res = await r.json();
+    if (res.success) {
+      showToast('✅ 狀態已更新為：' + newStatus);
+      closeDetail();
+      await loadDefects();
+    } else { showToast('❌ 更新失敗'); }
+  } catch(e) { showToast('❌ 連線異常'); }
+}
+
+/* ─── Edit Description ─── */
+async function saveDesc() {
+  const newDesc = document.getElementById('editDescInput').value.trim();
+  if (!newDesc || !currentDetailId) return;
+  try {
+    const r = await apiFetch('/update-desc', { method: 'POST', body: JSON.stringify({ id: currentDetailId, description: newDesc, userId: lineId || myUserId }) });
+    const res = await r.json();
+    if (res.success) {
+      showToast('✅ 說明已更新！');
+      document.getElementById('detailTitle').textContent = newDesc;
+      const d = allDefects.find(x => x.ID == currentDetailId);
+      if (d) d.Description = newDesc;
+      renderList();
+    }
+  } catch(e) { showToast('❌ 更新失敗'); }
+}
+
+/* ─── Offline Sync ─── */
+async function checkOfflineQueue() {
+  if (!db) return;
+  const items = await getAllQueue();
+  const bar = document.getElementById('offlineBar');
+  if (items.length > 0) {
+    bar.style.display = 'block';
+    document.getElementById('offlineCount').textContent = items.length;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+async function syncOffline() {
+  if (!isOnline) { showToast('⚠️ 目前仍無網路連線'); return; }
+  const items = await getAllQueue();
+  if (!items.length) { showToast('✅ 無待同步資料'); return; }
+
+  let ok = 0;
+  for (const item of items) {
+    try {
+      const p = item.payload;
+      const r = await apiFetch('/add', { method: 'POST', body: JSON.stringify(p) });
+      const res = await r.json();
+      if (res.success) { await deleteFromQueue(item.id); ok++; }
+    } catch(e) {}
+  }
+  showToast(`✅ 同步完成：成功 ${ok} / 共 ${items.length} 筆`);
+  checkOfflineQueue();
+  if (ok > 0) await loadDefects();
+}
+
+/* ─── Utils ─── */
+function apiFetch(path, opts = {}) {
+  return fetch(apiBase + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...(opts.headers || {}) }
+  });
+}
+let _tTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(_tTimer); _tTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
 </body>
 </html>
