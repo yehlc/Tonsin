@@ -25,14 +25,14 @@
   <div class="sub">數位工務管理系統</div>
   <div class="loader"></div>
   <div class="err" id="errMsg"></div>
-
+ 
   <script>
     const LIFF_ID = "2009287087-4LSCRAq4";
-
+ 
     liff.init({ liffId: LIFF_ID }).then(() => {
       const q  = new URLSearchParams(window.location.search);
       const pg = q.get('page') || '';
-
+ 
       const routes = {
         'inspection': 'liff-inspection.html',
         'hse':        'liff-hse.html',        // ★ 新增
@@ -40,11 +40,11 @@
         'task':       'liff-task.html',
         'floorplan':  'liff-floorplan.html'
       };
-
+ 
       // Default fallback → floorplan
       const target = routes[pg] || 'liff-floorplan.html';
       window.location.replace(target + window.location.search);
-
+ 
     }).catch(err => {
       document.getElementById('errMsg').style.display = 'block';
       document.getElementById('errMsg').textContent = '⚠️ 系統初始化失敗，請重新開啟：' + err.message;
@@ -54,6 +54,3 @@
   </script>
 </body>
 </html>
-
-
-
