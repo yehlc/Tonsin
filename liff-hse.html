@@ -308,7 +308,7 @@ select, input[type=date], input[type=text], textarea {
 <script>
 /* ─── Config ─── */
 const urlP      = new URLSearchParams(window.location.search);
-const apiBase   = urlP.get('api')      || '';
+const apiBase = urlP.get('api') || 'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
 const myUser    = decodeURIComponent(urlP.get('user') || '');
 const myUserId  = urlP.get('userId')   || '';
 const viewMode  = urlP.get('mode')     || '';   // hse_view | hse_approve_director | hse_approve_safety
