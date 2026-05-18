@@ -265,10 +265,10 @@ const urlP=new URLSearchParams(window.location.search);
 const apiBase=urlP.get('api')||'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
 const initSite=decodeURIComponent(urlP.get('site')||'');
 const initFloor=decodeURIComponent(urlP.get('floor')||'');
-const myUser=decodeURIComponent(urlP.get('user')||'');
+let myUser  = decodeURIComponent(urlP.get('user')  || '');
 const myUserId=urlP.get('userId')||'';
-const myLevel=parseFloat(urlP.get('level')||'2');
-const myRole=decodeURIComponent(urlP.get('role')||'');
+let myLevel = parseFloat(urlP.get('level') || '2');
+let myRole  = decodeURIComponent(urlP.get('role')  || '');
 const LIFF_ID="2009287087-4LSCRAq4";
 const GH_PAGES="https://yehlc.github.io/Tonsin";
 
@@ -313,7 +313,28 @@ function addQ(p){return new Promise((r,j)=>{const t=db.transaction('q','readwrit
 function getAllQ(){return new Promise((r,j)=>{const t=db.transaction('q','readonly');const q=t.objectStore('q').getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>r([])})}
 function delQ(id){return new Promise(r=>{const t=db.transaction('q','readwrite');t.objectStore('q').delete(id).onsuccess=r})}
 
-Promise.all([liff.init({liffId:LIFF_ID}).then(async()=>{if(liff.isLoggedIn()){const p=await liff.getProfile();lineId=p.userId;}}).catch(()=>{}),openDB()]).then(()=>{initUI();document.getElementById('loader').style.display='none';checkQCount();});
+Promise.all([
+  liff.init({liffId:LIFF_ID}).then(async()=>{
+    if(liff.isLoggedIn()){
+      const p=await liff.getProfile();
+      lineId=p.userId;
+      // ★ 若 URL 沒帶 user= 參數，自動從資料庫查詢真實姓名
+      if(!myUser){
+        try{
+          const r=await fetch(apiBase+'/check-auth?userId='+lineId,
+            {headers:{'ngrok-skip-browser-warning':'true'}});
+          const info=await r.json();
+          if(info&&info.name) myUser=info.name;
+          if(info&&info.level) myLevel=parseFloat(info.level);
+          if(info&&info.role)  myRole=info.role;
+        }catch(e){}
+      }
+    }
+  }).catch(()=>{}),
+  openDB()
+]).then(()=>{
+  initUI();document.getElementById('loader').style.display='none';checkQCount();
+});
 
 function initUI(){
   const ss=document.getElementById('selSite');
