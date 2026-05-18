@@ -77,8 +77,8 @@ textarea.ff{height:72px;resize:none}
 /* ★ Bug3: Detail image 原始大小 */
 .detail-img-wrap{background:#111;text-align:center;display:none;padding:4px 0}
 .detail-img{max-width:100%;max-height:220px;object-fit:contain;height:auto;display:inline-block}
-.detail-card{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:18px 18px 0 0;z-index:500;max-height:88vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s ease;display:none}
-.detail-card.open{display:block;transform:translateY(0)}
+.detail-card{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:18px 18px 0 0;z-index:500;max-height:88vh;overflow-y:auto;transform:translateY(110%);transition:transform .3s cubic-bezier(.32,.72,0,1);visibility:hidden;will-change:transform}
+.detail-card.open{transform:translateY(0);visibility:visible}
 .detail-body{padding:13px 15px}
 .d-status{display:inline-block;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:9px}
 .d-todo{background:#fdecea;color:var(--red)}.d-review{background:#e3f2fd;color:var(--blue)}.d-done{background:#e8f8ee;color:var(--green)}
@@ -387,8 +387,19 @@ function initUI(){
 
   const cr=document.getElementById('deptChips');
   DEPT_LIST.forEach(d=>{const c=document.createElement('div');c.className='chip';c.textContent=d;c.onclick=()=>{cr.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');selectedDept=d;};cr.appendChild(c);});
-  window.addEventListener('online',()=>{isOnline=true;document.getElementById('offlineBanner').style.display='none';});
-  window.addEventListener('offline',()=>{isOnline=false;});
+  window.addEventListener('online',()=>{
+    isOnline=true;
+    // 上線後同步佇列
+    checkQCount().then(()=>{
+      getAllQ().then(items=>{if(items.length>0)showToast('🔄 已回到網路！點擊橫條同步 '+items.length+' 筆離線記錄');});
+    });
+  });
+  window.addEventListener('offline',()=>{
+    isOnline=false;
+    document.getElementById('offlineBanner').style.display='block';
+    document.getElementById('offlineCount').textContent='目前離線';
+    showToast('📵 網路已斷線，新增缺失將存入離線佇列');
+  });
   if(initSite&&initFloor){setTimeout(()=>{loadFloorPlan();loadDefects();},100);}
 }
 
@@ -429,6 +440,8 @@ function onSiteChange(){
   floors.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;sf.appendChild(o)});
   if(initFloor&&currentSite===initSite){sf.value=initFloor;onFloorChange();}
   document.getElementById('headerSub').textContent=currentSite;
+  // ★ 選案場時背景預快取圖紙（需有網路）
+  if(isOnline && FLOOR_IMG[currentSite]) setTimeout(()=>precacheFloorPlan(currentSite), 500);
 }
 function onFloorChange(){
   currentFloor=document.getElementById('selFloor').value;
@@ -460,16 +473,34 @@ function loadFloorPlan(){
     floorCanvas.width=floorImg.naturalWidth;floorCanvas.height=floorImg.naturalHeight;
     floorCtx.drawImage(floorImg,0,0);drawDefects(allDefects);
     hint.textContent='📍 點擊圖面標記缺失位置，或點擊已有標記查看詳情';hint.className='hint-bar ready';
+    // ★ 背景預快取此案場其他樓層圖紙
+    if(isOnline) setTimeout(()=>precacheFloorPlan(currentSite), 1000);
   };
   floorImg.onerror=()=>{
     floorCanvas.width=600;floorCanvas.height=400;
     floorCtx.fillStyle='#e0e0e0';floorCtx.fillRect(0,0,600,400);
     floorCtx.fillStyle='#666';floorCtx.font='16px sans-serif';floorCtx.textAlign='center';
-    floorCtx.fillText('圖紙尚未上傳：'+currentFloor,300,200);
-    hint.textContent='⚠️ 圖紙尚未上傳，點擊任意位置仍可新增缺失';hint.className='hint-bar';drawDefects(allDefects);
+    if(!isOnline){
+      floorCtx.fillText('📵 離線模式：圖紙未快取',300,180);
+      floorCtx.fillStyle='#e74c3c';floorCtx.font='14px sans-serif';
+      floorCtx.fillText('請先在有網路的地方開啟此頁面以快取圖紙',300,210);
+    } else {
+      floorCtx.fillText('圖紙尚未上傳：'+currentFloor,300,200);
+    }
+    hint.textContent=isOnline?'⚠️ 圖紙尚未上傳，點擊任意位置仍可新增缺失':'📵 離線模式：圖紙未快取，但仍可新增缺失';
+    hint.className='hint-bar';drawDefects(allDefects);
   };
   const m=FLOOR_IMG[currentSite];
-  floorImg.src=m&&m[currentFloor]?(GH_PAGES+m[currentFloor]):`${GH_PAGES}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}.png`;
+  const imgUrl=m&&m[currentFloor]?(GH_PAGES+m[currentFloor]):`${GH_PAGES}/${encodeURIComponent(currentSite)}/${encodeURIComponent(currentFloor)}.png`;
+  // ★ 優先使用快取（離線時也能顯示圖紙）
+  fetchFloorImage(imgUrl).then(resp=>{
+    if(resp.ok) return resp.blob();
+    throw new Error('no image');
+  }).then(blob=>{
+    floorImg.src = URL.createObjectURL(blob);
+  }).catch(()=>{
+    floorImg.src = imgUrl; // fallback
+  });
 }
 function renderCanvas(){
   floorCtx.clearRect(0,0,floorCanvas.width,floorCanvas.height);
@@ -577,10 +608,30 @@ function onFixPhotoSelected(input){
 }
 
 /* ─── Get final photo (with drawing merged) ─── */
+/* ─── ★ 圖片壓縮（最大 1200px，quality 0.72）─── */
+const IMG_MAX = 1200;
+function compressImage(base64OrNull, quality) {
+  return new Promise(resolve => {
+    if (!base64OrNull) return resolve(null);
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > IMG_MAX || h > IMG_MAX) {
+        const ratio = Math.min(IMG_MAX / w, IMG_MAX / h);
+        w = Math.round(w * ratio); h = Math.round(h * ratio);
+      }
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', quality || 0.72).replace(/^data:image\/\w+;base64,/, ''));
+    };
+    img.onerror = () => resolve(null);
+    img.src = base64OrNull.startsWith('data:') ? base64OrNull : 'data:image/jpeg;base64,' + base64OrNull;
+  });
+}
+
 function getFinalPhotoBase64(){
   if(!photoBase64)return null;
   if(!hasDrawn)return photoBase64.replace(/^data:image\/\w+;base64,/,'');
-  // Merge photo + draw canvas
   const tempCanvas=document.createElement('canvas');
   const img=document.getElementById('photoPreview');
   tempCanvas.width=img.naturalWidth||400;tempCanvas.height=img.naturalHeight||300;
@@ -590,22 +641,69 @@ function getFinalPhotoBase64(){
   return tempCanvas.toDataURL('image/jpeg',0.85).replace(/^data:image\/\w+;base64,/,'');
 }
 
-/* ─── Submit Defect ─── */
+/* ─── Submit Defect（★ 優化版：壓縮圖片 + 樂觀更新）─── */
 async function submitDefect(){
   if(!selectedDept){showToast('⚠️ 請選擇工程類別');return;}
   const desc=document.getElementById('defectDesc').value.trim();
   if(!desc){showToast('⚠️ 請填寫缺失說明');return;}
   const xyCoord=hasPendingPin?`[座標] X:${pendingX}%, Y:${pendingY}%`:'略過';
-  const btn=document.getElementById('btnSubmitDefect');btn.disabled=true;btn.textContent='⏳ 送出中...';
-  const finalImg=getFinalPhotoBase64();
-  const payload={userId:lineId||myUserId,userName: myUser || lineId || '現場人員',site:currentSite,floor:currentFloor,dept:selectedDept,description:desc,xyCoord,status:'🔴 待改善',imageBase64:finalImg};
-  if(!isOnline){await addQ({type:'add',...payload});checkQCount();showToast('📵 已存入離線佇列，上線後同步');closeSheet();btn.disabled=false;btn.textContent='📤 送出缺失紀錄';return;}
+  const btn=document.getElementById('btnSubmitDefect');btn.disabled=true;btn.textContent='⏳ 壓縮照片中...';
+
+  // ★ 壓縮圖片再送出（顯著降低傳輸量）
+  const rawImg = getFinalPhotoBase64();
+  const finalImg = rawImg ? await compressImage(
+    rawImg.startsWith('data:') ? rawImg : 'data:image/jpeg;base64,' + rawImg, 0.72
+  ) : null;
+
+  const payload={userId:lineId||myUserId,userName: myUser || lineId || '現場人員',
+    site:currentSite,floor:currentFloor,dept:selectedDept,description:desc,
+    xyCoord,status:'🔴 待改善',imageBase64:finalImg};
+
+  // 離線：存入佇列
+  if(!isOnline){
+    await addQ({type:'add',...payload});checkQCount();
+    // ★ 樂觀更新 UI（離線也立刻顯示）
+    const fakeId = 'offline_'+Date.now();
+    allDefects.unshift({ID:fakeId,UserName:myUser||'現場人員',Site:currentSite,Floor:currentFloor,
+      Dept:selectedDept,Description:desc,XY_Coord:xyCoord,Status:'🔴 待改善',TimeStamp:new Date().toISOString()});
+    renderCanvas();renderList();
+    showToast('📵 已存入離線佇列，上線後同步');closeSheet();
+    btn.disabled=false;btn.textContent='📤 送出缺失紀錄';return;
+  }
+
+  btn.textContent='⏳ 送出中...';
+
+  // ★ 樂觀更新：先加到本地清單，讓圖紙立刻出現標記點
+  const tempId = 'tmp_'+Date.now();
+  allDefects.unshift({ID:tempId,UserName:myUser||'現場人員',Site:currentSite,Floor:currentFloor,
+    Dept:selectedDept,Description:desc,XY_Coord:xyCoord,Status:'🔴 待改善',TimeStamp:new Date().toISOString()});
+  renderCanvas();
+  closeSheet(); // 先關 sheet，讓使用者可以繼續操作
+
   try{
     const r=await apiFetch('/add',{method:'POST',body:JSON.stringify(payload)});
     const res=await r.json();
-    if(res.success){showToast('✅ #'+res.newId+' 缺失已建立！可繼續新增...');closeSheet();await loadDefects();const hint=document.getElementById('mapHint');hint.textContent='📍 繼續點選圖紙新增下一筆缺失';hint.className='hint-bar ready';}
-    else showToast('❌ 送出失敗：'+(res.error||'伺服器錯誤'));
-  }catch(e){showToast('❌ 連線異常，存入離線佇列');await addQ({type:'add',...payload});checkQCount();closeSheet();}
+    if(res.success){
+      showToast('✅ #'+res.newId+' 缺失已建立！可繼續新增...');
+      // 用真實 ID 取代暫時 ID
+      const idx = allDefects.findIndex(d=>d.ID===tempId);
+      if(idx>-1) allDefects[idx].ID = res.newId;
+      await loadDefects(); // 背景同步完整資料
+      const hint=document.getElementById('mapHint');
+      hint.textContent='📍 繼續點選圖紙新增下一筆缺失';hint.className='hint-bar ready';
+    } else {
+      // 失敗：移除暫時項目
+      allDefects = allDefects.filter(d=>d.ID!==tempId);
+      renderCanvas();renderList();
+      showToast('❌ 送出失敗：'+(res.error||'伺服器錯誤'));
+    }
+  }catch(e){
+    // 例外：存入離線佇列
+    allDefects = allDefects.filter(d=>d.ID!==tempId);
+    await addQ({type:'add',...payload});checkQCount();
+    showToast('❌ 連線異常，已存入離線佇列');
+    await loadDefects();
+  }
   finally{btn.disabled=false;btn.textContent='📤 送出缺失紀錄';hasPendingPin=false;photoBase64=null;}
 }
 
@@ -666,7 +764,7 @@ function openDetailById(id){const d=allDefects.find(x=>x.ID==id);if(d)openDetail
 async function openDetail(d){
   currentDetailId=d.ID;
   document.getElementById('detailMask').style.display='block';
-  const card=document.getElementById('detailCard');card.style.display='block';setTimeout(()=>card.classList.add('open'),10);
+  const card=document.getElementById('detailCard');requestAnimationFrame(()=>card.classList.add('open'));
   const cls=d.Status.includes('待改善')?'d-todo':d.Status.includes('待驗收')?'d-review':'d-done';
   const st=document.getElementById('detailStatus');st.className='d-status '+cls;st.textContent=d.Status;
   document.getElementById('detailTitle').textContent=d.Description||'無說明';
@@ -734,7 +832,7 @@ function buildActBtns(d){
 
 function closeDetail(){
   document.getElementById('detailCard').classList.remove('open');document.getElementById('detailMask').style.display='none';
-  setTimeout(()=>document.getElementById('detailCard').style.display='none',320);currentDetailId=null;
+  currentDetailId=null;
 }
 
 /* ★ Bug5 fix: updateStatus includes operatorId for server-side permission check */
@@ -758,13 +856,77 @@ function exportExcel(type){
   window.open(`${apiBase}${ep}?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}`,'_blank');
 }
 
-/* ─── Offline ─── */
-async function checkQCount(){const items=await getAllQ().catch(()=>[]);const banner=document.getElementById('offlineBanner');if(items.length>0){banner.style.display='block';document.getElementById('offlineCount').textContent=items.length;}else banner.style.display='none';}
+/* ─── Offline Queue ─── */
+async function checkQCount(){
+  const items=await getAllQ().catch(()=>[]);
+  const banner=document.getElementById('offlineBanner');
+  if(items.length>0){banner.style.display='block';document.getElementById('offlineCount').textContent=items.length;}
+  else banner.style.display='none';
+}
 async function syncOffline(){
   if(!isOnline){showToast('⚠️ 仍無網路連線');return;}
-  const items=await getAllQ().catch(()=>[]);let ok=0;
-  for(const item of items){try{const r=await apiFetch('/add',{method:'POST',body:JSON.stringify(item.p)});const res=await r.json();if(res.success){await delQ(item.id);ok++;}}catch(e){}}
-  showToast(`✅ 同步：成功 ${ok}/${items.length} 筆`);checkQCount();if(ok>0)await loadDefects();
+  const items=await getAllQ().catch(()=>[]);
+  if(!items.length){showToast('✅ 無待同步資料');return;}
+  let ok=0;
+  for(const item of items){
+    try{
+      const r=await apiFetch('/add',{method:'POST',body:JSON.stringify(item.p)});
+      const res=await r.json();
+      if(res.success){await delQ(item.id);ok++;}
+    }catch(e){}
+  }
+  showToast(`✅ 同步：成功 ${ok}/${items.length} 筆`);
+  checkQCount();
+  if(ok>0)await loadDefects();
+}
+
+/* ─── ★ 離線圖紙快取（Cache API）─── */
+const FLOOR_CACHE = 'tonsin-floor-v1';
+
+async function cacheFloorImage(url) {
+  if(!('caches' in window)) return;
+  try {
+    const cache = await caches.open(FLOOR_CACHE);
+    const cached = await cache.match(url);
+    if(!cached) {
+      const resp = await fetch(url);
+      if(resp.ok) await cache.put(url, resp.clone());
+    }
+  } catch(e) {}
+}
+
+async function fetchFloorImage(url) {
+  // 先嘗試網路，失敗時從 Cache 取
+  if(!('caches' in window)) return fetch(url);
+  try {
+    const resp = await fetch(url);
+    if(resp.ok) {
+      // 成功：更新 Cache
+      const cache = await caches.open(FLOOR_CACHE);
+      await cache.put(url, resp.clone());
+      return resp;
+    }
+  } catch(e) {}
+  // 網路失敗：從 Cache 取
+  try {
+    const cache = await caches.open(FLOOR_CACHE);
+    const cached = await cache.match(url);
+    if(cached) return cached;
+  } catch(e) {}
+  return Response.error();
+}
+
+// ★ 預先快取指定案場所有樓層的圖紙
+async function precacheFloorPlan(site) {
+  const floors = SITE_FLOORS[site];
+  const floorMap = FLOOR_IMG[site];
+  if(!floors || !floorMap) return;
+  for(const f of floors) {
+    if(NO_MAP.includes(f) || !floorMap[f]) continue;
+    const url = GH_PAGES + floorMap[f];
+    cacheFloorImage(url).catch(()=>{});
+    await new Promise(r => setTimeout(r, 50)); // 避免一次性並發太多
+  }
 }
 
 /* ─── Utils ─── */
