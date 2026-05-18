@@ -313,28 +313,45 @@ function addQ(p){return new Promise((r,j)=>{const t=db.transaction('q','readwrit
 function getAllQ(){return new Promise((r,j)=>{const t=db.transaction('q','readonly');const q=t.objectStore('q').getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>r([])})}
 function delQ(id){return new Promise(r=>{const t=db.transaction('q','readwrite');t.objectStore('q').delete(id).onsuccess=r})}
 
-Promise.all([
-  liff.init({liffId:LIFF_ID}).then(async()=>{
-    if(liff.isLoggedIn()){
-      const p=await liff.getProfile();
-      lineId=p.userId;
-      // ★ 若 URL 沒帶 user= 參數，自動從資料庫查詢真實姓名
-      if(!myUser){
-        try{
-          const r=await fetch(apiBase+'/check-auth?userId='+lineId,
-            {headers:{'ngrok-skip-browser-warning':'true'}});
-          const info=await r.json();
-          if(info&&info.name) myUser=info.name;
-          if(info&&info.level) myLevel=parseFloat(info.level);
-          if(info&&info.role)  myRole=info.role;
-        }catch(e){}
+/* ─── Init ─── 
+   ★ 根本修復：check-auth 必須在 initUI() 之前完成
+   原本錯誤：Promise.all([liff.init().then(async()=>{await fetch...}), openDB()]).then(()=>initUI())
+   問題：.then(async ()=>{}) 的內部 await 不會讓 Promise.all 等待
+   修正：改用單一 async 函式串接，確保 check-auth 在 initUI() 前完成
+*/
+async function bootstrap() {
+  try { await openDB(); } catch(e) {}
+  try {
+    await liff.init({liffId: LIFF_ID});
+    if (liff.isLoggedIn()) {
+      const p = await liff.getProfile();
+      lineId = p.userId;
+      // ★ 若 URL 沒帶 user= 參數，自動從資料庫查詢真實姓名（等待完成再繼續）
+      if (!myUser) {
+        try {
+          const r = await fetch(apiBase + '/check-auth?userId=' + lineId,
+            { headers: { 'ngrok-skip-browser-warning': 'true' } });
+          if (r.ok) {
+            const info = await r.json();
+            if (info && info.name && info.name !== '訪客') {
+              myUser  = info.name;
+              myLevel = parseFloat(info.level) || myLevel;
+              myRole  = info.role  || myRole;
+              // 更新 header
+              document.getElementById('headerSub').textContent =
+                myUser + (currentSite ? ' | ' + currentSite : '');
+            }
+          }
+        } catch(e) { console.warn('check-auth:', e); }
       }
     }
-  }).catch(()=>{}),
-  openDB()
-]).then(()=>{
-  initUI();document.getElementById('loader').style.display='none';checkQCount();
-});
+  } catch(e) { console.warn('liff.init:', e); }
+  initUI();
+  document.getElementById('loader').style.display = 'none';
+  checkQCount();
+}
+bootstrap();
+
 
 function initUI(){
   const ss=document.getElementById('selSite');
