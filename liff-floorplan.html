@@ -581,7 +581,7 @@ async function submitDefect(){
   const xyCoord=hasPendingPin?`[座標] X:${pendingX}%, Y:${pendingY}%`:'略過';
   const btn=document.getElementById('btnSubmitDefect');btn.disabled=true;btn.textContent='⏳ 送出中...';
   const finalImg=getFinalPhotoBase64();
-  const payload={userId:lineId||myUserId,userName:myUser||'現場人員',site:currentSite,floor:currentFloor,dept:selectedDept,description:desc,xyCoord,status:'🔴 待改善',imageBase64:finalImg};
+  const payload={userId:lineId||myUserId,userName: myUser || lineId || '現場人員',site:currentSite,floor:currentFloor,dept:selectedDept,description:desc,xyCoord,status:'🔴 待改善',imageBase64:finalImg};
   if(!isOnline){await addQ({type:'add',...payload});checkQCount();showToast('📵 已存入離線佇列，上線後同步');closeSheet();btn.disabled=false;btn.textContent='📤 送出缺失紀錄';return;}
   try{
     const r=await apiFetch('/add',{method:'POST',body:JSON.stringify(payload)});
