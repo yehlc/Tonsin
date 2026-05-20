@@ -106,6 +106,12 @@
                         <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
                         <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
                     </select>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+  <input type="text" id="roomSearch" placeholder="🔍 搜尋戶別，例：B2戶" 
+         style="flex:1; padding:8px; border:1.5px solid #8e44ad; border-radius:6px; font-size:14px;"
+         oninput="filterRoomNav(this.value)">
+  <button onclick="clearRoomSearch()" style="padding:8px 12px; background:#8e44ad; color:white; border:none; border-radius:6px;">✕</button>
+</div>
                 </div>
                 
                 <div class="map-container" id="canvas-container">
@@ -1306,6 +1312,25 @@
             x.className = "toast show";
             setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
         }
+
+        function filterRoomNav(keyword) {
+    const nav = document.getElementById('roomNavSelect');
+    const lower = keyword.toLowerCase();
+    Array.from(nav.options).forEach(opt => {
+        const show = !keyword || opt.text.toLowerCase().includes(lower);
+        opt.style.display = show ? '' : 'none';
+    });
+    // 跳到第一個符合的戶別
+    if (keyword) {
+        const match = Array.from(nav.options).find(o => o.text.toLowerCase().includes(lower));
+        if (match) { nav.value = match.value; jumpToRoom(match.value); }
+    }
+}
+function clearRoomSearch() {
+    document.getElementById('roomSearch').value = '';
+    Array.from(document.getElementById('roomNavSelect').options).forEach(o => o.style.display = '');
+}
+
         
         window.setDefectStatus = function(status) {
             let cleanStatus = (status && status.includes('已改善')) ? '🟢 已改善' : '🔴 待改善';
