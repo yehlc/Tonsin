@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>驗屋系統</title>
+    <!-- ★ 效能優化：預連線到圖紙來源（節省 100-300ms DNS/TLS） -->
+    <link rel="preconnect" href="https://yehlc.github.io" crossorigin>
+    <link rel="dns-prefetch" href="https://yehlc.github.io">
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; overflow-x: hidden; touch-action: manipulation; }
@@ -852,15 +855,49 @@
             
             if (!keepFormOpen) cancelInspection();
 
-            floorImg.onload = () => {
+            // ★★★ 效能優化：使用三層快取
+            //  1. 記憶體快取（同 session 切換最快，毫秒級）
+            //  2. Cache API（跨 session、離線可用）
+            //  3. 網路（第一次載入）
+            const onSuccess = () => {
                 floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; 
-                renderCanvas(); 
+                renderCanvas();
+                // 圖載完成後在 idle 時段預載相鄰戶別的同類圖紙
+                if(navigator.onLine) {
+                    if(window.requestIdleCallback) {
+                        requestIdleCallback(()=>precacheNearbyDrawings(), {timeout:3000});
+                    } else {
+                        setTimeout(precacheNearbyDrawings, 1500);
+                    }
+                }
             };
-            floorImg.onerror = () => {
+            const onFailure = () => {
                 floorImg.onload = () => { floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; renderCanvas(); };
+                floorImg.onerror = null;
                 floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=No+Image`;
             };
-            floorImg.src = targetImgSrc;
+
+            // 強制重新建立 Image 物件（避免 onload 重複觸發 / Safari 快取問題）
+            floorImg = new Image();
+            floorImg.crossOrigin = "Anonymous";
+            floorImg.decoding = "async";
+            floorImg.onload = onSuccess;
+            floorImg.onerror = onFailure;
+
+            // Level 1：記憶體快取
+            if(inspMemCache.has(targetImgSrc)) {
+                floorImg.src = inspMemCache.get(targetImgSrc);
+                return;
+            }
+
+            // Level 2/3：Cache API 或網路
+            loadInspectionImage(targetImgSrc).then(blobUrl => {
+                inspMemCache.set(targetImgSrc, blobUrl);
+                floorImg.src = blobUrl;
+            }).catch(() => {
+                // 終極備援：直接設 src（讓瀏覽器 HTTP cache 接管）
+                floorImg.src = targetImgSrc;
+            });
         }
 
         window.editDefect = function(id) {
@@ -1347,6 +1384,101 @@ function clearRoomSearch() {
                 btnDone.style.background = '#1DB446'; btnDone.style.color = 'white';
             }
         };
+
+        /* ===================================================================
+         *  ★★★ 驗屋圖紙快取機制（新增）★★★
+         *  - 記憶體快取：同 session 切換戶別/圖紙立即顯示
+         *  - Cache API：跨 session、離線可用
+         *  - 預載相鄰戶別：在 idle 時段把鄰近戶別的同類圖紙先載好
+         *  =================================================================== */
+        const INSP_CACHE_NAME = 'tonsin-inspection-v1';
+        const inspMemCache = new Map();           // url -> blob URL（記憶體層）
+        const inspLoadingPromises = new Map();    // 防止同一張被同時下載
+        const inspPrecached = new Set();          // 已預載過的 URL（避免重做）
+
+        /**
+         * 載入驗屋圖紙：Cache-First 策略
+         * 已快取 → 立即返回（毫秒級）
+         * 沒快取 → 從網路下載並寫入快取
+         */
+        async function loadInspectionImage(url) {
+            if(!('caches' in window)) {
+                const r = await fetch(url, { mode: 'cors' });
+                if(!r.ok) throw new Error('fetch failed');
+                const blob = await r.blob();
+                return URL.createObjectURL(blob);
+            }
+            if(inspLoadingPromises.has(url)) return inspLoadingPromises.get(url);
+
+            const p = (async () => {
+                const cache = await caches.open(INSP_CACHE_NAME);
+                const cached = await cache.match(url);
+                if(cached) {
+                    const blob = await cached.blob();
+                    return URL.createObjectURL(blob);
+                }
+                const resp = await fetch(url, { mode: 'cors' });
+                if(!resp.ok) throw new Error('image not found');
+                cache.put(url, resp.clone()).catch(()=>{});
+                const blob = await resp.blob();
+                return URL.createObjectURL(blob);
+            })().finally(() => inspLoadingPromises.delete(url));
+
+            inspLoadingPromises.set(url, p);
+            return p;
+        }
+
+        /**
+         * 純快取寫入（不返回 blob URL，給預快取用）
+         */
+        async function precacheInspectionImage(url) {
+            if(inspPrecached.has(url)) return;
+            inspPrecached.add(url);
+            if(!('caches' in window)) return;
+            try {
+                const cache = await caches.open(INSP_CACHE_NAME);
+                const cached = await cache.match(url);
+                if(!cached) {
+                    const resp = await fetch(url, { mode: 'cors' });
+                    if(resp.ok) await cache.put(url, resp.clone());
+                }
+            } catch(e) {}
+        }
+
+        /**
+         * 預載相鄰戶別的同類圖紙
+         * 使用者通常會依序檢視戶別（◀/▶ 按鈕），所以先把前後幾戶的圖紙抓下來
+         * 限制併發數 = 2，避免影響當前圖載入
+         */
+        const INSP_PREFETCH_RANGE = 3; // 前後各預載 3 戶
+        async function precacheNearbyDrawings() {
+            if(!flatRoomList || flatRoomList.length === 0) return;
+            const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資";
+            const currentDrawing = document.getElementById('drawingType').value;
+            
+            // 蒐集要預載的 URL
+            const targets = [];
+            for(let offset = 1; offset <= INSP_PREFETCH_RANGE; offset++) {
+                for(const dir of [1, -1]) {
+                    let idx = currentFlatIndex + offset * dir;
+                    if(idx < 0) idx += flatRoomList.length;
+                    if(idx >= flatRoomList.length) idx -= flatRoomList.length;
+                    if(idx === currentFlatIndex) continue;
+                    const room = flatRoomList[idx];
+                    if(!room) continue;
+                    const url = `${baseImgUrl}/${encodeURIComponent(currentSite)}/${encodeURIComponent(room.floor)}/${encodeURIComponent(room.room)}_${encodeURIComponent(currentDrawing)}.png`;
+                    if(!inspPrecached.has(url)) targets.push(url);
+                }
+            }
+
+            // 限制併發 = 2
+            const CONCURRENCY = 2;
+            for(let i = 0; i < targets.length; i += CONCURRENCY) {
+                const batch = targets.slice(i, i + CONCURRENCY);
+                await Promise.all(batch.map(u => precacheInspectionImage(u).catch(()=>{})));
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
     </script>
 </body>
 </html>
