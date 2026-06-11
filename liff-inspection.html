@@ -1238,12 +1238,48 @@
                 } else { alert("❌ 刪除失敗：" + res.error); }
             }).catch(e => alert("❌ 連線異常"));
         }
+        // ★ 跨平台下載函式（同時支援 Android/iOS LIFF）
+async function downloadFile(url, filename) {
+    const btn = event && event.target ? event.target : null;
+    if(btn){ btn.disabled=true; btn.textContent='⏳ 準備中...'; }
+    try {
+        // 方法一：fetch → blob → <a download>（大多數情況可行）
+        const resp = await fetch(url, { headers: {'ngrok-skip-browser-warning':'true'} });
+        if(!resp.ok) throw new Error('伺服器錯誤 ' + resp.status);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(()=> URL.revokeObjectURL(blobUrl), 8000);
+        showToast('✅ 下載成功！');
+    } catch(e) {
+        // 方法二：fallback → 用 LIFF 開外部瀏覽器（Android 最穩定）
+        try {
+            if(typeof liff !== 'undefined' && liff.isInClient()){
+                liff.openWindow({ url: url, external: true });
+                showToast('📂 已在外部瀏覽器開啟下載');
+            } else {
+                window.location.href = url;
+            }
+        } catch(e2){
+            window.location.href = url;
+        }
+    } finally {
+        if(btn){ btn.disabled=false; btn.textContent=btn.dataset.origText||'下載'; }
+    }
+}
 
         function exportExcel() {
-            let selectedRound = document.getElementById('inspRound').value;
-            let url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(selectedRound)}`;
-            window.open(url, '_blank');
-        }
+    let selectedRound = document.getElementById('inspRound').value;
+    if(!selectedRound){ showToast('⚠️ 請先選擇驗收期數'); return; }
+    const url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(selectedRound)}`;
+    const filename = `驗屋單_${currentSite}_${selectedRound}.xlsx`;
+    downloadFile(url, filename);
+}
 
         // ==========================================
         // ★ 新增：觸發後端寄送 Email 給客戶
@@ -1280,10 +1316,12 @@
         }
 
         function exportTradeReport() {
-            let selectedRound = document.getElementById('inspRound').value;
-            let url = `${apiBaseUrl}/export-trade-report?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(selectedRound)}`;
-            window.open(url, '_blank');
-        }
+    let selectedRound = document.getElementById('inspRound').value;
+    if(!selectedRound){ showToast('⚠️ 請先選擇驗收期數'); return; }
+    const url = `${apiBaseUrl}/export-trade-report?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(selectedRound)}`;
+    const filename = `派工單_${currentSite}_${selectedRound}.xlsx`;
+    downloadFile(url, filename);
+}
 
         // ==========================================
         // ★ 修正：分享電子簽名要求 (使用 LINE 原生分享對象選擇器)
