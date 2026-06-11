@@ -755,7 +755,7 @@ function updateStats(){
   document.getElementById('statRate').textContent=rate+'%';
 }
 
-/* ★ Bug9: renderList with thumbnails */
+/* ★ Bug Fix: renderList - 移除 onerror 引號衝突問題 */
 function renderList(){
   updateStats();
   const el=document.getElementById('defectList');
@@ -765,11 +765,10 @@ function renderList(){
     const cls=d.Status.includes('待改善')?'todo':d.Status.includes('待驗收')?'review':'done';
     const bg=cls==='todo'?'#fdecea':cls==='review'?'#e3f2fd':'#e8f8ee';
     const tc=cls==='todo'?'#e74c3c':cls==='review'?'#2980b9':'#27ae60';
-    const imgType=(cls==='review'||cls==='done')?'fixed':'original';
-    const imgHtml=`<img class="dc-thumb" id="thumb-${d.ID}" src="" onerror="this.parentNode.innerHTML='<div class=\\"dc-thumb-placeholder\\">📷</div>'">`;
+    // ★ 修正：預設顯示佔位符 div，圖片載入後再換掉，完全避免 onerror 引號地獄
     return`<div class="dc ${cls}" onclick="openDetailById(${d.ID})">
       <div class="dc-inner">
-        ${imgHtml}
+        <div class="dc-thumb-placeholder" id="thumb-wrap-${d.ID}">📷</div>
         <div class="dc-content">
           <div class="dc-hd"><div class="dc-title">${d.Description||'無說明'}</div><div class="dc-st" style="background:${bg};color:${tc}">${d.Status}</div></div>
           <div class="dc-meta">🔧 ${d.Dept} | 📍 ${d.Floor}<br>👤 ${d.UserName} | 🕒 ${(d.TimeStamp||'').substring(0,16)}</div>
@@ -777,12 +776,21 @@ function renderList(){
       </div>
     </div>`;
   }).join('');
-  // Load thumbnails async
+  // 非同步載入縮圖：成功才替換，失敗保留 📷 佔位符
   f.forEach(d=>{
     const imgType=(d.Status.includes('待驗收')||d.Status.includes('已改善'))?'fixed':'original';
-    const img=document.getElementById('thumb-'+d.ID);if(!img)return;
+    const wrap=document.getElementById('thumb-wrap-'+d.ID);
+    if(!wrap)return;
     fetch(`${apiBase}/image/${d.ID}/${imgType}?cb=${Date.now()}`,{headers:{'ngrok-skip-browser-warning':'true'}})
-      .then(r=>r.ok?r.blob():null).then(b=>{if(b&&img)img.src=URL.createObjectURL(b);}).catch(()=>{});
+      .then(r=>r.ok?r.blob():null)
+      .then(b=>{
+        if(b && wrap && wrap.parentNode){
+          const img=document.createElement('img');
+          img.className='dc-thumb';
+          img.src=URL.createObjectURL(b);
+          wrap.replaceWith(img);
+        }
+      }).catch(()=>{/* 載入失敗保留 📷 */});
   });
 }
 function filterList(s,el){listFilter=s;document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderList();}
