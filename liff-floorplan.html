@@ -110,6 +110,21 @@ textarea.ff{height:72px;resize:none}
 .dc.todo{border-color:var(--red)}.dc.review{border-color:var(--blue)}.dc.done{border-color:var(--green)}
 .dc-inner{display:flex;gap:0}
 .dc-thumb{width:70px;min-width:70px;height:70px;object-fit:cover;background:#eee;display:block}
+  /* ★ 新增：高亮新缺失卡片 */
+.dc-highlight{
+    border:2px solid #f39c12 !important;
+    box-shadow:0 0 0 3px rgba(243,156,18,0.3);
+    animation:highlight-pulse 1.8s ease-in-out 4;
+}
+@keyframes highlight-pulse{
+    0%,100%{box-shadow:0 0 0 2px rgba(243,156,18,0.2);}
+    50%{box-shadow:0 0 0 10px rgba(243,156,18,0.5);}
+}
+.dc-new-badge{
+    display:inline-block;font-size:10px;background:#f39c12;
+    color:#fff;padding:1px 7px;border-radius:8px;font-weight:700;
+    margin-left:6px;vertical-align:middle;
+}
 .dc-thumb-placeholder{width:70px;min-width:70px;height:70px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:22px;color:#bbb}
 .dc-content{flex:1;padding:9px 10px}
 .dc-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
@@ -268,6 +283,8 @@ const urlP=new URLSearchParams(window.location.search);
 const apiBase=urlP.get('api')||'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
 const initSite=decodeURIComponent(urlP.get('site')||'');
 const initFloor=decodeURIComponent(urlP.get('floor')||'');
+  const initHighlight = parseInt(urlP.get('highlight') || '0'); // ★ 新增：要高亮的缺失ID
+const initTab = urlP.get('tab') || 'map';                    // ★ 新增：開啟時預設分頁
 let myUser  = decodeURIComponent(urlP.get('user')  || '');
 const myUserId=urlP.get('userId')||'';
 let myLevel = parseFloat(urlP.get('level') || '2');
@@ -742,6 +759,16 @@ async function loadDefects(){
     const r=await apiFetch(`/query?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&status=`);
     const d=await r.json();allDefects=Array.isArray(d)?d:[];
     renderCanvas();updateStats();renderList();
+    // ★ 若有 highlight 參數：自動切換到清單分頁並捲動到目標缺失
+    if(initHighlight){
+      switchTab('list');
+      setTimeout(()=>{
+        const card=document.getElementById('defect-card-'+initHighlight);
+        if(card) card.scrollIntoView({behavior:'smooth',block:'center'});
+      }, 400);
+    } else if(initTab==='list'){
+      switchTab('list');
+    }
   }catch(e){console.warn(e);}
 }
 
@@ -766,7 +793,19 @@ function renderList(){
     const bg=cls==='todo'?'#fdecea':cls==='review'?'#e3f2fd':'#e8f8ee';
     const tc=cls==='todo'?'#e74c3c':cls==='review'?'#2980b9':'#27ae60';
     // ★ 修正：預設顯示佔位符 div，圖片載入後再換掉，完全避免 onerror 引號地獄
-    return`<div class="dc ${cls}" onclick="openDetailById(${d.ID})">
+    const isNew = (initHighlight && d.ID == initHighlight);
+    return`<div class="dc ${cls}${isNew?' dc-highlight':''}" id="defect-card-${d.ID}" onclick="openDetailById(${d.ID})">
+      <div class="dc-inner">
+        <div class="dc-thumb-placeholder" id="thumb-wrap-${d.ID}">📷</div>
+        <div class="dc-content">
+          <div class="dc-hd">
+            <div class="dc-title">${d.Description||'無說明'}${isNew?'<span class="dc-new-badge">🆕 新增</span>':''}</div>
+            <div class="dc-st" style="background:${bg};color:${tc}">${d.Status}</div>
+          </div>
+          <div class="dc-meta">🔧 ${d.Dept} | 📍 ${d.Floor}<br>👤 ${d.UserName} | 🕒 ${(d.TimeStamp||'').substring(0,16)}</div>
+        </div>
+      </div>
+    </div>`;
       <div class="dc-inner">
         <div class="dc-thumb-placeholder" id="thumb-wrap-${d.ID}">📷</div>
         <div class="dc-content">
