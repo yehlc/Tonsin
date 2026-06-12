@@ -391,6 +391,7 @@ let currentSections = [];  // [{title, items}]
 
 /* ─── LIFF Init ─── */
 liff.init({ liffId: "2009287087-4LSCRAq4" }).then(async () => {
+  if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
   if (liff.isLoggedIn()) {
     const p = await liff.getProfile();
     lineId = p.userId;
