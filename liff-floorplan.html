@@ -267,7 +267,17 @@ textarea.ff{height:72px;resize:none}
         <input type="file" id="fixPhotoInput" accept="image/*" capture="environment" onchange="onFixPhotoSelected(this)">
         <div class="ph-icon">📷</div><div class="ph-text">拍攝改善後照片</div>
       </div>
-      <img id="fixPhotoPreview" style="display:none;width:auto;max-width:100%;border-radius:7px;margin-top:7px;max-height:140px;object-fit:contain">
+      <!-- ★ 改善後照片畫筆標記區 -->
+      <div style="position:relative">
+        <img id="fixPhotoPreview" style="display:none;width:100%;border-radius:7px;margin-top:7px;max-height:200px;object-fit:contain">
+        <canvas id="fixDrawCanvas" style="position:absolute;top:7px;left:0;width:100%;height:100%;border-radius:7px;display:none;touch-action:none;cursor:crosshair"></canvas>
+      </div>
+      <div class="draw-toolbar" id="fixDrawToolbar">
+        <button class="draw-btn active" id="fixBtnRed" onclick="setFixColor('red',this)">🔴 紅筆</button>
+        <button class="draw-btn" id="fixBtnYellow" onclick="setFixColor('yellow',this)">🟡 黃筆</button>
+        <button class="draw-btn" id="fixBtnErase" onclick="setFixColor('erase',this)">🗑 清除</button>
+        <button class="draw-btn" onclick="resetFixDraw()">↩ 重置</button>
+      </div>
       <div class="must-photo-hint" id="mustPhotoHint">⚠️ 請先拍攝改善後照片才能送交驗收</div>
     </div>
     <div class="act-row" id="actionRow"></div>
@@ -344,6 +354,11 @@ async function bootstrap() {
   try { await openDB(); } catch(e) {}
   try {
     await liff.init({liffId: LIFF_ID});
+    if (!liff.isLoggedIn()) {
+      // ★ 強制登入：PC/NB Desktop LINE 沒有自動登入時觸發
+      liff.login({ redirectUri: window.location.href });
+      return; // 等待跳轉，不繼續執行
+    }
     if (liff.isLoggedIn()) {
       const p = await liff.getProfile();
       lineId = p.userId;
@@ -642,15 +657,63 @@ function onPhotoSelected(input){
   };
   reader.readAsDataURL(input.files[0]);
 }
+// ★ 改善後照片畫筆系統
+let fixDrawCtx=null,isFixDrawing=false,currentFixColor='red',hasFixDrawn=false;
+
+function initFixDraw(){
+  const canvas=document.getElementById('fixDrawCanvas');
+  if(!canvas||fixDrawCtx)return;
+  fixDrawCtx=canvas.getContext('2d');
+  function getP(e){const r=canvas.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};}
+  function sd(e){if(currentFixColor==='erase')return;e.preventDefault();isFixDrawing=true;hasFixDrawn=true;const p=getP(e);fixDrawCtx.beginPath();fixDrawCtx.moveTo(p.x,p.y);}
+  function dd(e){if(!isFixDrawing||currentFixColor==='erase')return;e.preventDefault();fixDrawCtx.strokeStyle=currentFixColor;fixDrawCtx.lineWidth=4;fixDrawCtx.lineCap='round';const p=getP(e);fixDrawCtx.lineTo(p.x,p.y);fixDrawCtx.stroke();}
+  function se(e){if(currentFixColor!=='erase')return;e.preventDefault();isFixDrawing=true;const p=getP(e);fixDrawCtx.clearRect(p.x-15,p.y-15,30,30);}
+  function de(e){if(!isFixDrawing||currentFixColor!=='erase')return;e.preventDefault();const p=getP(e);fixDrawCtx.clearRect(p.x-15,p.y-15,30,30);}
+  function ed(){isFixDrawing=false;}
+  canvas.addEventListener('mousedown',e=>{sd(e);se(e);});canvas.addEventListener('mousemove',e=>{dd(e);de(e);});canvas.addEventListener('mouseup',ed);
+  canvas.addEventListener('touchstart',e=>{sd(e);se(e);},{passive:false});canvas.addEventListener('touchmove',e=>{dd(e);de(e);},{passive:false});canvas.addEventListener('touchend',ed,{passive:false});
+}
+function setFixColor(c,btn){
+  currentFixColor=c;
+  document.querySelectorAll('#fixDrawToolbar .draw-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+}
+function resetFixDraw(){if(fixDrawCtx){const cv=document.getElementById('fixDrawCanvas');fixDrawCtx.clearRect(0,0,cv.width,cv.height);}hasFixDrawn=false;}
+
 function onFixPhotoSelected(input){
   if(!input.files[0])return;
   const reader=new FileReader();
   reader.onload=e=>{
     fixPhotoBase64=e.target.result;
-    const i=document.getElementById('fixPhotoPreview');i.src=e.target.result;i.style.display='block';
+    const img=document.getElementById('fixPhotoPreview');
+    img.src=e.target.result;img.style.display='block';
+    const canvas=document.getElementById('fixDrawCanvas');
+    img.onload=()=>{
+      canvas.width=img.naturalWidth||400;canvas.height=img.naturalHeight||300;
+      if(fixDrawCtx)fixDrawCtx.clearRect(0,0,canvas.width,canvas.height);
+      hasFixDrawn=false;
+    };
+    canvas.style.display='block';
+    document.getElementById('fixDrawToolbar').classList.add('show');
     document.getElementById('mustPhotoHint').classList.remove('show');
+    initFixDraw();
   };
   reader.readAsDataURL(input.files[0]);
+}
+
+// ★ 取得最終改善後照片（合併畫筆標記）
+function getFinalFixPhoto(){
+  return new Promise(resolve=>{
+    if(!fixPhotoBase64){resolve(null);return;}
+    if(!hasFixDrawn){resolve(fixPhotoBase64.replace(/^data:image\/\w+;base64,/,''));return;}
+    const img=document.getElementById('fixPhotoPreview');
+    const temp=document.createElement('canvas');
+    temp.width=img.naturalWidth||400;temp.height=img.naturalHeight||300;
+    const ctx=temp.getContext('2d');
+    ctx.drawImage(img,0,0,temp.width,temp.height);
+    ctx.drawImage(document.getElementById('fixDrawCanvas'),0,0,temp.width,temp.height);
+    resolve(temp.toDataURL('image/jpeg',0.72).replace(/^data:image\/\w+;base64,/,''));
+  });
 }
 
 /* ─── Get final photo (with drawing merged) ─── */
@@ -845,7 +908,11 @@ async function openDetail(d){
 
   // ★ Bug4: Show fix photo wrap only for 待改善
   document.getElementById('fixPhotoWrap').style.display=d.Status.includes('待改善')?'block':'none';
-  fixPhotoBase64=null;document.getElementById('fixPhotoPreview').style.display='none';
+  fixPhotoBase64=null;
+  document.getElementById('fixPhotoPreview').style.display='none';
+  document.getElementById('fixDrawCanvas').style.display='none';
+  document.getElementById('fixDrawToolbar').classList.remove('show');
+  resetFixDraw();fixDrawCtx=null; // 重置畫筆狀態
   document.getElementById('mustPhotoHint').classList.remove('show');
 
   const dualWrap=document.getElementById('dualPhotoWrap');
@@ -909,7 +976,7 @@ function closeDetail(){
 
 /* ★ Bug5 fix: updateStatus includes operatorId for server-side permission check */
 async function updateStatus(id,status){
-  let imgB64=null;if(fixPhotoBase64)imgB64=fixPhotoBase64.replace(/^data:image\/\w+;base64,/,'');
+  let imgB64=null;if(fixPhotoBase64)imgB64=await getFinalFixPhoto();
   try{
     const r=await apiFetch('/update-status',{method:'POST',body:JSON.stringify({id,status,operator:myUser||'現場人員',operatorId:lineId||myUserId,imageBase64:imgB64})});
     const res=await r.json();
