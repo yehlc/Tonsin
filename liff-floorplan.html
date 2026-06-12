@@ -283,8 +283,9 @@ const urlP=new URLSearchParams(window.location.search);
 const apiBase=urlP.get('api')||'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
 const initSite=decodeURIComponent(urlP.get('site')||'');
 const initFloor=decodeURIComponent(urlP.get('floor')||'');
-  const initHighlight = parseInt(urlP.get('highlight') || '0'); // ★ 新增：要高亮的缺失ID
-const initTab = urlP.get('tab') || 'map';                    // ★ 新增：開啟時預設分頁
+const initHighlight = parseInt(urlP.get('highlight') || '0');
+const initTab = urlP.get('tab') || 'map';
+let _highlightOpened = false; // ★ 防止 loadDefects 重複觸發時開啟兩次
 let myUser  = decodeURIComponent(urlP.get('user')  || '');
 const myUserId=urlP.get('userId')||'';
 let myLevel = parseFloat(urlP.get('level') || '2');
@@ -760,12 +761,10 @@ async function loadDefects(){
     const d=await r.json();allDefects=Array.isArray(d)?d:[];
     renderCanvas();updateStats();renderList();
     // ★ 若有 highlight 參數：自動切換到清單分頁並捲動到目標缺失
-    if(initHighlight){
-      switchTab('list');
-      setTimeout(()=>{
-        const card=document.getElementById('defect-card-'+initHighlight);
-        if(card) card.scrollIntoView({behavior:'smooth',block:'center'});
-      }, 400);
+    // ★ 若有 highlight 參數：直接開啟該缺失的詳細資料卡片
+    if(initHighlight && !_highlightOpened){
+      _highlightOpened = true;
+      setTimeout(()=>{ openDetailById(initHighlight); }, 450);
     } else if(initTab==='list'){
       switchTab('list');
     }
