@@ -1240,12 +1240,18 @@
         }
         // ★ 跨平台下載函式（同時支援 Android/iOS LIFF）
 async function downloadFile(url, filename) {
-    const btn = event && event.target ? event.target : null;
-    if(btn){ btn.disabled=true; btn.textContent='⏳ 準備中...'; }
+    // ★ 在 LINE LIFF 內（手機/平板 App）→ 強制用外部瀏覽器下載
+    // Android WebView 的 a.click() 不會真正存檔，只有外部 Chrome 才能正常下載
+    if (typeof liff !== 'undefined' && liff.isInClient()) {
+        liff.openWindow({ url: url, external: true });
+        showToast('📂 已開啟外部瀏覽器，請在瀏覽器中點下載');
+        return;
+    }
+
+    // 一般電腦瀏覽器：用 blob + <a download>
     try {
-        // 方法一：fetch → blob → <a download>（大多數情況可行）
-        const resp = await fetch(url, { headers: {'ngrok-skip-browser-warning':'true'} });
-        if(!resp.ok) throw new Error('伺服器錯誤 ' + resp.status);
+        const resp = await fetch(url, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+        if (!resp.ok) throw new Error('伺服器錯誤 ' + resp.status);
         const blob = await resp.blob();
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1254,22 +1260,10 @@ async function downloadFile(url, filename) {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(()=> URL.revokeObjectURL(blobUrl), 8000);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 8000);
         showToast('✅ 下載成功！');
-    } catch(e) {
-        // 方法二：fallback → 用 LIFF 開外部瀏覽器（Android 最穩定）
-        try {
-            if(typeof liff !== 'undefined' && liff.isInClient()){
-                liff.openWindow({ url: url, external: true });
-                showToast('📂 已在外部瀏覽器開啟下載');
-            } else {
-                window.location.href = url;
-            }
-        } catch(e2){
-            window.location.href = url;
-        }
-    } finally {
-        if(btn){ btn.disabled=false; btn.textContent=btn.dataset.origText||'下載'; }
+    } catch (e) {
+        window.location.href = url;
     }
 }
 
