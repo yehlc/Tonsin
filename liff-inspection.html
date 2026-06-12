@@ -309,9 +309,10 @@
         let hasSigned = false;
 
         liff.init({ liffId: myLiffId }).then(() => {
-            if (liff.isLoggedIn()) {
-                liff.getProfile().then(profile => { lineUserId = profile.userId; });
-            }
+            if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+    if (liff.isLoggedIn()) {
+        liff.getProfile().then(profile => { lineUserId = profile.userId; });
+    }
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
             currentFloor = decodeURIComponent(urlParams.get('floor') || "");
