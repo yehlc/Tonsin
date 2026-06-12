@@ -806,14 +806,6 @@ function renderList(){
         </div>
       </div>
     </div>`;
-      <div class="dc-inner">
-        <div class="dc-thumb-placeholder" id="thumb-wrap-${d.ID}">📷</div>
-        <div class="dc-content">
-          <div class="dc-hd"><div class="dc-title">${d.Description||'無說明'}</div><div class="dc-st" style="background:${bg};color:${tc}">${d.Status}</div></div>
-          <div class="dc-meta">🔧 ${d.Dept} | 📍 ${d.Floor}<br>👤 ${d.UserName} | 🕒 ${(d.TimeStamp||'').substring(0,16)}</div>
-        </div>
-      </div>
-    </div>`;
   }).join('');
   // 非同步載入縮圖：成功才替換，失敗保留 📷 佔位符
   f.forEach(d=>{
