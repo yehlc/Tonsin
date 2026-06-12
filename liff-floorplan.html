@@ -692,6 +692,12 @@ async function submitDefect(){
   if(!selectedDept){showToast('⚠️ 請選擇工程類別');return;}
   const desc=document.getElementById('defectDesc').value.trim();
   if(!desc){showToast('⚠️ 請填寫缺失說明');return;}
+  // ★ 強制拍照
+  if(!photoBase64){
+    showToast('📸 新增缺失必須先拍攝現場照片！');
+    document.getElementById('photoInput').click(); // 自動開啟相機
+    return;
+  }
   const xyCoord=hasPendingPin?`[座標] X:${pendingX}%, Y:${pendingY}%`:'略過';
   const btn=document.getElementById('btnSubmitDefect');btn.disabled=true;btn.textContent='⏳ 壓縮照片中...';
 
