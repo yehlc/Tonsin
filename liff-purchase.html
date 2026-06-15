@@ -123,6 +123,36 @@ textarea{height:90px;resize:vertical}
   <div id="prList"><div class="empty-state"><div class="icon">📭</div><p>載入中...</p></div></div>
 </div>
 
+<!-- ★ PR 詳情/審核面板（Slide-up） -->
+<div id="prReviewMask" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;" onclick="closePRReview()"></div>
+<div id="prReviewPanel" style="
+  position:fixed;bottom:0;left:0;right:0;
+  background:#fff;border-radius:16px 16px 0 0;
+  max-height:90vh;overflow-y:auto;z-index:201;
+  transform:translateY(100%);transition:transform .3s ease;
+  padding:0 0 30px;">
+  <!-- 標題列 -->
+  <div style="position:sticky;top:0;background:#1A6FA8;padding:14px 16px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;">
+    <span id="reviewPanelTitle" style="color:#fff;font-weight:700;font-size:16px;">📑 發包詳情</span>
+    <button onclick="closePRReview()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;">✕</button>
+  </div>
+  <!-- 內容區 -->
+  <div id="prReviewContent" style="padding:14px 16px;">載入中...</div>
+  <!-- 審核按鈕（有核准權才顯示） -->
+  <div id="prReviewActions" style="display:none;padding:0 16px 16px;display:flex;gap:10px;flex-direction:column;">
+    <button onclick="doReviewAction('APPROVE')" id="btnPRApprove" style="
+      padding:13px;border:none;border-radius:10px;
+      background:#1D7C4D;color:#fff;font-size:15px;font-weight:bold;cursor:pointer;">
+      ✅ 核准此發包請簽
+    </button>
+    <button onclick="doReviewAction('REJECT')" style="
+      padding:13px;border:none;border-radius:10px;
+      background:#e74c3c;color:#fff;font-size:15px;font-weight:bold;cursor:pointer;">
+      ❌ 退回並要求修改
+    </button>
+  </div>
+</div>
+
 <!-- Tab 3: 到場確認 -->
 <div class="page" id="page-delivery">
   <div class="card">
@@ -144,6 +174,13 @@ textarea{height:90px;resize:vertical}
 <!-- Tab 4: 發包狀態總覽 -->
 <div class="page" id="page-status">
   <!-- 統計列 -->
+  <!-- ★ 工地篩選（供主管查看特定工地）-->
+  <div style="padding:10px 14px 0;">
+    <select id="statusSiteFilter" onchange="loadStatusOverview()"
+      style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;color:#333;background:#fff;">
+      <option value="ALL">🏢 全部工地</option>
+    </select>
+  </div>
   <div id="statusSummary" style="display:flex;gap:8px;padding:10px 14px 0;flex-wrap:wrap;"></div>
   <!-- 篩選列 -->
   <div class="filter-row" id="statusFilterRow">
@@ -246,6 +283,11 @@ let lineUserId='', uploadedFiles=[], myPRs=[], currentStatusFilter='ALL';
 let ratingData={ quality:0, schedule:0, hse:0, comm:0 };
 
 liff.init({ liffId: LIFF_ID }).then(async () => {
+  // ★ 強制登入：PC/NB Desktop LINE 未登入時會跳到登入頁
+  if (!liff.isLoggedIn()) {
+    liff.login({ redirectUri: window.location.href });
+    return;
+  }
   if (liff.isLoggedIn()) {
     const p = await liff.getProfile();
     lineUserId = p.userId;
@@ -262,6 +304,7 @@ liff.init({ liffId: LIFF_ID }).then(async () => {
             myUser   = info.name;
             myRole   = info.role   || '';
             myUserId = lineUserId;
+            document.body.dataset.userLevel = info.level || '0'; // ★ 儲存 Level
             // 重建類別下拉（因為 myRole 有了）
             const catEl = document.getElementById('prCat');
             if (catEl) {
@@ -287,6 +330,8 @@ liff.init({ liffId: LIFF_ID }).then(async () => {
 });
 
 function initUI() {
+  // 儲存 Level 供審核按鈕判斷
+  document.body.dataset.userLevel = '0'; // 預設，auth 後會更新
   // 案場
   const siteEl = document.getElementById('prSite');
   SITE_LIST.forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=s; siteEl.appendChild(o); });
@@ -423,6 +468,14 @@ async function submitPR() {
       }
     }
 
+    // ★ 附件全部上傳完後，呼叫後端發送含附件的完整 LINE 通知
+    if (!isEditMode && res.requestNo) {
+      apiFetch('/purchase/send-pr-notify', {
+        method: 'POST',
+        body: JSON.stringify({ requestNo: res.requestNo })
+      }).catch(() => {}); // 非同步，失敗不影響主流程
+    }
+
     // 重置 edit mode
     btn.dataset.editMode = '';
     btn.dataset.editPrId = '';
@@ -481,7 +534,7 @@ function renderPRList() {
       else if (st.level===curStage){cls='chain-current';icon='⧖';}
       return `<span class="chain-node ${cls}">${icon} ${st.name}</span>`;
     }).join('<span class="chain-arrow">›</span>');
-    return `<div class="pr-card">
+    return `<div class="pr-card" onclick="openPRReview('${pr.RequestID}')" style="cursor:pointer;">
       <div class="pr-card-header"><div class="pr-card-title">${pr.ItemName}</div><div class="pr-status-badge ${s.cls}">${s.txt}</div></div>
       <div class="pr-card-body">
         <div>📍 ${pr.SiteName} | 📅 ${pr.CreatedAt?(pr.CreatedAt+'').substring(0,10):'-'}</div>
@@ -517,13 +570,146 @@ async function submitDelivery() {
 // ─── 發包總覽 ───────────────────────────────────────────────────
 let allStatusPRs = [], statusFilter = 'ALL';
 
+// ─── PR 詳情/審核面板 ────────────────────────────────────────────
+let currentReviewPrId = null;
+
+async function openPRReview(prId) {
+  currentReviewPrId = prId;
+  document.getElementById('prReviewMask').style.display  = 'block';
+  const panel = document.getElementById('prReviewPanel');
+  panel.style.transform = 'translateY(0)';
+  document.getElementById('prReviewContent').innerHTML = '⏳ 載入中...';
+  document.getElementById('prReviewActions').style.display = 'none';
+
+  try {
+    const r = await apiFetch(`/purchase/pr-detail?id=${encodeURIComponent(prId)}`);
+    const res = await r.json();
+    if (!res.success) throw new Error(res.error);
+    const pr  = res.data;
+    const isElec    = pr.IsElecCategory === true || pr.IsElecCategory === 1;
+    const chainStages = getChainStages(isElec);
+    const curStage    = parseFloat(pr.CurrentStage || 3);
+    const isDone      = pr.Status === 'APPROVED';
+
+    // 簽核鏈 HTML
+    const chainHtml = chainStages.map(st => {
+      let cls = 'chain-future', icon = '○';
+      if (isDone || st.level < curStage) { cls='chain-done'; icon='✓'; }
+      else if (st.level === curStage)    { cls='chain-current'; icon='⧖'; }
+      if (pr.Status==='REJECTED' && st.level===curStage) { cls='chain-rejected'; icon='✗'; }
+      return `<span class="chain-node ${cls}">${icon} ${st.name}</span>`;
+    }).join('<span class="chain-arrow">›</span>');
+
+    // 狀態顏色
+    const stColors = { PENDING:'#ff9800', APPROVED:'#1D7C4D', REJECTED:'#e74c3c' };
+    const stLabels = { PENDING:'審核中', APPROVED:'已發包', REJECTED:'已退回' };
+    const stColor  = stColors[pr.Status] || '#888';
+    const stLabel  = stLabels[pr.Status]  || pr.Status;
+
+    // 附件清單
+    const attHtml = (pr.Attachments||[]).length > 0
+      ? `<div style="margin-top:12px;padding:10px;background:#f0f7ff;border-radius:8px;">
+           <div style="font-size:12px;font-weight:700;color:#1A6FA8;margin-bottom:8px;">📎 附件（${pr.Attachments.length} 個）</div>
+           ${pr.Attachments.map(a => `
+             <a href="${apiBase}/attachment/${a.ID}" target="_blank" style="
+               display:block;padding:8px 10px;margin-bottom:5px;
+               background:#fff;border:1px solid #c5dcf5;border-radius:6px;
+               font-size:13px;color:#1A6FA8;text-decoration:none;">
+               📄 ${a.FileName}
+             </a>`).join('')}
+         </div>`
+      : `<div style="margin-top:8px;font-size:12px;color:#999;">（無附件）</div>`;
+
+    document.getElementById('reviewPanelTitle').textContent = `📑 ${pr.ItemName}`;
+    document.getElementById('prReviewContent').innerHTML = `
+      <div style="display:inline-block;padding:4px 12px;border-radius:20px;
+           background:${stColor}22;color:${stColor};font-weight:700;font-size:13px;margin-bottom:12px;">
+        ${stLabel}
+      </div>
+      <div style="display:grid;gap:8px;font-size:13px;">
+        <div style="display:flex;gap:8px;"><span style="color:#888;width:60px;">🏢 案場</span><strong>${pr.SiteName}</strong></div>
+        <div style="display:flex;gap:8px;"><span style="color:#888;width:60px;">📦 項目</span><strong>${pr.ItemName}</strong></div>
+        <div style="display:flex;gap:8px;"><span style="color:#888;width:60px;">🔧 分類</span><span>${pr.Category} / ${pr.SubCat}</span></div>
+        <div style="display:flex;gap:8px;"><span style="color:#888;width:60px;">🆔 單號</span><span style="color:#1A6FA8;">${pr.RequestID}</span></div>
+        <div style="display:flex;gap:8px;"><span style="color:#888;width:60px;">👤 申請</span><span>${pr.ApplicantName||'-'}</span></div>
+        <div style="display:flex;gap:8px;"><span style="color:#888;width:60px;">📅 日期</span><span>${(pr.CreatedAt||'').substring(0,10)}</span></div>
+      </div>
+      <div style="margin-top:12px;padding:10px;background:#f5f5f5;border-radius:8px;font-size:13px;color:#333;line-height:1.6;">
+        <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:5px;">📝 規格/數量/備註</div>
+        ${pr.Details || '（無說明）'}
+      </div>
+      ${pr.RejectReason ? `<div style="margin-top:8px;padding:10px;background:#fff5f5;border-left:3px solid #e74c3c;border-radius:6px;font-size:12px;color:#c62828;">🛑 退回原因：${pr.RejectReason}</div>` : ''}
+      <div style="margin-top:12px;"><div style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px;">📋 審核鏈</div>
+        <div class="pr-chain">${chainHtml}</div>
+      </div>
+      ${attHtml}`;
+
+    // 判斷是否顯示核准/退回按鈕（Level >= 3 且 PR 狀態 PENDING 且 CurrentStage 等於自己的 Level）
+    const userLevel = parseFloat(document.body.dataset.userLevel || '0');
+    const canReview = pr.Status === 'PENDING' && userLevel > 0 && Math.abs(userLevel - curStage) < 0.1;
+    document.getElementById('prReviewActions').style.display = canReview ? 'flex' : 'none';
+
+  } catch(e) {
+    document.getElementById('prReviewContent').innerHTML = `<div style="color:#e74c3c;">❌ 載入失敗：${e.message}</div>`;
+  }
+}
+
+function closePRReview() {
+  document.getElementById('prReviewMask').style.display = 'none';
+  document.getElementById('prReviewPanel').style.transform = 'translateY(100%)';
+  currentReviewPrId = null;
+}
+
+async function doReviewAction(action) {
+  if (!currentReviewPrId) return;
+  const reason = action === 'REJECT' ? prompt('請輸入退回原因：') : null;
+  if (action === 'REJECT' && !reason) return;
+
+  try {
+    const r = await apiFetch('/pr-action', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'review',
+        requestNo: currentReviewPrId,
+        status: action === 'APPROVE' ? 'APPROVE' : 'REJECTED',
+        reviewer: myUser,
+        reviewerRole: myRole,
+        rejectReason: reason || ''
+      })
+    });
+    const res = await r.json();
+    if (!res.success) throw new Error(res.error);
+    showToast(action === 'APPROVE' ? '✅ 已核准，通知下一關' : '❌ 已退回，已通知申請人');
+    closePRReview();
+    loadMyPRs();
+    if (document.getElementById('page-status').classList.contains('active')) loadStatusOverview();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+  
 async function loadStatusOverview() {
   document.getElementById('statusList').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>載入中...</p></div>';
   try {
-    const r = await apiFetch(`/purchase/all-status?userId=${lineUserId||myUserId}`);
+    const siteSel = document.getElementById('statusSiteFilter');
+    const siteFilter = siteSel ? siteSel.value : 'ALL';
+    const r = await apiFetch(`/purchase/all-status?userId=${lineUserId||myUserId}&site=${encodeURIComponent(siteFilter)}`);
     const res = await r.json();
     if (!res.success) throw new Error(res.error);
     allStatusPRs = res.data || [];
+
+    // ★ 自動填充工地下拉（第一次載入時）
+    const siteSel2 = document.getElementById('statusSiteFilter');
+    if (siteSel2 && siteSel2.options.length <= 1) {
+      const sites = [...new Set(allStatusPRs.map(p => p.SiteName).filter(Boolean))].sort();
+      sites.forEach(s => {
+        const o = document.createElement('option'); o.value = s; o.textContent = '📍 ' + s; siteSel2.appendChild(o);
+      });
+    }
+
+    // ★ 套用工地篩選
+    const siteFilter2 = siteSel2 ? siteSel2.value : 'ALL';
+    if (siteFilter2 !== 'ALL') {
+      allStatusPRs = allStatusPRs.filter(p => p.SiteName === siteFilter2);
+    }
     renderStatusSummary();
     renderStatusList();
   } catch(e) { document.getElementById('statusList').innerHTML = `<div class="empty-state"><p>❌ ${e.message}</p></div>`; }
