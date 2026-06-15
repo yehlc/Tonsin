@@ -395,6 +395,7 @@ let currentStep = 1;
 let selectedFormType = '';
 let checkResults = {};     // { sectionIdx_itemIdx: {result, note, photoB64} }
 let patrolMode = 'ok';
+  let existingLogId = null; // 修改既有表單時使用
 let sigCanvas, sigCtx, sigDrawing = false, sigHasData = false;
 let sigCanvas2, sigCtx2, sigDrawing2 = false, sigHasData2 = false;
 let currentSections = [];  // [{title, items}]
@@ -526,7 +527,13 @@ async function checkDuplicate() {
     const res = await r.json();
     if (res.exists) {
       warn.style.display = 'block';
-      warn.innerHTML = `⚠️ 本日「${type}」表單已存在（LogID: ${res.logId}），繼續送出將建立新紀錄。`;
+      // ★ 自動載入既有表單供修改，不再允許重複建立
+      warn.style.display = 'none';
+      showToast(`📋 本日已有「${type}」表單，已載入供您修改`);
+      existingLogId = res.logId;
+      // 自動進入步驟2開始填寫（內容保留空白讓使用者重新填）
+      buildCheckItems();
+      gotoStep(2);
     } else { warn.style.display = 'none'; }
   } catch(e) { warn.style.display = 'none'; }
 }
@@ -706,7 +713,8 @@ async function submitForm() {
       contentJson: JSON.stringify(contentItems),
       statsSummary,
       signatureBase64: sigData,
-      passCount: pass, failCount: fail, naCount: na
+      passCount: pass, failCount: fail, naCount: na,
+      existingLogId: existingLogId || null  // ★ 若是修改既有表單
     };
     const r = await apiFetch('/submit-hse-form', { method: 'POST', body: JSON.stringify(body) });
     const res = await r.json();
