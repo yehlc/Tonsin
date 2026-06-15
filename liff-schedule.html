@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>驗屋預約排班</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+:root{--p:#8e44ad;--pl:#ede9ff;--text:#1A2F4B;--muted:#888;--bg:#f8f6ff;--card:#fff;--bd:#d9d0ea;--rad:12px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'PingFang TC','Noto Sans TC',sans-serif;background:var(--bg);min-height:100vh;}
+.header{background:var(--p);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+.header h1{font-size:16px;font-weight:700;flex:1;}
+/* Site selector */
+.site-bar{background:#fff;padding:10px;border-bottom:1px solid var(--bd);display:flex;gap:8px;align-items:center;}
+.site-bar select{flex:1;padding:8px;border:1px solid var(--bd);border-radius:8px;font-size:14px;}
+/* Calendar */
+.calendar{background:#fff;padding:12px;border-bottom:1px solid var(--bd);}
+.cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.cal-nav button{background:none;border:none;font-size:20px;cursor:pointer;color:var(--p);padding:4px 10px;}
+.cal-nav h2{font-size:15px;font-weight:700;color:var(--text);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-day-name{text-align:center;font-size:11px;color:var(--muted);padding:4px 0;font-weight:600;}
+.cal-day{text-align:center;padding:6px 2px;border-radius:8px;font-size:13px;cursor:pointer;min-height:38px;position:relative;}
+.cal-day.other{color:#ccc;}
+.cal-day.today{background:#ede9ff;font-weight:700;color:var(--p);}
+.cal-day.selected{background:var(--p);color:#fff !important;}
+.cal-day .dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--p);}
+.cal-day.selected .dot{background:#fff;}
+/* Unit list */
+.unit-list{padding:10px;display:flex;flex-direction:column;gap:8px;padding-bottom:30px;}
+.unit-card{background:var(--card);border-radius:var(--rad);padding:12px;box-shadow:0 1px 3px rgba(142,68,173,.1);border:1px solid var(--bd);cursor:pointer;}
+.unit-name{font-size:15px;font-weight:700;color:var(--text);}
+.unit-info{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:var(--muted);}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.b-wait{background:#fff3e0;color:#e65100;}
+.b-confirm{background:var(--pl);color:var(--p);}
+.b-done{background:#e8f8ee;color:#1D7C4D;}
+/* Edit panel */
+#emask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;}
+#epanel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;padding:0 0 30px;z-index:201;transform:translateY(100%);transition:transform .3s;}
+.ph{position:sticky;top:0;background:var(--p);padding:14px 16px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;}
+.ph h2{color:#fff;font-size:15px;font-weight:700;}
+.ph button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;}
+.pb{padding:14px;}
+.fg{margin-bottom:12px;}
+.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;}
+input,select,textarea{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;}
+.btn{width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;}
+.btn-p{background:var(--p);color:#fff;}
+.summary-chips{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;background:#fff;border-bottom:1px solid var(--bd);}
+.sum-chip{padding:5px 12px;border-radius:20px;font-size:12px;border:1px solid var(--bd);white-space:nowrap;color:var(--muted);background:#fff;}
+#globalLoader{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:999;font-size:24px;}
+</style>
+</head>
+<body>
+<div id="globalLoader">⏳</div>
+<div class="header">
+  <span style="font-size:20px;">🏠</span>
+  <h1>驗屋預約排班</h1>
+</div>
+
+<div class="site-bar">
+  <select id="sSite" onchange="onSiteChange()">
+    <option value="">— 選擇案場 —</option>
+  </select>
+</div>
+
+<div class="calendar" id="calSection" style="display:none;">
+  <div class="cal-nav">
+    <button onclick="prevMonth()">‹</button>
+    <h2 id="calTitle"></h2>
+    <button onclick="nextMonth()">›</button>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+</div>
+
+<div class="summary-chips" id="summaryChips" style="display:none;"></div>
+<div class="unit-list" id="unitList"></div>
+
+<!-- 編輯預約面板 -->
+<div id="emask" onclick="closeEdit()"></div>
+<div id="epanel">
+  <div class="ph"><h2 id="editTitle">編輯預約</h2><button onclick="closeEdit()">✕</button></div>
+  <div class="pb">
+    <input type="hidden" id="editId">
+    <div style="background:var(--pl);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--p);" id="editInfo"></div>
+    <div class="fg"><label class="fl">預約日期</label><input type="date" id="editDate"></div>
+    <div class="fg"><label class="fl">預約時間</label>
+      <select id="editTime">
+        <option value="">— 選擇時段 —</option>
+        <option>09:00~10:00</option><option>10:00~11:00</option><option>11:00~12:00</option>
+        <option>13:30~14:30</option><option>14:30~15:30</option><option>15:30~16:30</option>
+        <option>自訂</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">狀態</label>
+      <select id="editStatus">
+        <option value="待預約">待預約</option>
+        <option value="已預約">已預約</option>
+        <option value="已確認">已確認</option>
+        <option value="已驗屋">已驗屋</option>
+        <option value="改期">改期</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">備註</label><textarea id="editNotes" placeholder="特殊注意事項..."></textarea></div>
+    <button class="btn btn-p" id="btnSaveEdit" onclick="saveEdit()">💾 儲存預約資訊</button>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;"></div>
+
+<script>
+const LIFF_ID = "2009287087-4LSCRAq4";
+const urlP    = new URLSearchParams(window.location.search);
+const apiBase = urlP.get('api') || 'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
+const SITE_LIST = ["98工地","99工地","95工地","鼎隆大苑","毅聯R8","毅聯寧夏","廣宇江南","內湖富樂群","中壢映象","測試工地"];
+let lineId='', curSite='', curYear=new Date().getFullYear(), curMonth=new Date().getMonth()+1;
+let selectedDate='', calData={}, allUnits=[];
+
+liff.init({ liffId: LIFF_ID }).then(async () => {
+  if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+  const p = await liff.getProfile(); lineId = p.userId;
+  // 填充案場
+  const sel = document.getElementById('sSite');
+  SITE_LIST.forEach(s => { const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
+  const initSite = decodeURIComponent(urlP.get('site')||'');
+  if (initSite) { sel.value=initSite; onSiteChange(); }
+  document.getElementById('globalLoader').style.display = 'none';
+}).catch(() => { document.getElementById('globalLoader').style.display='none'; });
+
+async function onSiteChange() {
+  curSite = document.getElementById('sSite').value;
+  if (!curSite) return;
+  document.getElementById('calSection').style.display = 'block';
+  document.getElementById('summaryChips').style.display = 'flex';
+  await loadCalendar();
+  // Show all units initially
+  loadUnitsForDate(null);
+}
+
+async function loadCalendar() {
+  try {
+    const r = await apiFetch(`/schedule/calendar?site=${encodeURIComponent(curSite)}&year=${curYear}&month=${curMonth}`);
+    const res = await r.json();
+    calData = {};
+    (res.data||[]).forEach(d => { calData[d.Date] = d; });
+    renderCalendar();
+  } catch(e){}
+}
+
+function renderCalendar() {
+  const title = document.getElementById('calTitle');
+  title.textContent = `${curYear} 年 ${curMonth} 月`;
+  const grid = document.getElementById('calGrid');
+
+  const dayNames = ['日','一','二','三','四','五','六'];
+  let html = dayNames.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+
+  const firstDay = new Date(curYear, curMonth-1, 1).getDay();
+  const lastDate = new Date(curYear, curMonth, 0).getDate();
+  const today    = new Date().toISOString().split('T')[0];
+
+  for (let i=0; i<firstDay; i++) html += `<div class="cal-day other"></div>`;
+  for (let d=1; d<=lastDate; d++) {
+    const dateStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const info = calData[dateStr];
+    const cls  = [
+      'cal-day',
+      dateStr === today ? 'today' : '',
+      dateStr === selectedDate ? 'selected' : ''
+    ].filter(Boolean).join(' ');
+    html += `<div class="${cls}" onclick="selectDate('${dateStr}')">${d}${info?`<div class="dot"></div>`:''}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+async function loadUnitsForDate(date) {
+  const el = document.getElementById('unitList');
+  el.innerHTML = '<div style="text-align:center;padding:20px;font-size:18px;">⏳</div>';
+  try {
+    const url = date
+      ? `/schedule/list?site=${encodeURIComponent(curSite)}&date=${date}`
+      : `/schedule/list?site=${encodeURIComponent(curSite)}`;
+    const r = await apiFetch(url);
+    const res = await r.json();
+    allUnits = res.data || [];
+    renderUnits(allUnits);
+    renderSummaryChips(allUnits);
+  } catch(e) { el.innerHTML=`<p style="text-align:center;padding:20px;color:#e74c3c;">❌ ${e.message}</p>`; }
+}
+
+function renderSummaryChips(units) {
+  const counts = { '待預約':0, '已預約':0, '已確認':0, '已驗屋':0 };
+  units.forEach(u => { if(counts[u.AppointmentStatus]!==undefined) counts[u.AppointmentStatus]++; });
+  document.getElementById('summaryChips').innerHTML = Object.entries(counts).map(([k,v])=>
+    `<div class="sum-chip">🏠 ${k}: ${v} 戶</div>`).join('');
+}
+
+function renderUnits(units) {
+  const el = document.getElementById('unitList');
+  if (!units.length) { el.innerHTML='<p style="text-align:center;padding:40px;color:#888;">暫無預約資料</p>'; return; }
+  const stMap = { '待預約':'b-wait', '已預約':'b-confirm', '已確認':'b-confirm', '已驗屋':'b-done', '改期':'b-wait' };
+  el.innerHTML = units.map(u => `
+    <div class="unit-card" onclick="openEdit(${u.ID})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="unit-name">${u.CustomerName||'-'}</div>
+        <span class="badge ${stMap[u.AppointmentStatus]||'b-wait'}">${u.AppointmentStatus||'待預約'}</span>
+      </div>
+      <div class="unit-info">
+        <span>🏢 ${u.Floor}F ${u.Room}戶</span>
+        ${u.CustomerPhone?`<span>📞 ${u.CustomerPhone}</span>`:''}
+        ${u.ParkingSpace?`<span>🅿️ ${u.ParkingSpace}</span>`:''}
+        ${u.AppointmentDate?`<span>📅 ${u.AppointmentDate} ${u.AppointmentTime||''}</span>`:
+          '<span style="color:#e74c3c;">📅 尚未預約</span>'}
+        ${u.Notes?`<span>📝 ${u.Notes}</span>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function selectDate(date) {
+  if (selectedDate === date) { selectedDate=''; loadUnitsForDate(null); }
+  else { selectedDate=date; loadUnitsForDate(date); }
+  renderCalendar();
+}
+
+function prevMonth() { curMonth--; if(curMonth<1){curMonth=12;curYear--;} loadCalendar(); }
+function nextMonth() { curMonth++; if(curMonth>12){curMonth=1;curYear++;} loadCalendar(); }
+
+function openEdit(id) {
+  const u = allUnits.find(u=>u.ID===id);
+  if (!u) return;
+  document.getElementById('editId').value      = id;
+  document.getElementById('editTitle').textContent = `${u.Floor}F ${u.Room}戶 — ${u.CustomerName||''}`;
+  document.getElementById('editInfo').innerHTML =
+    `${u.CustomerName||''} ${u.CustomerPhone||''}<br>${u.ParkingSpace?`🅿️ ${u.ParkingSpace}`:''}`;
+  document.getElementById('editDate').value   = u.AppointmentDate || '';
+  document.getElementById('editTime').value   = u.AppointmentTime || '';
+  document.getElementById('editStatus').value = u.AppointmentStatus || '待預約';
+  document.getElementById('editNotes').value  = u.Notes || '';
+  document.getElementById('emask').style.display = 'block';
+  document.getElementById('epanel').style.transform = 'translateY(0)';
+}
+
+function closeEdit() {
+  document.getElementById('emask').style.display = 'none';
+  document.getElementById('epanel').style.transform = 'translateY(100%)';
+}
+
+async function saveEdit() {
+  const id     = document.getElementById('editId').value;
+  const date   = document.getElementById('editDate').value;
+  const time   = document.getElementById('editTime').value;
+  const status = document.getElementById('editStatus').value;
+  const notes  = document.getElementById('editNotes').value;
+  const btn = document.getElementById('btnSaveEdit');
+  btn.disabled=true; btn.textContent='⏳ 儲存中...';
+  try {
+    await apiFetch('/schedule/update', { method:'POST', body:JSON.stringify({
+      id:parseInt(id), appointmentDate:date||null, appointmentTime:time, appointmentStatus:status, notes
+    })});
+    showToast('✅ 預約已更新');
+    closeEdit();
+    await loadCalendar();
+    loadUnitsForDate(selectedDate||null);
+  } catch(e) { showToast('❌ '+e.message); }
+  finally { btn.disabled=false; btn.textContent='💾 儲存預約資訊'; }
+}
+
+async function apiFetch(path, opts={}) {
+  const r = await fetch(apiBase+path, { ...opts, headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true',...(opts.headers||{})} });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r;
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.opacity='1'; t.style.transform='translateX(-50%) translateY(0)';
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(20px)'; }, 2800);
+}
+</script>
+</body>
+</html>
