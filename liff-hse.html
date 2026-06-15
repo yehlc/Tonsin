@@ -201,16 +201,17 @@ select, input[type=date], input[type=text], textarea {
     <div class="sum-cell c-na">  <span class="sum-num" id="cntNA">0</span>  <span class="sum-label">— 不適用</span></div>
     <div class="sum-cell c-tot"><span class="sum-num" id="cntTot">0</span> <span class="sum-label">📋 總計</span></div>
   </div>
-  <div id="checkArea"></div>
-    <div style="padding:8px 14px 0 14px;">
+  <!-- ★ 一鍵全部符合：固定在統計列正下方，進入表單就看得到 -->
+  <div style="padding:8px 14px 2px 14px;">
     <button onclick="setAllPass()" style="
-      width:100%; padding:12px; border:none; border-radius:10px;
+      width:100%; padding:11px; border:none; border-radius:10px;
       background:linear-gradient(135deg,#1D7C4D,#27ae60);
       color:#fff; font-size:15px; font-weight:bold; letter-spacing:.5px;
       box-shadow:0 3px 8px rgba(29,124,77,.35); cursor:pointer;">
-      ✅ 一鍵全部符合
+      ✅ 一鍵全部符合（空白項目）
     </button>
   </div>
+  <div id="checkArea"></div>
   <button class="btn-float" onclick="goStep3()">下一步 ➜ 簽名送出</button>
 </div>
 
