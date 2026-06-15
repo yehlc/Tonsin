@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>廠商資料庫</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+:root{--p:#00b894;--pd:#00816a;--light:#e8f8f3;--text:#1A2F4B;--muted:#888;--bg:#f0f7f5;--bd:#d5ece5;--rad:12px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'PingFang TC','Noto Sans TC',sans-serif;background:var(--bg);min-height:100vh;}
+.header{background:var(--p);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+.header h1{font-size:16px;font-weight:700;flex:1;}
+.header .add-btn{padding:6px 14px;background:#fff;color:var(--pd);border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;}
+.search-bar{background:#fff;padding:10px;border-bottom:1px solid var(--bd);}
+.search-bar input{width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-size:14px;}
+.cat-filter{display:flex;overflow-x:auto;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid var(--bd);}
+.chip{padding:5px 12px;border-radius:20px;font-size:12px;border:1px solid var(--bd);cursor:pointer;white-space:nowrap;background:#fff;color:var(--muted);}
+.chip.active{background:var(--p);color:#fff;border-color:var(--p);}
+.vendor-list{padding:10px;display:flex;flex-direction:column;gap:8px;}
+.vcard{background:#fff;border-radius:var(--rad);padding:14px;box-shadow:0 1px 3px rgba(0,184,148,.1);border:1px solid var(--bd);cursor:pointer;}
+.vcard-name{font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.vcard-cat{font-size:11px;background:var(--light);color:var(--pd);padding:2px 8px;border-radius:10px;font-weight:600;}
+.vcard-info{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:12px;color:var(--muted);}
+.stars{color:#f0c000;font-size:13px;}
+/* Form Panel */
+#fmask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;}
+#fpanel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;max-height:92vh;overflow-y:auto;z-index:201;transform:translateY(100%);transition:transform .3s;}
+.ph{position:sticky;top:0;background:var(--p);padding:14px 16px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;}
+.ph h2{color:#fff;font-size:15px;font-weight:700;}
+.ph button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;}
+.pb{padding:14px;}
+.fg{margin-bottom:12px;}
+.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;}
+input,select,textarea{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;background:#fafffe;}
+textarea{height:70px;resize:vertical;}
+.btn{width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;}
+.btn-p{background:var(--p);color:#fff;}
+.btn-del{background:#fff;color:#e74c3c;border:1.5px solid #e74c3c;margin-top:8px;}
+.star-sel{display:flex;gap:6px;margin-top:4px;}
+.star-sel span{font-size:24px;cursor:pointer;opacity:.4;transition:opacity .15s;}
+.star-sel span.lit{opacity:1;}
+#globalLoader{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:999;font-size:24px;}
+</style>
+</head>
+<body>
+<div id="globalLoader">⏳</div>
+<div class="header">
+  <span style="font-size:20px;">🏭</span>
+  <h1>廠商資料庫</h1>
+  <button class="add-btn" onclick="openForm(null)">➕ 新增廠商</button>
+</div>
+<div class="search-bar">
+  <input type="text" id="vSearch" placeholder="🔍 搜尋廠商名稱..." oninput="renderVendors()">
+</div>
+<div class="cat-filter" id="catFilter">
+  <div class="chip active" onclick="filterCat('ALL',this)">全部</div>
+  <div class="chip" onclick="filterCat('基礎工程',this)">基礎</div>
+  <div class="chip" onclick="filterCat('結構工程',this)">結構</div>
+  <div class="chip" onclick="filterCat('泥作工程',this)">泥作</div>
+  <div class="chip" onclick="filterCat('裝修工程',this)">裝修</div>
+  <div class="chip" onclick="filterCat('水電空調工程',this)">水電</div>
+  <div class="chip" onclick="filterCat('雜項工程',this)">雜項</div>
+</div>
+<div class="vendor-list" id="vendorList"></div>
+
+<!-- 詳情/編輯面板 -->
+<div id="fmask" onclick="closeForm()"></div>
+<div id="fpanel">
+  <div class="ph"><h2 id="formTitle">新增廠商</h2><button onclick="closeForm()">✕</button></div>
+  <div class="pb">
+    <input type="hidden" id="fId">
+    <div class="fg"><label class="fl">廠商名稱 *</label><input type="text" id="fName" placeholder="廠商全名"></div>
+    <div class="fg"><label class="fl">工程分類 *</label>
+      <select id="fCat">
+        <option value="">— 選擇分類 —</option>
+        <option>基礎工程</option><option>結構工程</option><option>泥作工程</option>
+        <option>裝修工程</option><option>水電空調工程</option><option>雜項工程</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">聯絡人</label><input type="text" id="fContact" placeholder="負責人姓名"></div>
+    <div class="fg"><label class="fl">聯絡電話</label><input type="tel" id="fPhone" placeholder="0912-345-678"></div>
+    <div class="fg"><label class="fl">Email</label><input type="email" id="fEmail" placeholder="vendor@example.com"></div>
+    <div class="fg"><label class="fl">統一編號</label><input type="text" id="fTax" placeholder="12345678"></div>
+    <div class="fg"><label class="fl">地址</label><input type="text" id="fAddr" placeholder="公司地址"></div>
+    <div class="fg"><label class="fl">備註</label><textarea id="fNotes" placeholder="合作經驗、注意事項..."></textarea></div>
+    <div class="fg" id="ratingBlock" style="display:none;">
+      <label class="fl">⭐ 本次合作評分</label>
+      <div class="star-sel" id="starSel">
+        <span onclick="setStar(1)">★</span><span onclick="setStar(2)">★</span>
+        <span onclick="setStar(3)">★</span><span onclick="setStar(4)">★</span><span onclick="setStar(5)">★</span>
+      </div>
+    </div>
+    <button class="btn btn-p" id="btnSave" onclick="saveVendor()">💾 儲存廠商資料</button>
+    <button class="btn btn-del" id="btnDel" style="display:none;" onclick="deleteVendor()">🗑 刪除此廠商</button>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;"></div>
+
+<script>
+const LIFF_ID = "2009287087-4LSCRAq4";
+const urlP    = new URLSearchParams(window.location.search);
+const apiBase = urlP.get('api') || 'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
+let lineId='', allVendors=[], catFilter='ALL', starScore=0;
+
+liff.init({ liffId: LIFF_ID }).then(async () => {
+  if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+  const p = await liff.getProfile(); lineId = p.userId;
+  document.getElementById('globalLoader').style.display = 'none';
+  loadVendors();
+}).catch(() => { document.getElementById('globalLoader').style.display='none'; });
+
+async function loadVendors() {
+  try {
+    const r = await apiFetch('/vendors');
+    const res = await r.json();
+    allVendors = res.success ? res.data : [];
+    renderVendors();
+  } catch(e) { document.getElementById('vendorList').innerHTML = `<p style="text-align:center;padding:40px;color:#e74c3c;">❌ ${e.message}</p>`; }
+}
+
+function filterCat(cat, el) {
+  catFilter = cat;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderVendors();
+}
+
+function renderVendors() {
+  const q = document.getElementById('vSearch').value.toLowerCase();
+  let list = catFilter==='ALL' ? allVendors : allVendors.filter(v=>v.Category===catFilter);
+  if (q) list = list.filter(v=>v.VendorName.toLowerCase().includes(q)||(v.ContactPerson||'').toLowerCase().includes(q));
+  const el = document.getElementById('vendorList');
+  if (!list.length) { el.innerHTML='<p style="text-align:center;padding:40px;color:#888;">暫無廠商資料</p>'; return; }
+
+  el.innerHTML = list.map(v => {
+    const stars = '★'.repeat(Math.round(v.Rating||0)) + '☆'.repeat(5-Math.round(v.Rating||0));
+    return `<div class="vcard" onclick="openForm(${JSON.stringify(v).replace(/"/g,'&quot;')})">
+      <div class="vcard-name">
+        ${v.VendorName}
+        <span class="vcard-cat">${v.Category||'未分類'}</span>
+      </div>
+      <div class="vcard-info">
+        ${v.ContactPerson?`<span>👤 ${v.ContactPerson}</span>`:''}
+        ${v.Phone?`<span>📞 ${v.Phone}</span>`:''}
+        ${v.Email?`<span>✉️ ${v.Email}</span>`:''}
+        ${v.Rating>0?`<span class="stars" style="font-size:11px;">${stars} ${v.Rating.toFixed(1)}(${v.RatingCount}次)</span>`:''}
+      </div>
+      ${v.Notes?`<div style="font-size:12px;color:#888;margin-top:6px;border-top:1px solid #f0f0f0;padding-top:6px;">${v.Notes}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function openForm(vendor) {
+  const isNew = !vendor;
+  document.getElementById('formTitle').textContent = isNew ? '新增廠商' : '編輯廠商';
+  document.getElementById('fId').value      = isNew ? '' : vendor.VendorID;
+  document.getElementById('fName').value    = isNew ? '' : vendor.VendorName;
+  document.getElementById('fCat').value     = isNew ? '' : (vendor.Category||'');
+  document.getElementById('fContact').value = isNew ? '' : (vendor.ContactPerson||'');
+  document.getElementById('fPhone').value   = isNew ? '' : (vendor.Phone||'');
+  document.getElementById('fEmail').value   = isNew ? '' : (vendor.Email||'');
+  document.getElementById('fTax').value     = isNew ? '' : (vendor.TaxID||'');
+  document.getElementById('fAddr').value    = isNew ? '' : (vendor.Address||'');
+  document.getElementById('fNotes').value   = isNew ? '' : (vendor.Notes||'');
+  document.getElementById('btnDel').style.display  = isNew ? 'none' : 'block';
+  document.getElementById('ratingBlock').style.display = isNew ? 'none' : 'block';
+  starScore = 0; setStar(0);
+  document.getElementById('fmask').style.display = 'block';
+  document.getElementById('fpanel').style.transform = 'translateY(0)';
+}
+
+function closeForm() {
+  document.getElementById('fmask').style.display = 'none';
+  document.getElementById('fpanel').style.transform = 'translateY(100%)';
+}
+
+function setStar(n) {
+  starScore = n;
+  document.querySelectorAll('#starSel span').forEach((s,i)=>s.classList.toggle('lit',i<n));
+}
+
+async function saveVendor() {
+  const name = document.getElementById('fName').value.trim();
+  const cat  = document.getElementById('fCat').value;
+  if (!name||!cat) { showToast('⚠️ 請填寫廠商名稱和分類'); return; }
+  const id = document.getElementById('fId').value;
+  const btn = document.getElementById('btnSave');
+  btn.disabled=true; btn.textContent='⏳ 儲存中...';
+  try {
+    await apiFetch('/vendors/upsert', { method:'POST', body:JSON.stringify({
+      vendorId:id||null, vendorName:name, category:cat,
+      contactPerson:document.getElementById('fContact').value,
+      phone:document.getElementById('fPhone').value,
+      email:document.getElementById('fEmail').value,
+      taxId:document.getElementById('fTax').value,
+      address:document.getElementById('fAddr').value,
+      notes:document.getElementById('fNotes').value
+    })});
+    if (id && starScore > 0) {
+      await apiFetch('/vendors/rate', { method:'POST', body:JSON.stringify({ vendorId:parseInt(id), score:starScore }) });
+    }
+    showToast('✅ 廠商資料已儲存');
+    closeForm();
+    loadVendors();
+  } catch(e) { showToast('❌ '+e.message); }
+  finally { btn.disabled=false; btn.textContent='💾 儲存廠商資料'; }
+}
+
+async function deleteVendor() {
+  if (!confirm('確定要刪除此廠商嗎？')) return;
+  const id = document.getElementById('fId').value;
+  try {
+    await apiFetch('/vendors/upsert', { method:'POST', body:JSON.stringify({ vendorId:id, vendorName:'_DELETE', isActive:false }) });
+    showToast('✅ 已刪除');
+    closeForm();
+    loadVendors();
+  } catch(e) { showToast('❌ '+e.message); }
+}
+
+async function apiFetch(path, opts={}) {
+  const r = await fetch(apiBase+path, { ...opts, headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true',...(opts.headers||{})} });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r;
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.opacity='1'; t.style.transform='translateX(-50%) translateY(0)';
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(20px)'; }, 2800);
+}
+</script>
+</body>
+</html>
