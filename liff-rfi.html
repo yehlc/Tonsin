@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>圖說疑義管理 (RFI)</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+:root {
+  --primary:#6C3AC7; --primary-light:#ede9ff; --primary-dark:#4e2a9a;
+  --green:#1D7C4D;  --red:#e74c3c; --orange:#ff9800;
+  --text:#1A2F4B;   --muted:#888; --bg:#f5f4fb;
+  --card:#fff; --border:#e0daf0; --radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'PingFang TC','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.header{background:var(--primary);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+.header h1{font-size:16px;font-weight:700;flex:1;}
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);overflow-x:auto;}
+.tab{flex:1;min-width:80px;padding:10px 6px;text-align:center;font-size:13px;cursor:pointer;color:var(--muted);white-space:nowrap;border:none;background:none;}
+.tab.active{color:var(--primary);border-bottom:2px solid var(--primary);font-weight:700;margin-bottom:-2px;}
+.page{display:none;padding:12px;animation:fadeIn .2s;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.card{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(108,58,199,.08);border:1px solid var(--border);}
+.rfi-card{cursor:pointer;transition:transform .15s;}
+.rfi-card:active{transform:scale(.98);}
+.rfi-no{font-size:11px;color:var(--primary);font-weight:600;margin-bottom:4px;}
+.rfi-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.rfi-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--muted);}
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+.b-wait{background:#fff3e0;color:#e65100;}
+.b-reply{background:#e8f8ee;color:var(--green);}
+.b-close{background:#ede9ff;color:var(--primary);}
+.fg{margin-bottom:12px;}
+.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:#faf9ff;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);}
+textarea{height:90px;resize:vertical;}
+.btn{width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-outline{background:transparent;border:1.5px solid var(--primary);color:var(--primary);}
+/* Detail panel */
+#rfiDetailMask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;}
+#rfiDetailPanel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;max-height:90vh;overflow-y:auto;z-index:201;transform:translateY(100%);transition:transform .3s ease;}
+.panel-hdr{position:sticky;top:0;background:var(--primary);padding:14px 16px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;}
+.panel-hdr h2{color:#fff;font-size:15px;font-weight:700;}
+.panel-hdr button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;}
+.panel-body{padding:14px;}
+.info-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;margin-bottom:14px;}
+.info-grid .lbl{color:var(--muted);white-space:nowrap;}
+.info-grid .val{color:var(--text);font-weight:500;}
+.response-box{background:#f5f4fb;border-radius:10px;padding:12px;margin-top:10px;font-size:13px;color:var(--text);line-height:1.6;}
+.filter-row{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;}
+.filter-chip{padding:5px 12px;border-radius:20px;font-size:12px;background:var(--card);border:1px solid var(--border);cursor:pointer;white-space:nowrap;color:var(--muted);}
+.filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty .icon{font-size:40px;margin-bottom:10px;}
+.attach-link{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;background:#ede9ff;border-radius:8px;font-size:13px;color:var(--primary);text-decoration:none;margin-top:8px;}
+#globalLoader{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:999;font-size:24px;}
+</style>
+</head>
+<body>
+<div id="globalLoader">⏳</div>
+<div class="header">
+  <span style="font-size:20px;">📋</span>
+  <h1>圖說疑義 (RFI)</h1>
+  <span id="siteLabel" style="font-size:11px;opacity:.8;"></span>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('list')">📋 RFI 清單</button>
+  <button class="tab" onclick="switchTab('new')">➕ 提出疑義</button>
+</div>
+
+<!-- ── 清單 ── -->
+<div class="page active" id="page-list">
+  <div class="filter-row">
+    <div class="filter-chip active" onclick="filterRFI('ALL',this)">全部</div>
+    <div class="filter-chip" onclick="filterRFI('待回覆',this)">待回覆</div>
+    <div class="filter-chip" onclick="filterRFI('已回覆',this)">已回覆</div>
+    <div class="filter-chip" onclick="filterRFI('已結案',this)">已結案</div>
+  </div>
+  <div style="padding:0 12px;">
+    <input type="text" id="rfiSearch" placeholder="🔍 搜尋 RFI 編號 / 標題" oninput="renderRFIList()"
+      style="margin-bottom:8px;">
+  </div>
+  <div id="rfiList" style="padding:0 12px 20px;"></div>
+</div>
+
+<!-- ── 新增 ── -->
+<div class="page" id="page-new">
+  <div class="card" style="margin-top:4px;">
+    <div class="fg">
+      <label class="fl">分類 *</label>
+      <select id="rfiCat">
+        <option value="">— 選擇分類 —</option>
+        <option value="建築">建築</option>
+        <option value="結構">結構</option>
+        <option value="機電">機電</option>
+        <option value="裝修">裝修</option>
+        <option value="基礎工程">基礎工程</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">圖號（選填）</label>
+      <input type="text" id="rfiDwg" placeholder="例：A-101、結-S02">
+    </div>
+    <div class="fg">
+      <label class="fl">疑義標題 *</label>
+      <input type="text" id="rfiTitle" placeholder="簡短描述問題">
+    </div>
+    <div class="fg">
+      <label class="fl">詳細說明 *</label>
+      <textarea id="rfiDesc" placeholder="描述圖說衝突、不清楚或需要確認的地方..."></textarea>
+    </div>
+    <div class="fg">
+      <label class="fl">指派給</label>
+      <select id="rfiAssignee">
+        <option value="">— 選擇負責回覆人 —</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">截止日期</label>
+      <input type="date" id="rfiDeadline">
+    </div>
+    <div class="fg">
+      <label class="fl">附件（圖面、照片）</label>
+      <input type="file" id="rfiFile" accept=".pdf,.jpg,.jpeg,.png,.dwg">
+      <div id="rfiFileName" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+    </div>
+    <button class="btn btn-primary" id="btnSubmitRFI" onclick="submitRFI()" style="margin-top:6px;">📤 提出疑義</button>
+  </div>
+</div>
+
+<!-- ── 詳情面板 ── -->
+<div id="rfiDetailMask" onclick="closeRFIDetail()"></div>
+<div id="rfiDetailPanel">
+  <div class="panel-hdr">
+    <h2 id="detailTitle">RFI 詳情</h2>
+    <button onclick="closeRFIDetail()">✕</button>
+  </div>
+  <div class="panel-body" id="rfiDetailContent"></div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;"></div>
+
+<script>
+const LIFF_ID = "2009287087-4LSCRAq4";
+const urlP    = new URLSearchParams(window.location.search);
+const apiBase = urlP.get('api') || 'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
+let myUser = decodeURIComponent(urlP.get('user') || '');
+let myUserId = urlP.get('userId') || '';
+let mySite   = decodeURIComponent(urlP.get('site') || '');
+let lineId   = '';
+let allRFIs  = [], rfiFilter = 'ALL';
+
+liff.init({ liffId: LIFF_ID }).then(async () => {
+  if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+  const p = await liff.getProfile();
+  lineId = p.userId;
+  if (!myUser) {
+    try {
+      const r = await fetch(apiBase + '/check-auth?userId=' + lineId, { headers: {'ngrok-skip-browser-warning':'true'} });
+      const info = await r.json();
+      myUser   = info.name   || '';
+      mySite   = mySite || (info.assignedSites||[])[0] || '';
+    } catch(e){}
+  }
+  document.getElementById('siteLabel').textContent = mySite || '';
+  document.getElementById('globalLoader').style.display = 'none';
+  loadRFIs();
+  loadAssignees();
+
+  // 預設截止日為7天後
+  const d = new Date(); d.setDate(d.getDate()+7);
+  document.getElementById('rfiDeadline').value = d.toISOString().split('T')[0];
+
+  // 附件名稱預覽
+  document.getElementById('rfiFile').addEventListener('change', function(){
+    document.getElementById('rfiFileName').textContent = this.files[0] ? `📎 ${this.files[0].name}` : '';
+  });
+}).catch(e => {
+  document.getElementById('globalLoader').style.display = 'none';
+  showToast('❌ 初始化失敗');
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['list','new'][i]===name));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if (name==='list') loadRFIs();
+}
+
+async function loadRFIs() {
+  try {
+    const r = await apiFetch(`/rfi/list?userId=${lineId||myUserId}&site=${encodeURIComponent(mySite)}`);
+    const res = await r.json();
+    allRFIs = res.success ? res.data : [];
+    renderRFIList();
+  } catch(e) { document.getElementById('rfiList').innerHTML = `<div class="empty"><p>載入失敗：${e.message}</p></div>`; }
+}
+
+async function loadAssignees() {
+  try {
+    const r = await apiFetch(`/users-by-site?site=${encodeURIComponent(mySite)}`);
+    const res = await r.json();
+    const sel = document.getElementById('rfiAssignee');
+    (res.data||[]).forEach(u => {
+      const o = document.createElement('option');
+      o.value = u.UserID; o.textContent = `${u.UserName} (${u.Role})`;
+      sel.appendChild(o);
+    });
+  } catch(e){}
+}
+
+function filterRFI(f, el) {
+  rfiFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderRFIList();
+}
+
+function renderRFIList() {
+  const el = document.getElementById('rfiList');
+  const q  = document.getElementById('rfiSearch').value.toLowerCase();
+  let list = rfiFilter === 'ALL' ? allRFIs : allRFIs.filter(r=>r.Status===rfiFilter);
+  if (q) list = list.filter(r=>r.RFINumber.toLowerCase().includes(q)||r.Title.toLowerCase().includes(q));
+  if (!list.length) { el.innerHTML = '<div class="empty"><div class="icon">📋</div><p>目前無 RFI 記錄</p></div>'; return; }
+
+  const statusCls = { '待回覆':'b-wait', '已回覆':'b-reply', '已結案':'b-close' };
+  el.innerHTML = list.map(r => `
+    <div class="card rfi-card" onclick="openRFIDetail(${r.RFIID})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+        <div class="rfi-no">${r.RFINumber}</div>
+        <span class="badge ${statusCls[r.Status]||'b-wait'}">${r.Status}</span>
+      </div>
+      <div class="rfi-title">${r.Title}</div>
+      <div class="rfi-meta">
+        <span>📍 ${r.SiteName}</span>
+        <span>🔧 ${r.Category||'未分類'}</span>
+        ${r.DrawingRef ? `<span>📐 ${r.DrawingRef}</span>` : ''}
+        <span>👤 ${r.RequesterName||''}</span>
+        ${r.Deadline ? `<span>📅 截止 ${r.Deadline}</span>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function openRFIDetail(id) {
+  const rfi = allRFIs.find(r => r.RFIID === id);
+  if (!rfi) return;
+  document.getElementById('rfiDetailMask').style.display = 'block';
+  document.getElementById('rfiDetailPanel').style.transform = 'translateY(0)';
+  document.getElementById('detailTitle').textContent = rfi.RFINumber;
+
+  const canReply = lineId === rfi.AssigneeID || myUserId === rfi.AssigneeID;
+  const canClose = rfi.Status !== '已結案';
+  const attachHtml = rfi.HasAttach
+    ? `<a href="${apiBase}/rfi/attach/${rfi.RFIID}" target="_blank" class="attach-link">📎 查看附件</a>`
+    : '';
+
+  document.getElementById('rfiDetailContent').innerHTML = `
+    <div class="info-grid">
+      <span class="lbl">🏢 案場</span><span class="val">${rfi.SiteName}</span>
+      <span class="lbl">🔧 分類</span><span class="val">${rfi.Category||'-'}</span>
+      ${rfi.DrawingRef?`<span class="lbl">📐 圖號</span><span class="val">${rfi.DrawingRef}</span>`:''}
+      <span class="lbl">👤 提問</span><span class="val">${rfi.RequesterName||'-'}</span>
+      <span class="lbl">📋 回覆</span><span class="val">${rfi.AssigneeName||'未指派'}</span>
+      ${rfi.Deadline?`<span class="lbl">📅 截止</span><span class="val">${rfi.Deadline}</span>`:''}
+      <span class="lbl">📅 建立</span><span class="val">${(rfi.CreatedAt||'').substring(0,10)}</span>
+    </div>
+    <div class="response-box" style="background:#f5f4fb;margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:6px;">📝 疑義說明</div>
+      ${rfi.Description || '（未填說明）'}
+    </div>
+    ${attachHtml}
+    ${rfi.Response ? `<div class="response-box" style="background:#e8f8ee;margin-top:10px;">
+      <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;">✅ 回覆內容</div>
+      ${rfi.Response}
+    </div>` : ''}
+    ${(canReply && rfi.Status!=='已結案') ? `
+    <div style="margin-top:16px;">
+      <label class="fl">✍️ 填寫回覆</label>
+      <textarea id="rfiReplyText" placeholder="填寫回覆內容..." style="margin-bottom:8px;"></textarea>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-green" style="flex:1" onclick="submitRFIReply(${id},'已回覆')">✅ 送出回覆</button>
+        <button class="btn btn-outline" style="flex:1" onclick="submitRFIReply(${id},'已結案')">🔒 結案</button>
+      </div>
+    </div>` : ''}
+    ${(rfi.Status!=='已結案' && !canReply && rfi.RequesterID===lineId) ? `
+    <div style="margin-top:12px;">
+      <button class="btn" style="background:var(--primary-light);color:var(--primary);" onclick="submitRFIReply(${id},'已結案')">🔒 標記結案</button>
+    </div>` : ''}`;
+}
+
+function closeRFIDetail() {
+  document.getElementById('rfiDetailMask').style.display = 'none';
+  document.getElementById('rfiDetailPanel').style.transform = 'translateY(100%)';
+}
+
+async function submitRFIReply(id, status) {
+  const text = document.getElementById('rfiReplyText')?.value || '';
+  if (status === '已回覆' && !text) { showToast('⚠️ 請填寫回覆內容'); return; }
+  try {
+    await apiFetch('/rfi/reply', { method:'POST', body:JSON.stringify({
+      rfiId: id, response: text, status, replierName: myUser, replierId: lineId||myUserId
+    })});
+    showToast('✅ 已送出');
+    closeRFIDetail();
+    loadRFIs();
+  } catch(e) { showToast('❌ '+e.message); }
+}
+
+async function submitRFI() {
+  const cat   = document.getElementById('rfiCat').value;
+  const title = document.getElementById('rfiTitle').value.trim();
+  const desc  = document.getElementById('rfiDesc').value.trim();
+  if (!cat || !title || !desc) { showToast('⚠️ 請填寫分類、標題和說明'); return; }
+
+  const btn = document.getElementById('btnSubmitRFI');
+  btn.disabled = true; btn.textContent = '⏳ 送出中...';
+
+  let attachBase64 = null, attachName = null;
+  const fileInput = document.getElementById('rfiFile');
+  if (fileInput.files[0]) {
+    attachBase64 = await fileToBase64(fileInput.files[0]);
+    attachName   = fileInput.files[0].name;
+  }
+
+  try {
+    const r = await apiFetch('/rfi/create', { method:'POST', body:JSON.stringify({
+      siteName:      mySite,
+      title,
+      description:   desc,
+      category:      cat,
+      drawingRef:    document.getElementById('rfiDwg').value,
+      assigneeId:    document.getElementById('rfiAssignee').value,
+      deadline:      document.getElementById('rfiDeadline').value,
+      requesterName: myUser,
+      requesterId:   lineId||myUserId,
+      attachBase64, attachName
+    })});
+    const res = await r.json();
+    if (!res.success) throw new Error(res.error);
+    showToast(`✅ RFI ${res.rfiNo} 已提出`);
+    // 重置
+    ['rfiCat','rfiDwg','rfiTitle','rfiDesc','rfiAssignee'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    fileInput.value=''; document.getElementById('rfiFileName').textContent='';
+    switchTab('list');
+  } catch(e) { showToast('❌ '+e.message); }
+  finally { btn.disabled=false; btn.textContent='📤 提出疑義'; }
+}
+
+function fileToBase64(file) {
+  return new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(e.target.result);fr.readAsDataURL(file);});
+}
+
+async function apiFetch(path, opts={}) {
+  const r = await fetch(apiBase+path, {
+    ...opts,
+    headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true',...(opts.headers||{})}
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.opacity='1'; t.style.transform='translateX(-50%) translateY(0)';
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(20px)'; }, 2800);
+}
+</script>
+</body>
+</html>
