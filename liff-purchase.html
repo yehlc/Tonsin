@@ -324,6 +324,16 @@ liff.init({ liffId: LIFF_ID }).then(async () => {
   initUI();
   document.getElementById('globalLoader').style.display = 'none';
   if (initTab !== 'new') switchTab(initTab);
+
+  // ★ 從通知連結進來時，自動開啟 PR 詳情面板
+  const initReviewPrId = urlParams.get('reviewPrId') || '';
+  if (initReviewPrId) {
+    setTimeout(async () => {
+      if (initTab !== 'track') switchTab('track');
+      await new Promise(r => setTimeout(r, 400));
+      openPRReview(initReviewPrId);
+    }, 600);
+  }
 }).catch(() => {
   document.getElementById('globalLoader').style.display = 'none';
   initUI();
@@ -509,6 +519,17 @@ async function loadMyPRs() {
     const sitePRs = res2.success ? res2.data : [];
     const delivEl = document.getElementById('deliveryPR');
     delivEl.innerHTML = '<option value="">— 請選擇發包單 —</option>';
+    sitePRs.forEach(pr => {
+      const o = document.createElement('option');
+      o.value = pr.RequestID;
+      const statusLabel = pr.Status === 'APPROVED' ? '✅已發包' : '⏳審核中';
+      o.textContent = `${pr.RequestID} — ${pr.ItemName} (${pr.SiteName}) [${statusLabel}]`;
+      delivEl.appendChild(o);
+    });
+    if (sitePRs.length === 0) {
+      const o = document.createElement('option'); o.disabled = true;
+      o.textContent = '（暫無已核准或審核中的發包單）'; delivEl.appendChild(o);
+    }
     sitePRs.forEach(pr => {
       const o = document.createElement('option');
       o.value = pr.RequestID;
