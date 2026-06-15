@@ -89,7 +89,7 @@ textarea{height:90px;resize:vertical}
   <div class="tab active" onclick="switchTab('new')">➕ 新增請簽</div>
   <div class="tab" onclick="switchTab('track')">📊 追蹤查詢</div>
   <div class="tab" onclick="switchTab('delivery')">🚛 到場確認</div>
-  <div class="tab" onclick="switchTab('rating')">⭐ 廠商評分</div>
+  <div class="tab" onclick="switchTab('status')">📋 發包總覽</div>
 </div>
 
 <!-- Tab 1: 新增請簽 -->
@@ -141,23 +141,18 @@ textarea{height:90px;resize:vertical}
   </div>
 </div>
 
-<!-- Tab 4: 廠商評分 -->
-<div class="page" id="page-rating">
-  <div class="card">
-    <div class="card-header">⭐ 廠商施工品質評分</div>
-    <div class="card-body">
-      <div class="fg"><label class="fl">選擇已完成發包單<span>*</span></label><div class="sel-wrap"><select id="ratingPR" onchange="loadRatingVendor()"><option value="">— 請選擇 —</option></select></div></div>
-      <div id="ratingForm" style="display:none">
-        <div id="vendorName" style="font-weight:700;font-size:15px;margin-bottom:12px;color:var(--primary)"></div>
-        <div class="fg"><label class="fl">施工品質</label><div class="star-row" id="stars-quality"></div></div>
-        <div class="fg"><label class="fl">施工進度</label><div class="star-row" id="stars-schedule"></div></div>
-        <div class="fg"><label class="fl">安全衛生</label><div class="star-row" id="stars-hse"></div></div>
-        <div class="fg"><label class="fl">溝通協調</label><div class="star-row" id="stars-comm"></div></div>
-        <div class="fg"><label class="fl">評語（選填）</label><textarea id="ratingComment" placeholder="填寫此次合作優缺點..."></textarea></div>
-        <button class="btn-submit" onclick="submitRating()">📝 送出廠商評分</button>
-      </div>
-    </div>
+<!-- Tab 4: 發包狀態總覽 -->
+<div class="page" id="page-status">
+  <!-- 統計列 -->
+  <div id="statusSummary" style="display:flex;gap:8px;padding:10px 14px 0;flex-wrap:wrap;"></div>
+  <!-- 篩選列 -->
+  <div class="filter-row" id="statusFilterRow">
+    <div class="filter-chip active" onclick="filterStatusAll('ALL',this)">全部</div>
+    <div class="filter-chip" onclick="filterStatusAll('PENDING',this)">審核中</div>
+    <div class="filter-chip" onclick="filterStatusAll('APPROVED',this)">已發包</div>
+    <div class="filter-chip" onclick="filterStatusAll('REJECTED',this)">已退回</div>
   </div>
+  <div id="statusList"><div class="empty-state"><div class="icon">📋</div><p>載入中...</p></div></div>
 </div>
 
 <div id="toast"></div>
@@ -330,12 +325,13 @@ function initUI() {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const names=['new','track','delivery','rating'];
+    const names=['new','track','delivery','status'];
     t.classList.toggle('active', names[i]===name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  if (name==='track') renderPRList();
+  if (name==='track')  renderPRList();
+  if (name==='status') loadStatusOverview();
 }
 
 // 三層下拉
@@ -401,27 +397,41 @@ async function submitPR() {
   const sub=document.getElementById('prSub').value, item=document.getElementById('prItem').value;
   const details=document.getElementById('prDetails').value.trim();
   if (!site||!cat||!sub||!item||!details) { showToast('⚠️ 請填寫所有必填欄位'); return; }
-  const hint = document.getElementById('validHint');
-  if (hint.classList.contains('error') && hint.textContent) { showToast(hint.textContent); return; }
 
   const btn = document.getElementById('btnSubmit');
+  const isEditMode = btn.dataset.editMode === 'true';
+  const editPrId   = btn.dataset.editPrId  || '';
+
   btn.disabled=true; btn.textContent='⏳ 送出中...';
   try {
-    const r = await apiFetch('/pr-action', { method:'POST', body: JSON.stringify({
-      action:'create', site, applicant:myUser, applicantId:lineUserId||myUserId,
-      applicantRole:myRole, category:cat, subCat:sub, item, details
-    })});
+    const payload = isEditMode
+      ? { action:'resubmit', requestNo:editPrId, details, applicant:myUser, applicantId:lineUserId||myUserId }
+      : { action:'create', site, applicant:myUser, applicantId:lineUserId||myUserId,
+          applicantRole:myRole, category:cat, subCat:sub, item, details };
+
+    const r = await apiFetch('/pr-action', { method:'POST', body: JSON.stringify(payload) });
     const res = await r.json();
     if (!res.success) throw new Error(res.error||'送出失敗');
 
-    for (const file of uploadedFiles) {
-      const b64 = await fileToBase64(file);
-      await apiFetch('/upload-attachment', { method:'POST', body: JSON.stringify({
-        requestNo:res.requestNo, fileName:file.name, fileType:file.type, fileBase64:b64, uploader:myUser
-      })}).catch(()=>{});
+    // 附件上傳（新增模式才上傳）
+    if (!isEditMode) {
+      for (const file of uploadedFiles) {
+        const b64 = await fileToBase64(file);
+        await apiFetch('/upload-attachment', { method:'POST', body: JSON.stringify({
+          requestNo:res.requestNo, fileName:file.name, fileType:file.type, fileBase64:b64, uploader:myUser
+        })}).catch(()=>{});
+      }
     }
 
-    showToast(`✅ 已送出！單號 ${res.requestNo}\n📨 已通知 ${res.nextStageUser||res.nextStageName} 審核中`);
+    // 重置 edit mode
+    btn.dataset.editMode = '';
+    btn.dataset.editPrId = '';
+    document.getElementById('validHint').textContent = '';
+    document.getElementById('validHint').className = 'valid-hint';
+
+    showToast(isEditMode
+      ? `✅ 已重新送出！`
+      : `✅ 已送出！單號 ${res.requestNo}\n📨 通知 ${res.nextStageUser||res.nextStageName} 審核中`);
     ['prSite','prCat','prSub','prItem'].forEach(id=>{ document.getElementById(id).value=''; });
     ['prCat','prSub','prItem'].forEach(id=>{ document.getElementById(id).disabled=true; });
     document.getElementById('prDetails').value='';
@@ -429,21 +439,28 @@ async function submitPR() {
     uploadedFiles=[];
     loadMyPRs();
   } catch(e) { showToast('❌ '+e.message); }
-  finally { btn.disabled=false; btn.textContent='📤 送出請簽申請'; }
+  finally { btn.disabled=false; btn.textContent=isEditMode?'🔄 重新送出申請':'📤 送出請簽申請'; }
 }
 
 // 載入我的申請
 async function loadMyPRs() {
   try {
+    // 我自己的 PR（追蹤查詢用）
     const r = await apiFetch(`/purchase/my-requests?userId=${lineUserId||myUserId}`);
     myPRs = await r.json();
     renderPRList();
-    const delivEl=document.getElementById('deliveryPR'), ratingEl=document.getElementById('ratingPR');
-    delivEl.innerHTML='<option value="">— 請選擇發包單 —</option>';
-    ratingEl.innerHTML='<option value="">— 請選擇已完成發包單 —</option>';
-    myPRs.forEach(pr => {
-      const o1=document.createElement('option'); o1.value=pr.RequestID; o1.textContent=pr.RequestID+' — '+pr.ItemName; delivEl.appendChild(o1);
-      if (pr.Status==='APPROVED') { const o2=document.createElement('option'); o2.value=pr.RequestID; o2.textContent=pr.RequestID+' — '+pr.ItemName; ratingEl.appendChild(o2); }
+
+    // 到場確認下拉：取我有權限工地的已核准 PR（★ 修正：不限自己申請的）
+    const r2 = await apiFetch(`/purchase/site-approved-prs?userId=${lineUserId||myUserId}`);
+    const res2 = await r2.json();
+    const sitePRs = res2.success ? res2.data : [];
+    const delivEl = document.getElementById('deliveryPR');
+    delivEl.innerHTML = '<option value="">— 請選擇發包單 —</option>';
+    sitePRs.forEach(pr => {
+      const o = document.createElement('option');
+      o.value = pr.RequestID;
+      o.textContent = `${pr.RequestID} — ${pr.ItemName} (${pr.SiteName})`;
+      delivEl.appendChild(o);
     });
   } catch(e) { console.warn(e); }
 }
@@ -497,29 +514,147 @@ async function submitDelivery() {
   } catch(e) { showToast('❌ '+e.message); }
 }
 
-// 廠商評分
-function loadRatingVendor() {
-  const prId=document.getElementById('ratingPR').value;
-  if (!prId) { document.getElementById('ratingForm').style.display='none'; return; }
-  const pr=myPRs.find(p=>p.RequestID==prId);
-  document.getElementById('vendorName').textContent='廠商：'+(pr?(pr.VendorName||'未登記廠商'):'-');
-  document.getElementById('ratingForm').style.display='block';
-}
-function setStar(key,val) {
-  ratingData[key]=val;
-  const row=document.getElementById('stars-'+key);
-  row.querySelectorAll('.star').forEach(s=>s.classList.toggle('lit',parseInt(s.dataset.v)<=val));
-}
-async function submitRating() {
-  const prId=document.getElementById('ratingPR').value;
-  if (!prId) { showToast('⚠️ 請選擇發包單'); return; }
-  if (!ratingData.quality) { showToast('⚠️ 請至少評分「施工品質」'); return; }
+// ─── 發包總覽 ───────────────────────────────────────────────────
+let allStatusPRs = [], statusFilter = 'ALL';
+
+async function loadStatusOverview() {
+  document.getElementById('statusList').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>載入中...</p></div>';
   try {
-    const r=await apiFetch('/purchase/rate-contractor',{method:'POST',body:JSON.stringify({requestId:prId,rater:myUser,...ratingData,comment:document.getElementById('ratingComment').value})});
-    const res=await r.json();
-    if (res.success) { showToast('✅ 評分已送出！'); document.getElementById('ratingForm').style.display='none'; }
-    else throw new Error(res.error);
-  } catch(e) { showToast('❌ '+e.message); }
+    const r = await apiFetch(`/purchase/all-status?userId=${lineUserId||myUserId}`);
+    const res = await r.json();
+    if (!res.success) throw new Error(res.error);
+    allStatusPRs = res.data || [];
+    renderStatusSummary();
+    renderStatusList();
+  } catch(e) { document.getElementById('statusList').innerHTML = `<div class="empty-state"><p>❌ ${e.message}</p></div>`; }
+}
+
+function renderStatusSummary() {
+  const total   = allStatusPRs.length;
+  const pending = allStatusPRs.filter(p=>p.Status==='PENDING').length;
+  const approved= allStatusPRs.filter(p=>p.Status==='APPROVED').length;
+  const rejected= allStatusPRs.filter(p=>p.Status==='REJECTED').length;
+  const cards = [
+    { label:'全部',   val:total,    bg:'#1A6FA8', filter:'ALL'      },
+    { label:'審核中', val:pending,  bg:'#ff9800', filter:'PENDING'  },
+    { label:'已發包', val:approved, bg:'#1D7C4D', filter:'APPROVED' },
+    { label:'已退回', val:rejected, bg:'#e74c3c', filter:'REJECTED' }
+  ];
+  document.getElementById('statusSummary').innerHTML = cards.map(c =>
+    `<div onclick="filterStatusAll('${c.filter}',null)" style="
+      flex:1;min-width:60px;background:${c.bg};color:#fff;border-radius:10px;
+      padding:10px 6px;text-align:center;cursor:pointer;">
+      <div style="font-size:22px;font-weight:700;">${c.val}</div>
+      <div style="font-size:11px;margin-top:2px;">${c.label}</div>
+    </div>`
+  ).join('');
+}
+
+function filterStatusAll(f, el) {
+  statusFilter = f;
+  document.querySelectorAll('#statusFilterRow .filter-chip').forEach(c=>c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else {
+    const chips = document.querySelectorAll('#statusFilterRow .filter-chip');
+    const idx = ['ALL','PENDING','APPROVED','REJECTED'].indexOf(f);
+    if (idx>=0) chips[idx].classList.add('active');
+  }
+  renderStatusList();
+}
+
+function renderStatusList() {
+  const el = document.getElementById('statusList');
+  const list = statusFilter==='ALL' ? allStatusPRs : allStatusPRs.filter(p=>p.Status===statusFilter);
+  if (!list.length) { el.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>此分類無資料</p></div>'; return; }
+
+  const statusMap = {
+    'PENDING' : { label:'審核中', bg:'#fff3e0', border:'#ff9800', txt:'#e65100' },
+    'APPROVED': { label:'已發包', bg:'#e8f8ee', border:'#1D7C4D', txt:'#1D7C4D' },
+    'REJECTED': { label:'已退回', bg:'#fdecea', border:'#e74c3c', txt:'#c62828' }
+  };
+
+  el.innerHTML = list.map(pr => {
+    const s = statusMap[pr.Status] || { label:pr.Status, bg:'#f5f5f5', border:'#aaa', txt:'#333' };
+    const isElec = pr.IsElecCategory === true || pr.IsElecCategory === 1;
+    const chainStages = getChainStages(isElec);
+    const curStage = parseFloat(pr.CurrentStage||3), isDone = pr.Status==='APPROVED';
+    const chainHtml = chainStages.map(st => {
+      let cls='chain-future', icon='○';
+      if(isDone||st.level<curStage){cls='chain-done';icon='✓';}
+      else if(st.level===curStage){cls='chain-current';icon='⧖';}
+      if(pr.Status==='REJECTED'&&st.level===curStage){cls='chain-rejected';icon='✗';}
+      return `<span class="chain-node ${cls}">${icon} ${st.name}</span>`;
+    }).join('<span class="chain-arrow">›</span>');
+
+    const stageLabel = isDone
+      ? '已完成全部審核'
+      : `目前在：${pr.CurrentStageRole||'-'}`;
+
+    const attachBadge = pr.AttachCount>0 ? `<span style="font-size:11px;color:#1A6FA8;">📎 ${pr.AttachCount} 個附件</span>` : '';
+
+    const rejectBlock = pr.RejectReason
+      ? `<div style="margin-top:6px;padding:8px;background:#fff5f5;border-left:3px solid #e74c3c;border-radius:4px;font-size:12px;color:#c62828;">🛑 退回原因：${pr.RejectReason}</div>` : '';
+
+    const editBtn = pr.Status==='REJECTED'
+      ? `<button onclick="editPR('${pr.RequestID}')" style="
+          margin-top:10px;width:100%;padding:9px;border:none;border-radius:8px;
+          background:#e74c3c;color:#fff;font-size:13px;font-weight:bold;cursor:pointer;">
+          🔧 修改並重新送出
+        </button>` : '';
+
+    return `<div class="pr-card" style="border-left:3px solid ${s.border};">
+      <div class="pr-card-header">
+        <div class="pr-card-title">${pr.ItemName}</div>
+        <div class="pr-status-badge" style="background:${s.bg};color:${s.txt};border:1px solid ${s.border};">${s.label}</div>
+      </div>
+      <div class="pr-card-body">
+        <div style="font-size:12px;color:#666;">📍 ${pr.SiteName} | 📅 ${(pr.CreatedAt||'').substring(0,10)} | 👤 ${pr.ApplicantName||'-'} ${attachBadge}</div>
+        <div style="font-size:12px;color:#555;margin-top:4px;">🔧 ${pr.Category||''}／${pr.SubCat||''}</div>
+        <div style="font-size:12px;color:#333;margin-top:4px;">📝 ${(pr.Details||'').substring(0,60)}${(pr.Details||'').length>60?'...':''}</div>
+        <div style="margin-top:8px;font-size:11px;color:#999;">${stageLabel}</div>
+        <div class="pr-chain" style="margin-top:4px;">${chainHtml}</div>
+        ${rejectBlock}
+        ${editBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function editPR(prId) {
+  try {
+    const r = await apiFetch(`/purchase/get-pr?id=${encodeURIComponent(prId)}`);
+    const res = await r.json();
+    if (!res.success) throw new Error(res.error);
+    const pr = res.data;
+    switchTab('new');
+    // 預填表單
+    setTimeout(async () => {
+      const siteEl = document.getElementById('prSite');
+      siteEl.value = pr.SiteName; onSiteChange();
+      await new Promise(r => setTimeout(r, 100));
+      const catEl = document.getElementById('prCat');
+      catEl.value = pr.Category; catEl.disabled = false; onCatChange();
+      await new Promise(r => setTimeout(r, 100));
+      const subEl = document.getElementById('prSub');
+      subEl.value = pr.SubCat; subEl.disabled = false; onSubChange();
+      await new Promise(r => setTimeout(r, 100));
+      document.getElementById('prItem').value = pr.ItemName;
+      document.getElementById('prItem').disabled = false;
+      document.getElementById('prDetails').value = pr.Details || '';
+      // 修改模式：改按鈕文字，提交時用 resubmit
+      const btn = document.getElementById('btnSubmit');
+      btn.textContent = '🔄 重新送出申請';
+      btn.dataset.editPrId = pr.RequestID;
+      btn.dataset.editMode = 'true';
+      // 顯示退回原因提示
+      if (pr.RejectReason) {
+        const hint = document.getElementById('validHint');
+        hint.textContent = `🛑 上次退回原因：${pr.RejectReason}`;
+        hint.className = 'valid-hint error';
+      }
+      showToast('📋 已帶入原始資料，請修改後重新送出');
+    }, 200);
+  } catch(e) { showToast('❌ ' + e.message); }
 }
 
 // ★ apiFetch — 偵測非 JSON 回應（修復 Unexpected token '<' 錯誤）
