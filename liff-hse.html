@@ -812,29 +812,77 @@ async function loadFormForApproval() {
   try {
     const r = await apiFetch(`/get-form-detail/${initLogId}`);
     const res = await r.json();
-    if (!res.success) { showToast('❌ 載入失敗'); return; }
+    if (!res.success) { showToast('❌ 載入失敗：' + (res.error||'')); return; }
     const d = res.data;
+
+    // ── 基本資訊 ──────────────────────────────────────────────
     document.getElementById('approveInfo').innerHTML = `
-      <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--green);">${d.FormType}</div>
-      📍 案場：${d.SiteName}<br>
-      📅 日期：${d.CheckDate}<br>
-      👤 檢查人：${d.Inspector}<br>
-      📊 結果：${d.StatsSummary || ''}<br>
-      🔖 狀態：${d.FormStatus}`;
-    // Show fail items
-    const items = d.Defects || [];
-    if (items.length) {
-      document.getElementById('approveItems').innerHTML =
-        `<div class="card" style="margin:0 0 12px;"><div class="card-hd">⚠️ 異常項目</div><div class="card-bd">` +
-        items.map(i => `<div style="font-size:13px;padding:6px 0;border-bottom:1px solid #eee;">${i.Description}</div>`).join('') +
-        `</div></div>`;
+      <div style="font-weight:700;font-size:16px;margin-bottom:10px;color:var(--green);">${d.FormType||''}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px;color:#444;">
+        <span>📍 案場</span><strong>${d.SiteName||''}</strong>
+        <span>📅 日期</span><strong>${d.CheckDate||''}</strong>
+        <span>👤 填表人</span><strong>${d.Inspector||''}</strong>
+        <span>📊 結果</span><strong>${d.StatsSummary||''}</strong>
+        <span>🔖 狀態</span><strong style="color:var(--primary);">${d.FormStatus||''}</strong>
+      </div>`;
+
+    // ── 解析 ContentJson 並顯示各題結果 ───────────────────────
+    let checkHtml = '';
+    if (d.ContentJson) {
+      try {
+        const items = typeof d.ContentJson==='string' ? JSON.parse(d.ContentJson) : d.ContentJson;
+        if (Array.isArray(items) && items.length > 0) {
+          // 依 section 分組
+          const sections = {};
+          items.forEach(item => {
+            const sec = item.section || '其他';
+            if (!sections[sec]) sections[sec] = [];
+            sections[sec].push(item);
+          });
+          checkHtml = Object.entries(sections).map(([secName, secItems]) => {
+            const rows = secItems.map(item => {
+              const resultColor = item.result==='pass' ? '#1D7C4D' : item.result==='fail' ? '#e74c3c' : '#888';
+              const resultLabel = item.result==='pass' ? '✓ 符合' : item.result==='fail' ? '✗ 異常' : '— N/A';
+              const noteBlock = item.note ? `<div style="font-size:11px;color:#e74c3c;margin-top:2px;">⚠️ ${item.note}</div>` : '';
+              return `<div style="display:flex;justify-content:space-between;align-items:flex-start;
+                      padding:7px 0;border-bottom:1px solid #eee;">
+                <div style="flex:1;font-size:13px;color:#333;">${item.item||''}</div>
+                <div style="font-size:13px;font-weight:bold;color:${resultColor};margin-left:10px;white-space:nowrap;">
+                  ${resultLabel}</div>
+              </div>${noteBlock}`;
+            }).join('');
+            return `<div style="margin-bottom:12px;">
+              <div style="font-size:12px;font-weight:700;color:#1A6FA8;
+                   background:#f0f7ff;padding:5px 8px;border-radius:5px;margin-bottom:4px;">${secName}</div>
+              ${rows}
+            </div>`;
+          }).join('');
+        }
+      } catch(e) { checkHtml = '<div style="font-size:12px;color:#999;">（無法解析表單內容）</div>'; }
     }
-    setTimeout(() => resizeSig(sigCanvas2, sigCtx2), 100);
+
+    // ── 異常項目（從 DefectLogs 取得） ────────────────────────
+    const defects = d.Defects || [];
+    const defectHtml = defects.length
+      ? `<div class="card" style="margin:12px 0 0;">
+           <div class="card-hd">⚠️ 異常項目（${defects.length} 項）</div>
+           <div class="card-bd">${defects.map(i=>`<div style="font-size:13px;padding:5px 0;
+             border-bottom:1px solid #eee;">${i.Description||'-'}</div>`).join('')}</div>
+         </div>` : '';
+
+    document.getElementById('approveItems').innerHTML =
+      (checkHtml ? `<div class="card" style="margin:12px 0 0;">
+        <div class="card-hd">📋 表單檢查結果</div>
+        <div class="card-bd" style="max-height:350px;overflow-y:auto;">${checkHtml}</div>
+      </div>` : '') + defectHtml;
+
+    setTimeout(() => resizeSig(sigCanvas2, sigCtx2), 150);
   } catch(e) { showToast('❌ ' + e.message); }
 }
 
 async function submitApproval(decision) {
-  if (!sigHasData2) { showToast('⚠️ 請先完成覆核簽名'); return; }
+  // ★ 只有核准才需要簽名；退回不需要
+  if (decision === 'APPROVED' && !sigHasData2) { showToast('⚠️ 請先完成覆核簽名再核准'); return; }
   const sigData = sigCanvas2.toDataURL('image/png');
   const isDirector = viewMode === 'hse_approve_director';
   try {
