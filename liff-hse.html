@@ -202,6 +202,15 @@ select, input[type=date], input[type=text], textarea {
     <div class="sum-cell c-tot"><span class="sum-num" id="cntTot">0</span> <span class="sum-label">📋 總計</span></div>
   </div>
   <div id="checkArea"></div>
+    <div style="padding:8px 14px 0 14px;">
+    <button onclick="setAllPass()" style="
+      width:100%; padding:12px; border:none; border-radius:10px;
+      background:linear-gradient(135deg,#1D7C4D,#27ae60);
+      color:#fff; font-size:15px; font-weight:bold; letter-spacing:.5px;
+      box-shadow:0 3px 8px rgba(29,124,77,.35); cursor:pointer;">
+      ✅ 一鍵全部符合
+    </button>
+  </div>
   <button class="btn-float" onclick="goStep3()">下一步 ➜ 簽名送出</button>
 </div>
 
@@ -586,6 +595,23 @@ function setResult(key, result) {
   detail.className = 'ci-detail' + (result === 'fail' ? ' show' : '');
   updateCount();
 }
+  // ★ 一鍵將所有項目設為「符合」
+function setAllPass() {
+    const keys = Object.keys(checkResults);
+    if (keys.length === 0) {
+        showToast('⚠️ 請先選擇表單類型');
+        return;
+    }
+    keys.forEach(function(key) {
+        // 若尚未設定才自動設為符合，已設為「異常」的不覆蓋
+        // 如果想要強制全部覆蓋（包含已標異常），把下方 if 條件改為 true
+        if (!checkResults[key].result || checkResults[key].result === '') {
+            setResult(key, 'pass');
+        }
+    });
+    showToast('✅ 尚未填寫的項目已全部設為符合');
+}
+
 
 function attachPhoto(input, key) {
   if (!input.files[0]) return;
