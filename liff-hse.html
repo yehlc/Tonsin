@@ -195,6 +195,15 @@ select, input[type=date], input[type=text], textarea {
 
 <!-- ═══ STEP 2：檢查項目 ═══ -->
 <div class="step" id="step2">
+  <!-- ★ 返回 Step 1 的按鈕 -->
+  <div style="padding:8px 14px 0;display:flex;align-items:center;gap:10px;">
+    <button onclick="backToStep1()" style="
+      padding:7px 14px;background:none;border:1px solid #ccc;
+      border-radius:8px;font-size:13px;color:#666;cursor:pointer;">
+      ← 返回重選
+    </button>
+    <span id="step2Title" style="font-size:13px;color:#555;font-weight:600;"></span>
+  </div>
   <div class="sum-bar">
     <div class="sum-cell c-pass"><span class="sum-num" id="cntPass">0</span><span class="sum-label">✓ 符合</span></div>
     <div class="sum-cell c-fail"><span class="sum-num" id="cntFail">0</span><span class="sum-label">✗ 異常</span></div>
@@ -526,49 +535,98 @@ async function checkDuplicate() {
     const r = await apiFetch(`/check-duplicate-form?site=${encodeURIComponent(site)}&date=${date}&formType=${encodeURIComponent(type)}`);
     const res = await r.json();
     if (res.exists) {
+      const logId = res.logId;
+      // ★ 顯示選擇通知，讓使用者決定
+      warn.innerHTML = `
+        <div style="font-weight:700;margin-bottom:6px;color:#856404;">
+          ⚠️ 本日已有「${type}」表單（LogID：${logId}）
+        </div>
+        <div style="font-size:12px;margin-bottom:10px;color:#555;">
+          是否要繼續修改既有表單，還是重新填寫？
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="continueExistingForm(${logId})" style="
+            flex:1;padding:9px;background:#1D7C4D;color:#fff;border:none;
+            border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+            ✏️ 繼續修改既有表單
+          </button>
+          <button onclick="freshNewForm()" style="
+            flex:1;padding:9px;background:#e74c3c;color:#fff;border:none;
+            border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+            🆕 重新填寫
+          </button>
+        </div>`;
       warn.style.display = 'block';
-      // ★ 自動載入既有表單供修改，不再允許重複建立
+      existingLogId = null; // 先清空，等使用者點擊再設定
+    } else {
       warn.style.display = 'none';
-      showToast(`📋 本日已有「${type}」表單，已載入供您修改`);
-      existingLogId = res.logId;
-      buildCheckItems();
-      gotoStep(2);
-      // ★ 建完 UI 後載入既有資料
-      setTimeout(() => loadExistingFormData(res.logId), 300);
-    } else { warn.style.display = 'none'; }
+      existingLogId = null;
+    }
   } catch(e) { warn.style.display = 'none'; }
 }
 
 function goStep2() {
   if (!document.getElementById('s1Site').value) { showToast('⚠️ 請選擇案場'); return; }
   if (!selectedFormType) { showToast('⚠️ 請選擇表單類型'); return; }
+  // ★ 若有重複提示正在顯示，要求使用者先選擇
+  const warn = document.getElementById('dupWarn');
+  if (warn && warn.style.display !== 'none') {
+    showToast('⚠️ 請先選擇「繼續修改」或「重新填寫」');
+    warn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   buildCheckItems();
   gotoStep(2);
+}
+function backToStep1() {
+  existingLogId = null;
+  // 回到 step1 同時把 dupWarn 恢復顯示（如果原本有的話）
+  gotoStep(1);
+}
+// ★ 繼續修改既有表單
+function continueExistingForm(logId) {
+  existingLogId = logId;
+  document.getElementById('dupWarn').style.display = 'none';
+  buildCheckItems();
+  gotoStep(2);
+  // 稍微延遲確保 DOM 已建立
+  setTimeout(() => loadExistingFormData(logId), 400);
+}
+
+// ★ 重新填寫（忽略既有資料）
+function freshNewForm() {
+  existingLogId = null;
+  document.getElementById('dupWarn').style.display = 'none';
+  buildCheckItems();
+  gotoStep(2);
+  showToast('✅ 已清空，請重新填寫');
 }
 // ★ 載入既有表單資料並填入 checkResults
 async function loadExistingFormData(logId) {
   if (!logId) return;
   try {
+    showToast('⏳ 載入既有資料中...');
+
+    // ── 載入文字結果 ───────────────────────────────────────────
     const r = await apiFetch(`/get-form-detail/${logId}`);
     const res = await r.json();
     if (!res.success || !res.data || !res.data.ContentJson) {
-      showToast('ℹ️ 未找到既有資料，請重新填寫');
+      showToast('⚠️ 找不到既有資料，請重新填寫');
       return;
     }
 
     const raw = res.data.ContentJson;
     const items = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (!Array.isArray(items)) return;
+    if (!Array.isArray(items)) { showToast('⚠️ 資料格式有誤'); return; }
 
-    let loadedCount = 0;
+    let textLoaded = 0;
     currentSections.forEach((sec, si) => {
       sec.items.forEach((itemText, ii) => {
         const key = `${si}_${ii}`;
-        // 用 section + item 文字比對
         const match = items.find(m => m.section === sec.title && m.item === itemText);
         if (match && match.result) {
           setResult(key, match.result);
-          loadedCount++;
+          textLoaded++;
           if (match.note) {
             checkResults[key].note = match.note;
             const noteEl = document.getElementById(`note_${key}`);
@@ -577,9 +635,29 @@ async function loadExistingFormData(logId) {
         }
       });
     });
-
     updateCount();
-    showToast(`✅ 已載入既有資料（${loadedCount} 項）`);
+
+    // ── 載入異常照片 ───────────────────────────────────────────
+    try {
+      const r2 = await apiFetch(`/hse/fail-photos/${logId}`);
+      const res2 = await r2.json();
+      if (res2.success && Array.isArray(res2.data)) {
+        res2.data.forEach(photo => {
+          const key = photo.ItemKey;
+          if (!checkResults[key] || !photo.PhotoBase64) return;
+          // 存入 checkResults
+          checkResults[key].photoB64 = photo.PhotoBase64;
+          // 顯示縮圖
+          const prevEl = document.getElementById(`prev_${key}`);
+          if (prevEl) {
+            prevEl.src = photo.PhotoBase64;
+            prevEl.style.display = 'block';
+          }
+        });
+      }
+    } catch(pe) { console.warn('[loadExistingFormData] 照片載入失敗：', pe.message); }
+
+    showToast(`✅ 已載入既有資料（${textLoaded} 個結果）`);
   } catch(e) {
     console.warn('[loadExistingFormData]', e.message);
     showToast('⚠️ 資料載入失敗，請重新填寫');
@@ -590,6 +668,9 @@ function buildCheckItems() {
   checkResults = {};
   const area = document.getElementById('checkArea');
   area.innerHTML = '';
+  // ★ 更新 Step 2 標題
+  const t = document.getElementById('step2Title');
+  if (t) t.textContent = selectedFormType || '';
 
   const db = HSE_DB['default'];
   const focusKeys = FORM_TYPE_FOCUS[selectedFormType];
