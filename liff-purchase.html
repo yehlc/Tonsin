@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head>  
+<head> 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>同興營造 — 發包作業</title>
@@ -119,7 +119,6 @@ textarea{height:90px;resize:vertical}
 <div class="tabs">
   <div class="tab active" onclick="switchTab('new')">➕ 新增請簽</div>
   <div class="tab" onclick="switchTab('track')">📊 追蹤查詢</div>
-  <div class="tab" onclick="switchTab('delivery')">🚛 到場確認</div>
   <div class="tab" onclick="switchTab('status')">📋 發包總覽</div>
 </div>
 
@@ -184,54 +183,17 @@ textarea{height:90px;resize:vertical}
   </div>
 </div>
 
-<!-- Tab 3: 到場確認 -->
-<div class="page" id="page-delivery">
-  <div class="card">
-    <div class="card-header">🚛 材料到場確認</div>
-    <div class="card-body">
-      <div class="fg"><label class="fl">選擇發包單<span>*</span></label><div class="sel-wrap"><select id="deliveryPR"><option value="">— 請先選擇 —</option></select></div></div>
-      <div class="fg"><label class="fl">到場日期<span>*</span></label><input type="date" id="deliveryDate"></div>
-      <div class="fg"><label class="fl">數量確認</label><input type="text" id="deliveryQty" placeholder="例：混凝土 50方，磅單號 A2024-0531"></div>
-      <div class="fg">
-        <label class="fl">到場照片</label>
-        <div class="photo-zone"><input type="file" id="deliveryPhoto" accept="image/*" capture="environment" onchange="previewDeliveryPhoto(this)"><div style="font-size:24px;margin-bottom:4px">📷</div><div style="font-size:13px;color:var(--muted)">拍攝到場照片</div></div>
-        <img id="deliveryPhotoPreview" style="display:none;width:100%;border-radius:8px;margin-top:8px;max-height:160px;object-fit:cover">
-      </div>
-      <div class="fg">
-    <label class="fl">✍️ 驗收人簽名（選填）</label>
-    <div style="position:relative;border:1px solid #ddd;border-radius:8px;background:#fff;overflow:hidden;">
-      <canvas id="deliverySigCanvas" style="width:100%;height:100px;touch-action:none;cursor:crosshair;display:block;"></canvas>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:6px;">
-      <button onclick="clearDeliverySig()" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;cursor:pointer;">↩ 清除</button>
-    </div>
-  </div>
-      <button class="btn-submit" onclick="submitDelivery()">✅ 確認到場並通知主任</button>
-    </div>
-  </div>
-</div>
-
 <!-- Tab 4: 發包狀態總覽 -->
 <div class="page" id="page-status">
   <!-- 工地 + 視圖切換 -->
   <div style="padding:10px 10px 0;display:flex;gap:8px;align-items:center;">
     <select id="statusSiteFilter" onchange="loadStatusOverview()" style="flex:1;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;color:#333;">
-      <option value="ALL">🏢 全部工地</option>
     </select>
-    <button onclick="toggleView()" id="viewToggleBtn" style="padding:9px 12px;border:1px solid #1A6FA8;border-radius:8px;font-size:12px;color:#1A6FA8;background:#fff;white-space:nowrap;cursor:pointer;">📄 清單</button>
+
   </div>
   <!-- 統計列 -->
   <div id="statusSummary" style="display:flex;gap:8px;padding:10px 10px 0;flex-wrap:wrap;"></div>
-  <!-- 篩選列（PR 清單視圖用） -->
-  <div class="filter-row" id="statusFilterRow" style="display:none;">
-    <div class="filter-chip active" onclick="filterStatusAll('ALL',this)">全部</div>
-    <div class="filter-chip" onclick="filterStatusAll('PENDING',this)">審核中</div>
-    <div class="filter-chip" onclick="filterStatusAll('APPROVED',this)">已發包</div>
-    <div class="filter-chip" onclick="filterStatusAll('REJECTED',this)">已退回</div>
-    <div class="filter-chip" onclick="filterStatusAll('NONE',this)">未發包</div>
-  </div>
-  <!-- PR 清單（清單視圖）-->
-  <div id="statusList" style="display:none;padding:8px 10px 20px;"><div class="empty-state"><div class="icon">📋</div><p>載入中...</p></div></div>
+
   <!-- 工程項目全覽（手風琴，預設視圖）-->
   <div id="treeView" style="padding:0;"></div>
 </div>
@@ -435,16 +397,22 @@ function initUI() {
   zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
   zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
 
-  document.getElementById('deliveryDate').value = new Date().toISOString().split('T')[0];
 
 
+
+  // ★ 填充發包總覽工地下拉（SITE_LIST，不含全部工地）
+  const statusSiteEl = document.getElementById('statusSiteFilter');
+  if (statusSiteEl) {
+    statusSiteEl.innerHTML = '';
+    SITE_LIST.forEach(s => { const o=document.createElement('option'); o.value=s; o.textContent='📍 '+s; statusSiteEl.appendChild(o); });
+  }
 
   loadMyPRs();
 }
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const names=['new','track','delivery','status'];
+    const names=['new','track','status'];
     t.classList.toggle('active', names[i]===name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -577,18 +545,6 @@ async function loadMyPRs() {
     myPRs = await r.json();
     renderPRList();
 
-    // 到場確認下拉：取我有權限工地的已核准 PR（★ 修正：不限自己申請的）
-    const r2 = await apiFetch(`/purchase/site-approved-prs?userId=${lineUserId||myUserId}`);
-    const res2 = await r2.json();
-    const sitePRs = res2.success ? res2.data : [];
-    const delivEl = document.getElementById('deliveryPR');
-    delivEl.innerHTML = '<option value="">— 請選擇發包單 —</option>';
-    sitePRs.forEach(pr => {
-      const o = document.createElement('option');
-      o.value = pr.RequestID;
-      o.textContent = `${pr.RequestID} — ${pr.ItemName} (${pr.SiteName})`;
-      delivEl.appendChild(o);
-    });
   } catch(e) { console.warn(e); }
 }
 
@@ -622,27 +578,10 @@ function renderPRList() {
 
 function filterStatus(s,el) { currentStatusFilter=s; document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active')); el.classList.add('active'); renderPRList(); }
 
-// 到場確認
-function previewDeliveryPhoto(input) {
-  if (!input.files[0]) return;
-  const r=new FileReader(); r.onload=e=>{ const i=document.getElementById('deliveryPhotoPreview'); i.src=e.target.result; i.style.display='block'; }; r.readAsDataURL(input.files[0]);
-}
-async function submitDelivery() {
-  const prId=document.getElementById('deliveryPR').value, date=document.getElementById('deliveryDate').value;
-  if (!prId||!date) { showToast('⚠️ 請選擇發包單與到場日期'); return; }
-  let photoB64=null;
-  const photoInput=document.getElementById('deliveryPhoto');
-  if (photoInput.files[0]) photoB64=await fileToBase64(photoInput.files[0]);
-  try {
-    const r=await apiFetch('/purchase/mark-delivery',{method:'POST',body:JSON.stringify({requestId:prId,deliveryDate:date,deliveredQty:document.getElementById('deliveryQty').value,photoBase64:photoB64,confirmer:myUser,confirmerId:lineUserId||myUserId})});
-    const res=await r.json();
-    if (res.success) showToast('✅ 到場已確認，已通知工地主任！');
-    else throw new Error(res.error);
-  } catch(e) { showToast('❌ '+e.message); }
-}
+// 到場確認功能已移除
 
 // ─── 發包總覽 ───────────────────────────────────────────────────
-let allStatusPRs = [], statusFilter = 'ALL', viewMode = 'tree';
+let allStatusPRs = [], statusFilter = 'ALL';
 
 // ─── PR 詳情/審核面板 ────────────────────────────────────────────
 let currentReviewPrId = null;
@@ -685,7 +624,7 @@ async function openPRReview(prId) {
       ? `<div style="margin-top:12px;padding:10px;background:#f0f7ff;border-radius:8px;">
            <div style="font-size:12px;font-weight:700;color:#1A6FA8;margin-bottom:8px;">📎 附件（${pr.Attachments.length} 個）</div>
            ${pr.Attachments.map(a => `
-             <a href="${apiBase}/attachment/${a.ID}" target="_blank" style="
+             <a href="https://yehlc.github.io/Tonsin/liff-attachment.html?id=${a.ID}&api=${encodeURIComponent(apiBase)}" target="_blank" style="
                display:block;padding:8px 10px;margin-bottom:5px;
                background:#fff;border:1px solid #c5dcf5;border-radius:6px;
                font-size:13px;color:#1A6FA8;text-decoration:none;">
@@ -760,38 +699,24 @@ async function doReviewAction(action) {
   } catch(e) { showToast('❌ ' + e.message); }
 }
   
-function toggleView() {
-  viewMode = viewMode === 'list' ? 'tree' : 'list';
-  const btn = document.getElementById('viewToggleBtn');
-  document.getElementById('statusList').style.display = viewMode === 'list' ? 'block' : 'none';
-  document.getElementById('statusFilterRow').style.display = viewMode === 'list' ? 'flex' : 'none';
-  document.getElementById('treeView').style.display = viewMode === 'tree' ? 'block' : 'none';
-  btn.textContent = viewMode === 'list' ? '📋 全覽' : '📄 清單';
-  if (viewMode === 'tree') buildPRTree();
-}
+
 
 async function loadStatusOverview() {
-  document.getElementById('statusList').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>載入中...</p></div>';
+  const treeView = document.getElementById('treeView');
+  if (treeView) treeView.innerHTML = '<div style="text-align:center;padding:40px;font-size:20px;">⏳</div>';
   try {
     const siteSel = document.getElementById('statusSiteFilter');
-    const siteFilter2 = siteSel ? siteSel.value : 'ALL';
-    const r = await apiFetch(`/purchase/all-status?userId=${lineUserId||myUserId}&site=${encodeURIComponent(siteFilter2)}`);
+    const siteVal = siteSel ? siteSel.value : '';
+    const r = await apiFetch(`/purchase/all-status?userId=${lineUserId||myUserId}&site=${encodeURIComponent(siteVal)}`);
     const res = await r.json();
     if (!res.success) throw new Error(res.error);
     allStatusPRs = res.data || [];
-
-    // 自動填充工地下拉（第一次）
-    if (siteSel && siteSel.options.length <= 1) {
-      const r2 = await apiFetch(`/purchase/all-status?userId=${lineUserId||myUserId}&site=ALL`);
-      const all = await r2.json();
-      const sites = [...new Set((all.data||[]).map(p => p.SiteName).filter(Boolean))].sort();
-      sites.forEach(s => { const o=document.createElement('option'); o.value=s; o.textContent='📍 '+s; siteSel.appendChild(o); });
-    }
-
     renderStatusSummary();
-    if (viewMode === 'list') renderStatusList();
-    else buildPRTree();
-  } catch(e) { document.getElementById('statusList').innerHTML = `<div class="empty-state"><p>❌ ${e.message}</p></div>`; }
+    buildPRTree();
+  } catch(e) {
+    const treeView = document.getElementById('treeView');
+    if (treeView) treeView.innerHTML = `<div style="text-align:center;padding:40px;color:#e74c3c;">❌ ${e.message}</div>`;
+  }
 }
 
     // ──────────────────────────────────────────────────────────────
@@ -928,169 +853,18 @@ function renderStatusSummary() {
     { label:'未發包', val:Math.max(0,noneCount), bg:'#888',   filter:'NONE'    }
   ];
   document.getElementById('statusSummary').innerHTML = cards.map(c=>
-    `<div onclick="filterStatusAll('${c.filter}',null)" style="
-      flex:1;min-width:55px;background:${c.bg};color:#fff;border-radius:10px;
-      padding:10px 4px;text-align:center;cursor:pointer;">
+    `<div style="flex:1;min-width:55px;background:${c.bg};color:#fff;border-radius:10px;padding:10px 4px;text-align:center;">
       <div style="font-size:20px;font-weight:700;">${c.val}</div>
       <div style="font-size:10px;margin-top:2px;">${c.label}</div>
     </div>`
   ).join('');
 }
 
-function filterStatusAll(f, el) {
-  statusFilter = f;
-  document.querySelectorAll('#statusFilterRow .filter-chip').forEach(c=>c.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderStatusList();
-}
-  let deliverySigCtx=null, deliverySigHasData=false;
 
-function initDeliverySig() {
-  const canvas = document.getElementById('deliverySigCanvas');
-  if (!canvas || deliverySigCtx) return;
-  canvas.width = canvas.offsetWidth || 350; canvas.height = 100;
-  deliverySigCtx = canvas.getContext('2d');
-  deliverySigCtx.strokeStyle = '#1A2F4B'; deliverySigCtx.lineWidth = 2.5; deliverySigCtx.lineCap = 'round';
-  let drawing = false;
-  const getP = e => { const r=canvas.getBoundingClientRect(); const s=e.touches?e.touches[0]:e; return {x:(s.clientX-r.left)*(canvas.width/r.width), y:(s.clientY-r.top)*(canvas.height/r.height)}; };
-  canvas.addEventListener('mousedown', e=>{ drawing=true; const p=getP(e); deliverySigCtx.beginPath(); deliverySigCtx.moveTo(p.x,p.y); });
-  canvas.addEventListener('mousemove', e=>{ if(!drawing)return; const p=getP(e); deliverySigCtx.lineTo(p.x,p.y); deliverySigCtx.stroke(); deliverySigHasData=true; });
-  canvas.addEventListener('mouseup',   ()=>{ drawing=false; });
-  canvas.addEventListener('touchstart',e=>{ e.preventDefault(); drawing=true; const p=getP(e); deliverySigCtx.beginPath(); deliverySigCtx.moveTo(p.x,p.y); },{passive:false});
-  canvas.addEventListener('touchmove', e=>{ e.preventDefault(); if(!drawing)return; const p=getP(e); deliverySigCtx.lineTo(p.x,p.y); deliverySigCtx.stroke(); deliverySigHasData=true; },{passive:false});
-  canvas.addEventListener('touchend',  ()=>{ drawing=false; });
-}
 
-function clearDeliverySig() {
-  if (deliverySigCtx) { deliverySigCtx.clearRect(0,0,deliverySigCtx.canvas.width,deliverySigCtx.canvas.height); deliverySigHasData=false; }
-}
 
-function renderStatusList() {
-  const el = document.getElementById('statusList');
-  const statusMap = {
-    'PENDING' : { label:'審核中', bg:'#fff3e0', border:'#ff9800', txt:'#e65100' },
-    'APPROVED': { label:'已發包', bg:'#e8f8ee', border:'#1D7C4D', txt:'#1D7C4D' },
-    'REJECTED': { label:'已退回', bg:'#fdecea', border:'#e74c3c', txt:'#c62828' }
-  };
 
-  let list;
-  if (statusFilter === 'NONE') {
-    // 顯示未發包項目（從 PR_TREE 找沒有對應 PR 的）
-    const prKeys = new Set(allStatusPRs.map(p=>`${p.Category}|${p.SubCat}|${p.ItemName}`));
-    list = [];
-    Object.entries(PR_TREE).forEach(([cat, subs]) => {
-      Object.entries(subs).forEach(([sub, items]) => {
-        items.forEach(item => {
-          if (!prKeys.has(`${cat}|${sub}|${item}`)) {
-            list.push({ _noPR:true, Category:cat, SubCat:sub, ItemName:item });
-          }
-        });
-      });
-    });
-    if (!list.length) { el.innerHTML='<div class="empty-state"><div class="icon">🎉</div><p>所有工項都已建立發包請簽！</p></div>'; return; }
-    el.innerHTML = list.map(pr => `
-      <div class="pr-card" onclick="prefillNewPR('${encodeURIComponent(pr.Category)}','${encodeURIComponent(pr.SubCat)}','${encodeURIComponent(pr.ItemName)}')"
-        style="border-left:3px solid #aaa;cursor:pointer;">
-        <div class="pr-card-header">
-          <div class="pr-card-title" style="color:#555;">${pr.ItemName}</div>
-          <div class="pr-status-badge" style="background:#f5f5f5;color:#888;border:1px solid #ddd;">未發包</div>
-        </div>
-        <div class="pr-card-body">
-          <div style="font-size:12px;color:#888;">🔧 ${pr.Category} / ${pr.SubCat}</div>
-          <div style="font-size:12px;color:#1A6FA8;margin-top:6px;">📝 點此快速建立此項目的發包請簽</div>
-        </div>
-      </div>`).join('');
-    return;
-  }
-  list = statusFilter === 'ALL' ? allStatusPRs : allStatusPRs.filter(p=>p.Status===statusFilter);
-  if (!list.length) { el.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>此分類無資料</p></div>'; return; }
 
-  el.innerHTML = list.map(pr => {
-    const s = statusMap[pr.Status] || { label:pr.Status, bg:'#f5f5f5', border:'#aaa', txt:'#333' };
-    const isElec = pr.IsElecCategory === true || pr.IsElecCategory === 1;
-    const chainStages = getChainStages(isElec);
-    const curStage = parseFloat(pr.CurrentStage||3);
-    const isDone   = pr.Status === 'APPROVED';
-    const chainHtml = chainStages.map(st => {
-      let cls='chain-future', icon='○';
-      if(isDone||st.level<curStage){cls='chain-done';icon='✓';}
-      else if(st.level===curStage){cls='chain-current';icon='⧖';}
-      if(pr.Status==='REJECTED'&&st.level===curStage){cls='chain-rejected';icon='✗';}
-      return `<span class="chain-node ${cls}">${icon} ${st.name}</span>`;
-    }).join('<span class="chain-arrow">›</span>');
-
-    return `<div class="pr-card" onclick="openPRReview('${pr.RequestID}')" style="border-left:3px solid ${s.border};cursor:pointer;">
-      <div class="pr-card-header">
-        <div class="pr-card-title">${pr.ItemName}</div>
-        <div class="pr-status-badge" style="background:${s.bg};color:${s.txt};border:1px solid ${s.border};">${s.label}</div>
-      </div>
-      <div class="pr-card-body">
-        <div style="font-size:12px;color:#666;">📍 ${pr.SiteName} | 📅 ${(pr.CreatedAt||'').substring(0,10)} | 👤 ${pr.ApplicantName||'-'}</div>
-        <div style="font-size:12px;color:#555;margin-top:4px;">🔧 ${pr.Category||''}／${pr.SubCat||''}</div>
-        ${pr.RejectReason?`<div style="font-size:11px;color:#c62828;margin-top:4px;">🛑 ${pr.RejectReason}</div>`:''}
-        ${pr.AttachCount>0?`<div style="font-size:11px;color:#1A6FA8;margin-top:4px;">📎 ${pr.AttachCount} 個附件</div>`:''}
-        <div class="pr-chain" style="margin-top:8px;">${chainHtml}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function editPR(prId) {
-  try {
-    const r = await apiFetch(`/purchase/get-pr?id=${encodeURIComponent(prId)}`);
-    const res = await r.json();
-    if (!res.success) throw new Error(res.error);
-    const pr = res.data;
-    switchTab('new');
-    // 預填表單
-    setTimeout(async () => {
-      const siteEl = document.getElementById('prSite');
-      siteEl.value = pr.SiteName; onSiteChange();
-      await new Promise(r => setTimeout(r, 100));
-      const catEl = document.getElementById('prCat');
-      catEl.value = pr.Category; catEl.disabled = false; onCatChange();
-      await new Promise(r => setTimeout(r, 100));
-      const subEl = document.getElementById('prSub');
-      subEl.value = pr.SubCat; subEl.disabled = false; onSubChange();
-      await new Promise(r => setTimeout(r, 100));
-      document.getElementById('prItem').value = pr.ItemName;
-      document.getElementById('prItem').disabled = false;
-      document.getElementById('prDetails').value = pr.Details || '';
-      // 修改模式：改按鈕文字，提交時用 resubmit
-      const btn = document.getElementById('btnSubmit');
-      btn.textContent = '🔄 重新送出申請';
-      btn.dataset.editPrId = pr.RequestID;
-      btn.dataset.editMode = 'true';
-      // 顯示退回原因提示
-      if (pr.RejectReason) {
-        const hint = document.getElementById('validHint');
-        hint.textContent = `🛑 上次退回原因：${pr.RejectReason}`;
-        hint.className = 'valid-hint error';
-      }
-      showToast('📋 已帶入原始資料，請修改後重新送出');
-    }, 200);
-  } catch(e) { showToast('❌ ' + e.message); }
-}
-
-// ★ apiFetch — 偵測非 JSON 回應（修復 Unexpected token '<' 錯誤）
-async function apiFetch(path, opts={}) {
-  const r = await fetch(apiBase+path, {
-    ...opts,
-    headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true',...(opts.headers||{})}
-  });
-  if (!r.ok) {
-    const txt = await r.text().catch(()=>`HTTP ${r.status}`);
-    const hint = txt.includes('<html')?'(伺服器回傳HTML，請確認API端點正確)':'';
-    throw new Error(`API錯誤 ${r.status} ${hint}`);
-  }
-  const ct = r.headers.get('content-type')||'';
-  if (!ct.includes('application/json')&&!ct.includes('text/plain')) {
-    const txt = await r.text().catch(()=>'');
-    const hint = txt.includes('ngrok')?'(ngrok警告頁面，請確認header設定)':'(回應非JSON格式)';
-    throw new Error(`API非JSON回應 ${hint}`);
-  }
-  return r;
-}
 function fileToBase64(file) { return new Promise((r,j)=>{const rd=new FileReader();rd.readAsDataURL(file);rd.onload=()=>r(rd.result);rd.onerror=j;}); }
 let _tt;
 function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),3500); }
