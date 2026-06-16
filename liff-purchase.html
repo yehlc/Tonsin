@@ -299,8 +299,12 @@ let ratingData={ quality:0, schedule:0, hse:0, comm:0 };
 liff.init({ liffId: LIFF_ID }).then(async () => {
   // ★ 強制登入：PC/NB Desktop LINE 未登入時會跳到登入頁
   if (!liff.isLoggedIn()) {
-    liff.login({ redirectUri: window.location.href });
-    return;
+    // ★ 只在 LINE App 內才強制跳轉登入；PC 桌機瀏覽器直接顯示（測試用）
+    if (liff.isInClient()) {
+      liff.login({ redirectUri: window.location.href });
+      return;
+    }
+    // PC 桌機：跳過登入，繼續執行以顯示 UI
   }
   if (liff.isLoggedIn()) {
     const p = await liff.getProfile();
