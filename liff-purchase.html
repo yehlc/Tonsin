@@ -76,6 +76,37 @@ textarea{height:90px;resize:vertical}
 .log-entry{background:#f8f9fa;border-radius:7px;padding:9px 12px;margin-bottom:6px;font-size:12px;border-left:3px solid var(--primary)}
 .log-entry .log-action{font-weight:700;color:var(--text)}
 .log-entry .log-meta{color:var(--muted);margin-top:2px}
+
+/* ═══ 發包總覽手風琴 ═══ */
+.acc-wrap{padding:10px 10px 30px;}
+.acc-cat{background:#fff;border-radius:10px;margin-bottom:8px;box-shadow:0 1px 5px rgba(0,0,0,.08);overflow:hidden;}
+.acc-cat-hd{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;background:linear-gradient(135deg,#1A6FA8,#2980b9);}
+.acc-cat-hd:active{filter:brightness(.94);}
+.acc-arr{font-size:10px;color:rgba(255,255,255,.85);transition:transform .22s;flex-shrink:0;}
+.acc-arr.open{transform:rotate(90deg);}
+.acc-cat-name{flex:1;font-size:14px;font-weight:700;color:#fff;}
+.acc-cat-cnt{font-size:11px;background:rgba(255,255,255,.22);color:#fff;padding:2px 9px;border-radius:10px;white-space:nowrap;}
+.acc-cat-bd{display:none;}
+.acc-sub{border-top:1px solid #eef2f5;}
+.acc-sub-hd{display:flex;align-items:center;gap:8px;padding:10px 14px 10px 28px;cursor:pointer;background:#f8fafc;}
+.acc-sub-hd:active{background:#edf3fb;}
+.acc-sub-arr{font-size:9px;color:#636e72;transition:transform .18s;flex-shrink:0;}
+.acc-sub-arr.open{transform:rotate(90deg);}
+.acc-sub-name{flex:1;font-size:13px;font-weight:600;color:#2d3436;}
+.acc-sub-cnt{font-size:11px;color:#888;background:#e9ecef;padding:1px 7px;border-radius:8px;white-space:nowrap;}
+.acc-sub-bd{display:none;background:#fff;}
+.acc-item{display:flex;align-items:center;gap:6px;padding:9px 12px 9px 44px;border-top:1px solid #f0f2f5;}
+.acc-item:active{background:#f8f9fa;}
+.acc-item-name{flex:1;font-size:12px;color:#2d3436;line-height:1.3;}
+.acc-ibadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;white-space:nowrap;}
+.ib-none{background:#e9ecef;color:#636e72;}
+.ib-pend{background:#fff3cd;color:#856404;}
+.ib-ok  {background:#d4edda;color:#155724;}
+.ib-rej {background:#f8d7da;color:#721c24;}
+.acc-new-btn {font-size:11px;padding:3px 9px;border:none;border-radius:6px;cursor:pointer;background:#00b894;color:#fff;white-space:nowrap;flex-shrink:0;}
+.acc-view-btn{font-size:11px;padding:3px 9px;border:1.5px solid #1A6FA8;border-radius:6px;cursor:pointer;background:#fff;color:#1A6FA8;white-space:nowrap;flex-shrink:0;}
+.acc-edit-btn{font-size:11px;padding:3px 9px;border:none;border-radius:6px;cursor:pointer;background:#e17055;color:#fff;white-space:nowrap;flex-shrink:0;}
+
 </style>
 </head>
 <body>
@@ -187,22 +218,22 @@ textarea{height:90px;resize:vertical}
     <select id="statusSiteFilter" onchange="loadStatusOverview()" style="flex:1;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;color:#333;">
       <option value="ALL">🏢 全部工地</option>
     </select>
-    <button onclick="toggleView()" id="viewToggleBtn" style="padding:9px 12px;border:1px solid #1A6FA8;border-radius:8px;font-size:12px;color:#1A6FA8;background:#fff;white-space:nowrap;cursor:pointer;">📋 全覽</button>
+    <button onclick="toggleView()" id="viewToggleBtn" style="padding:9px 12px;border:1px solid #1A6FA8;border-radius:8px;font-size:12px;color:#1A6FA8;background:#fff;white-space:nowrap;cursor:pointer;">📄 清單</button>
   </div>
   <!-- 統計列 -->
   <div id="statusSummary" style="display:flex;gap:8px;padding:10px 10px 0;flex-wrap:wrap;"></div>
   <!-- 篩選列（PR 清單視圖用） -->
-  <div class="filter-row" id="statusFilterRow" style="display:flex;">
+  <div class="filter-row" id="statusFilterRow" style="display:none;">
     <div class="filter-chip active" onclick="filterStatusAll('ALL',this)">全部</div>
     <div class="filter-chip" onclick="filterStatusAll('PENDING',this)">審核中</div>
     <div class="filter-chip" onclick="filterStatusAll('APPROVED',this)">已發包</div>
     <div class="filter-chip" onclick="filterStatusAll('REJECTED',this)">已退回</div>
     <div class="filter-chip" onclick="filterStatusAll('NONE',this)">未發包</div>
   </div>
-  <!-- PR 清單（預設視圖）-->
-  <div id="statusList" style="padding:8px 10px 20px;"><div class="empty-state"><div class="icon">📋</div><p>載入中...</p></div></div>
-  <!-- 工程項目全覽（切換視圖）-->
-  <div id="treeView" style="display:none;padding:8px 10px 20px;"></div>
+  <!-- PR 清單（清單視圖）-->
+  <div id="statusList" style="display:none;padding:8px 10px 20px;"><div class="empty-state"><div class="icon">📋</div><p>載入中...</p></div></div>
+  <!-- 工程項目全覽（手風琴，預設視圖）-->
+  <div id="treeView" style="padding:0;"></div>
 </div>
 
 <div id="toast"></div>
@@ -295,6 +326,7 @@ function getChainStages(isElec) {
 
 let lineUserId='', uploadedFiles=[], myPRs=[], currentStatusFilter='ALL';
 let ratingData={ quality:0, schedule:0, hse:0, comm:0 };
+document.body.dataset.userLevel = '0'; // ★ 預設未登入，check-auth 後更新
 
 liff.init({ liffId: LIFF_ID }).then(async () => {
   // ★ 強制登入：PC/NB Desktop LINE 未登入時會跳到登入頁
@@ -381,8 +413,7 @@ function initUI() {
   // ★ 防重複：第二次呼叫只更新 Level，不重新填充下拉
   if (_uiInited) return;
   _uiInited = true;
-
-  document.body.dataset.userLevel = '0';
+  // ★ 不在此重設 userLevel（已在 check-auth 中設定）
   // 案場（先清空再填入，防止重複）
   const siteEl = document.getElementById('prSite');
   siteEl.innerHTML = '<option value="">— 請選擇案場 —</option>';
@@ -611,7 +642,7 @@ async function submitDelivery() {
 }
 
 // ─── 發包總覽 ───────────────────────────────────────────────────
-let allStatusPRs = [], statusFilter = 'ALL';
+let allStatusPRs = [], statusFilter = 'ALL', viewMode = 'tree';
 
 // ─── PR 詳情/審核面板 ────────────────────────────────────────────
 let currentReviewPrId = null;
@@ -767,94 +798,96 @@ async function loadStatusOverview() {
 // 在 loadStatusOverview 函式中，allStatusPRs 載入後加入：
 // ──────────────────────────────────────────────────────────────
 // ── 工程項目全覽 Tree View ────────────────────────────────
+// ★ 手風琴展開/收合
+function toggleAcc(hd) {
+  const bd   = hd.nextElementSibling;
+  const arr  = hd.querySelector('.acc-arr, .acc-sub-arr');
+  const open = bd.style.display !== 'none';
+  bd.style.display = open ? 'none' : 'block';
+  if (arr) arr.classList.toggle('open', !open);
+}
+
 function buildPRTree() {
   const container = document.getElementById('treeView');
   if (!container) return;
   const siteSel = document.getElementById('statusSiteFilter');
   const site = siteSel ? siteSel.value : 'ALL';
 
+  // 建立 prMap：key = Cat|Sub|Item → 最新 PR
   const prMap = {};
   allStatusPRs.forEach(pr => {
+    if (site !== 'ALL' && pr.SiteName !== site) return;
     const key = `${pr.Category}|${pr.SubCat}|${pr.ItemName}`;
-    if (!prMap[key] || pr.CreatedAt > prMap[key].CreatedAt) prMap[key] = pr;
+    if (!prMap[key] || (pr.CreatedAt||'') > (prMap[key].CreatedAt||'')) prMap[key] = pr;
   });
 
-  const stStyle = {
-    'PENDING' : { bg:'#fff3e0', txt:'#e65100', label:'審核中' },
-    'APPROVED': { bg:'#e8f8ee', txt:'#1D7C4D', label:'已發包' },
-    'REJECTED': { bg:'#fdecea', txt:'#c62828', label:'已退回' },
-    'NONE'    : { bg:'#f5f5f5', txt:'#888',    label:'未發包' }
-  };
+  let html = '<div class="acc-wrap">';
 
-  let html = '';
   Object.entries(PR_TREE).forEach(([cat, subs]) => {
-    let catTotal=0, catDone=0;
-    Object.values(subs).forEach(items => {
+    let catTotal = 0, catActive = 0;
+    Object.entries(subs).forEach(([sub, items]) => {
       items.forEach(item => {
         catTotal++;
-        if (prMap[`${cat}|${Object.entries(subs).find(([,it])=>it.includes(item))?.[0]||''}|${item}`]?.Status === 'APPROVED') catDone++;
+        if (prMap[`${cat}|${sub}|${item}`]) catActive++;
       });
     });
-    const pct = catTotal > 0 ? Math.round(catDone/catTotal*100) : 0;
+    const catPct = catTotal > 0 ? Math.round(catActive/catTotal*100) : 0;
 
-    html += `<div style="margin-bottom:10px;border:1px solid #ddd;border-radius:10px;overflow:hidden;">
-      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'"
-           style="background:#1A2F4B;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
-        <span style="font-size:13px;font-weight:700;">${cat}</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:11px;opacity:.8;">${catDone}/${catTotal} 已發包 (${pct}%)</span>
-          <div style="width:50px;height:5px;background:rgba(255,255,255,.3);border-radius:3px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:#27ae60;"></div>
-          </div>
-        </div>
+    html += `<div class="acc-cat">
+      <div class="acc-cat-hd" onclick="toggleAcc(this)">
+        <span class="acc-arr">▶</span>
+        <span class="acc-cat-name">${cat}</span>
+        <span class="acc-cat-cnt">${catActive}/${catTotal} (${catPct}%)</span>
       </div>
-      <div style="display:none;">`;
+      <div class="acc-cat-bd">`;
 
     Object.entries(subs).forEach(([sub, items]) => {
-      html += `<div style="background:#f8f9fa;padding:6px 14px;font-size:11px;font-weight:700;color:#555;border-top:1px solid #eee;">${sub}</div>`;
+      const subActive = items.filter(item => prMap[`${cat}|${sub}|${item}`]).length;
+
+      html += `<div class="acc-sub">
+          <div class="acc-sub-hd" onclick="toggleAcc(this)">
+            <span class="acc-sub-arr">▶</span>
+            <span class="acc-sub-name">${sub}</span>
+            <span class="acc-sub-cnt">${subActive}/${items.length}</span>
+          </div>
+          <div class="acc-sub-bd">`;
+
       items.forEach(item => {
         const key = `${cat}|${sub}|${item}`;
         const pr  = prMap[key];
-        const s   = pr ? (stStyle[pr.Status]||stStyle['NONE']) : stStyle['NONE'];
-        const date = pr ? (pr.CreatedAt||'').substring(0,10) : '';
-        const fn   = pr
-          ? `openPRReview('${pr.RequestID}')`
-          : `prefillNewPR('${encodeURIComponent(cat)}','${encodeURIComponent(sub)}','${encodeURIComponent(item)}')`;
-        html += `<div onclick="${fn}" style="
-          display:flex;justify-content:space-between;align-items:center;
-          padding:8px 14px;border-top:1px solid #f0f0f0;cursor:pointer;
-          background:${pr?'#fff':'#fafafa'};">
-          <div>
-            <div style="font-size:13px;color:#1A2F4B;">${item}</div>
-            ${date?`<div style="font-size:10px;color:#aaa;">${date}</div>`:''}
-          </div>
-          <span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:${s.bg};color:${s.txt};white-space:nowrap;">${s.label}</span>
-        </div>`;
+        let badgeCls = 'ib-none', badgeTxt = '未發包', actionBtn = '';
+
+        if (pr) {
+          if      (pr.Status === 'PENDING')  { badgeCls='ib-pend'; badgeTxt='審核中'; }
+          else if (pr.Status === 'APPROVED') { badgeCls='ib-ok';   badgeTxt='已發包'; }
+          else if (pr.Status === 'REJECTED') { badgeCls='ib-rej';  badgeTxt='已退回'; }
+          // ★ 非未發包 → 只能查看或重新提交（不能新增）
+          if (pr.Status === 'REJECTED') {
+            actionBtn = `<button class="acc-edit-btn" onclick="editPR('${pr.RequestID}')">🔄 重送</button>`;
+          } else {
+            actionBtn = `<button class="acc-view-btn" onclick="openPRReview('${pr.RequestID}')">查看</button>`;
+          }
+        } else {
+          // 未發包 → 可新增請簽
+          actionBtn = `<button class="acc-new-btn" onclick="prefillNewPR('${encodeURIComponent(cat)}','${encodeURIComponent(sub)}','${encodeURIComponent(item)}')">＋ 新增</button>`;
+        }
+
+        const dateStr = pr ? (pr.CreatedAt||'').substring(0,10) : '';
+        html += `<div class="acc-item">
+              <span class="acc-item-name">${item}${dateStr?`<br><span style="font-size:10px;color:#aaa;">${dateStr}</span>`:''}</span>
+              <span class="acc-ibadge ${badgeCls}">${badgeTxt}</span>
+              ${actionBtn}
+            </div>`;
       });
+
+      html += `</div></div>`; // close acc-sub-bd, acc-sub
     });
 
-    html += `</div></div>`;
+    html += `</div></div>`; // close acc-cat-bd, acc-cat
   });
+
+  html += '</div>';
   container.innerHTML = html;
-}
-
-function toggleCat(el) {
-  const body = el.nextElementSibling;
-  body.style.display = body.style.display==='none' ? 'block' : 'none';
-  el.querySelector('span:last-child').textContent = body.style.display==='none' ? '▼' : '▲';
-}
-
-function toggleTreeView() {
-  const container = document.getElementById('treeContainer');
-  const toggle    = document.getElementById('treeToggle');
-  if (container.style.display === 'none') {
-    container.style.display = 'block';
-    toggle.textContent = '▲ 收起';
-    buildPRTree();
-  } else {
-    container.style.display = 'none';
-    toggle.textContent = '▼ 展開';
-  }
 }
 
 function prefillNewPR(catEnc, subEnc, itemEnc) {
