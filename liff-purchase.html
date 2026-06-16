@@ -865,6 +865,33 @@ function renderStatusSummary() {
 
 
 
+// ★ apiFetch — 帶 timeout 和 ngrok bypass 的統一 fetch 函式
+async function apiFetch(path, opts={}) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 10000); // 10s timeout
+  try {
+    const r = await fetch(apiBase + path, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        ...(opts.headers || {})
+      },
+      signal: ctrl.signal
+    });
+    clearTimeout(tid);
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      throw new Error(`HTTP ${r.status}${txt ? ': ' + txt.substring(0, 80) : ''}`);
+    }
+    return r;
+  } catch(e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('連線逾時，請確認 Node.js 服務已啟動');
+    throw e;
+  }
+}
+
 function fileToBase64(file) { return new Promise((r,j)=>{const rd=new FileReader();rd.readAsDataURL(file);rd.onload=()=>r(rd.result);rd.onerror=j;}); }
 let _tt;
 function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),3500); }
