@@ -876,24 +876,6 @@ function prefillNewPR(catEnc, subEnc, itemEnc) {
     }, 150);
   }, 300);
 }
-    // ★ 自動填充工地下拉（第一次載入時）
-    const siteSel2 = document.getElementById('statusSiteFilter');
-    if (siteSel2 && siteSel2.options.length <= 1) {
-      const sites = [...new Set(allStatusPRs.map(p => p.SiteName).filter(Boolean))].sort();
-      sites.forEach(s => {
-        const o = document.createElement('option'); o.value = s; o.textContent = '📍 ' + s; siteSel2.appendChild(o);
-      });
-    }
-
-    // ★ 套用工地篩選
-    const siteFilter2 = siteSel2 ? siteSel2.value : 'ALL';
-    if (siteFilter2 !== 'ALL') {
-      allStatusPRs = allStatusPRs.filter(p => p.SiteName === siteFilter2);
-    }
-    renderStatusSummary();
-    renderStatusList();
-  } catch(e) { document.getElementById('statusList').innerHTML = `<div class="empty-state"><p>❌ ${e.message}</p></div>`; }
-}
 
 function renderStatusSummary() {
   const siteSel = document.getElementById('statusSiteFilter');
