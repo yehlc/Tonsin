@@ -105,7 +105,7 @@ const apiBase = urlP.get('api') || 'https://unpregnant-tonically-caitlyn.ngrok-f
 let lineId='', allVendors=[], catFilter='ALL', starScore=0;
 
 liff.init({ liffId: LIFF_ID }).then(async () => {
-  if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+  if (!liff.isLoggedIn()) { if (liff.isInClient()) { liff.login({ redirectUri: window.location.href }); } return; }
   const p = await liff.getProfile(); lineId = p.userId;
   document.getElementById('globalLoader').style.display = 'none';
   loadVendors();
