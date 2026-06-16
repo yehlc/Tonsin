@@ -313,16 +313,21 @@ liff.init({ liffId: LIFF_ID }).then(async () => {
     // ★ 自動查詢使用者資料
     if (!myUser) {
       try {
+        // ★ 加 3 秒 timeout，避免網路慢導致永久轉圈
+        const ctrl = new AbortController();
+        const tid  = setTimeout(() => ctrl.abort(), 3000);
         const r = await fetch(apiBase + '/check-auth?userId=' + lineUserId, {
-          headers: { 'ngrok-skip-browser-warning': 'true' }
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+          signal: ctrl.signal
         });
+        clearTimeout(tid);
         if (r.ok) {
           const info = await r.json();
           if (info && info.name && info.name !== '訪客') {
             myUser   = info.name;
             myRole   = info.role   || '';
             myUserId = lineUserId;
-            document.body.dataset.userLevel = info.level || '0'; // ★ 儲存 Level
+            document.body.dataset.userLevel = info.level || '0';
             // 重建類別下拉（因為 myRole 有了）
             const catEl = document.getElementById('prCat');
             if (catEl) {
@@ -358,6 +363,18 @@ liff.init({ liffId: LIFF_ID }).then(async () => {
     setTimeout(() => { try { openPRReview(initReviewPrId); } catch(err) {} }, 800);
   }
 });
+  // ★ 安全網：最多等 6 秒，之後強制顯示頁面，防止任何情況下的永久轉圈
+setTimeout(() => {
+  const loader = document.getElementById('globalLoader');
+  if (loader && loader.style.display !== 'none') {
+    console.warn('[liff-purchase] 安全網觸發：強制顯示頁面');
+    loader.style.display = 'none';
+    if (!_uiInited) {
+      initUI();
+      if (initTab !== 'new') { try { switchTab(initTab); } catch(e) {} }
+    }
+  }
+}, 6000);
 
 let _uiInited = false;  // ★ 防止 initUI 被 .catch() 重複呼叫
 
