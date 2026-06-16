@@ -390,16 +390,7 @@ function initUI() {
 
   document.getElementById('deliveryDate').value = new Date().toISOString().split('T')[0];
 
-  // 星星評分
-  ['quality','schedule','hse','comm'].forEach(key => {
-    const row = document.getElementById('stars-' + key);
-    for (let i=1; i<=5; i++) {
-      const s = document.createElement('span');
-      s.className = 'star'; s.textContent = '★'; s.dataset.v = i;
-      s.onclick = () => setStar(key, i);
-      row.appendChild(s);
-    }
-  });
+
 
   loadMyPRs();
 }
