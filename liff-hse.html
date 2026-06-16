@@ -531,9 +531,10 @@ async function checkDuplicate() {
       warn.style.display = 'none';
       showToast(`📋 本日已有「${type}」表單，已載入供您修改`);
       existingLogId = res.logId;
-      // 自動進入步驟2開始填寫（內容保留空白讓使用者重新填）
       buildCheckItems();
       gotoStep(2);
+      // ★ 建完 UI 後載入既有資料
+      setTimeout(() => loadExistingFormData(res.logId), 300);
     } else { warn.style.display = 'none'; }
   } catch(e) { warn.style.display = 'none'; }
 }
@@ -544,7 +545,46 @@ function goStep2() {
   buildCheckItems();
   gotoStep(2);
 }
+// ★ 載入既有表單資料並填入 checkResults
+async function loadExistingFormData(logId) {
+  if (!logId) return;
+  try {
+    const r = await apiFetch(`/get-form-detail/${logId}`);
+    const res = await r.json();
+    if (!res.success || !res.data || !res.data.ContentJson) {
+      showToast('ℹ️ 未找到既有資料，請重新填寫');
+      return;
+    }
 
+    const raw = res.data.ContentJson;
+    const items = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(items)) return;
+
+    let loadedCount = 0;
+    currentSections.forEach((sec, si) => {
+      sec.items.forEach((itemText, ii) => {
+        const key = `${si}_${ii}`;
+        // 用 section + item 文字比對
+        const match = items.find(m => m.section === sec.title && m.item === itemText);
+        if (match && match.result) {
+          setResult(key, match.result);
+          loadedCount++;
+          if (match.note) {
+            checkResults[key].note = match.note;
+            const noteEl = document.getElementById(`note_${key}`);
+            if (noteEl) noteEl.value = match.note;
+          }
+        }
+      });
+    });
+
+    updateCount();
+    showToast(`✅ 已載入既有資料（${loadedCount} 項）`);
+  } catch(e) {
+    console.warn('[loadExistingFormData]', e.message);
+    showToast('⚠️ 資料載入失敗，請重新填寫');
+  }
+}
 /* ─── Step 2：Build Check Items ─── */
 function buildCheckItems() {
   checkResults = {};
