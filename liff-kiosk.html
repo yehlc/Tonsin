@@ -171,11 +171,21 @@ body{background:var(--bg);display:flex;flex-direction:column;}
 @supports(padding-bottom:env(safe-area-inset-bottom)){
   .topbar{padding-top:max(14px,env(safe-area-inset-top));}
 }
+
+/* ── 離線 / 同步狀態 ─────────────────────────────── */
+#swBanner{display:none;background:#e17055;color:#fff;font-size:13px;
+  font-weight:700;text-align:center;padding:9px 14px;cursor:pointer;
+  position:relative;z-index:20;letter-spacing:.2px;}
+#swBanner.syncing{background:#0984e3;}
+#swBanner.ready  {background:#00b894;}
+#swBanner.cached {background:#636e72;cursor:default;}
 </style>
 </head>
 <body>
 
 <!-- ── 頁首 ─────────────────────────────── -->
+
+<div id="swBanner" onclick="triggerSync()"></div>
 <div class="topbar">
   <div class="topbar-logo">同興營造<span>工務</span></div>
   <div class="topbar-info">
@@ -358,6 +368,70 @@ function doReset() {
   document.getElementById('inpName').value = '';
   document.getElementById('btnStart').disabled = true;
 }
+</script>
+
+<script>
+// ══ Service Worker 註冊 ══════════════════════════════════════════
+const SW_BANNER = document.getElementById('swBanner');
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/Tonsin/sw.js', { scope: '/Tonsin/' })
+    .then(reg => {
+      console.log('[SW] 已註冊:', reg.scope);
+      // 有新版本時提示
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            showSWBanner('🔄 系統已更新，點此重新整理', 'syncing',
+              () => { nw.postMessage({ type: 'SKIP_WAITING' }); location.reload(); });
+          }
+        });
+      });
+    })
+    .catch(e => console.warn('[SW] 註冊失敗:', e));
+
+  // 偵測離線/上線
+  window.addEventListener('online',  updateNetworkStatus);
+  window.addEventListener('offline', updateNetworkStatus);
+  updateNetworkStatus();
+}
+
+function updateNetworkStatus() {
+  const online = navigator.onLine;
+  // 統計兩個頁面的離線佇列
+  let total = 0;
+  try {
+    const insp = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
+    total += insp.length;
+  } catch(e) {}
+
+  if (!online) {
+    showSWBanner(`📵 目前離線${total > 0 ? '　• ' + total + ' 筆資料待同步' : '　• 已快取頁面可正常使用'}`, 'ready', null);
+  } else if (total > 0) {
+    showSWBanner(`🔄 網路已恢復　• ${total} 筆離線資料待同步，點此同步`, 'syncing', triggerSync);
+  } else {
+    SW_BANNER.style.display = 'none';
+  }
+}
+
+function showSWBanner(msg, cls, handler) {
+  SW_BANNER.textContent = msg;
+  SW_BANNER.className   = '';
+  SW_BANNER.classList.add(cls);
+  SW_BANNER.style.display = 'block';
+  SW_BANNER.onclick = handler || null;
+}
+
+async function triggerSync() {
+  if (!navigator.onLine) { alert('仍在離線中，請待網路恢復後再試'); return; }
+  // 觸發 inspection 的同步（若使用者在 kiosk 頁面，inspection 可能未開啟，改以提示方式處理）
+  showSWBanner('⏳ 請開啟驗屋作業後點擊橫幅完成同步', 'syncing', null);
+  setTimeout(updateNetworkStatus, 3000);
+}
+
+// ── 定期更新狀態計數（每 30 秒）─────────────────────────────────
+setInterval(updateNetworkStatus, 30000);
 </script>
 </body>
 </html>
