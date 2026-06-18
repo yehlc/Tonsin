@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="同興工務">
+<title>同興營造 — 現場工務</title>
+<style>
+/* ── 基礎 ───────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --navy:#1A2F4B;
+  --navy-lt:#253F63;
+  --green:#00b894;
+  --green-dk:#00816a;
+  --orange:#e17055;
+  --orange-dk:#c0392b;
+  --bg:#f0f2f5;
+  --card:#ffffff;
+  --text:#1A2F4B;
+  --muted:#636e72;
+  --bd:#dfe6e9;
+}
+html,body{height:100%;width:100%;overflow:hidden;font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;}
+body{background:var(--bg);display:flex;flex-direction:column;}
+
+/* ── 頁首 ───────────────────────────────────────── */
+.topbar{
+  background:var(--navy);
+  padding:14px 20px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+  position:relative;z-index:10;
+}
+.topbar-logo{
+  font-size:18px;font-weight:800;color:#fff;letter-spacing:.5px;
+}
+.topbar-logo span{color:var(--green);margin-left:4px;}
+.topbar-info{
+  display:flex;align-items:center;gap:10px;
+}
+.info-chip{
+  background:rgba(255,255,255,.12);color:#fff;
+  padding:5px 11px;border-radius:20px;font-size:13px;
+  display:flex;align-items:center;gap:6px;
+}
+.info-chip .icon{font-size:14px;}
+.btn-change{
+  background:none;border:1.5px solid rgba(255,255,255,.35);
+  color:rgba(255,255,255,.75);padding:5px 12px;border-radius:16px;
+  font-size:12px;cursor:pointer;font-family:inherit;
+  transition:all .15s;
+}
+.btn-change:active{background:rgba(255,255,255,.15);}
+
+/* ── 設定畫面 ───────────────────────────────────── */
+#setupScreen{
+  flex:1;display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.setup-card{
+  background:var(--card);border-radius:20px;padding:36px 32px;
+  width:100%;max-width:480px;
+  box-shadow:0 8px 32px rgba(26,47,75,.12);
+}
+.setup-icon{font-size:52px;text-align:center;margin-bottom:8px;}
+.setup-title{font-size:22px;font-weight:800;color:var(--navy);text-align:center;margin-bottom:4px;}
+.setup-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:28px;}
+.setup-field{margin-bottom:18px;}
+.setup-label{
+  display:block;font-size:12px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;
+}
+.setup-input{
+  width:100%;padding:14px 16px;font-size:16px;font-family:inherit;
+  border:2px solid var(--bd);border-radius:12px;background:#fafbfc;
+  color:var(--text);transition:border-color .15s;
+  -webkit-appearance:none;
+}
+.setup-input:focus{outline:none;border-color:var(--green);background:#fff;}
+.setup-input::placeholder{color:#b2bec3;}
+.btn-start{
+  width:100%;padding:16px;font-size:17px;font-weight:800;
+  background:var(--navy);color:#fff;border:none;border-radius:14px;
+  cursor:pointer;font-family:inherit;letter-spacing:.3px;
+  transition:background .15s,transform .1s;
+  margin-top:6px;
+  box-shadow:0 4px 16px rgba(26,47,75,.25);
+}
+.btn-start:active{background:var(--navy-lt);transform:scale(.98);}
+.btn-start:disabled{background:#b2bec3;box-shadow:none;}
+
+/* ── 主選單畫面 ─────────────────────────────────── */
+#mainScreen{
+  flex:1;display:none;
+  flex-direction:row; /* 橫向並排，兩個大按鈕 */
+  gap:0;overflow:hidden;
+}
+
+/* 大功能按鈕 —— 佔滿半個螢幕 */
+.func-btn{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  cursor:pointer;border:none;font-family:inherit;
+  position:relative;overflow:hidden;
+  transition:filter .15s;
+  text-decoration:none;
+}
+.func-btn:active{filter:brightness(.88);}
+
+.func-btn.insp{background:linear-gradient(145deg,#1A6FA8 0%,#0d4f7c 100%);}
+.func-btn.defect{background:linear-gradient(145deg,#e17055 0%,#b94030 100%);}
+
+/* 按鈕內容 */
+.func-icon{font-size:72px;margin-bottom:16px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25));}
+.func-label{
+  font-size:28px;font-weight:900;color:#fff;letter-spacing:.5px;
+  text-shadow:0 2px 8px rgba(0,0,0,.2);
+  margin-bottom:8px;
+}
+.func-desc{
+  font-size:14px;color:rgba(255,255,255,.7);
+  letter-spacing:.3px;
+}
+
+/* 分隔線 */
+.func-divider{
+  width:2px;background:rgba(0,0,0,.15);flex-shrink:0;
+}
+
+/* 右上角浮動 info badge（已設定狀態下） */
+.func-badge{
+  position:absolute;top:16px;right:16px;
+  background:rgba(255,255,255,.2);color:rgba(255,255,255,.9);
+  padding:4px 10px;border-radius:12px;font-size:11px;
+  backdrop-filter:blur(4px);
+}
+
+/* ── 換人/換工地確認 Modal ──────────────────────── */
+#confirmModal{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.55);z-index:100;
+  align-items:center;justify-content:center;
+}
+#confirmModal.open{display:flex;}
+.modal-card{
+  background:#fff;border-radius:20px;padding:28px 28px 24px;
+  width:340px;box-shadow:0 16px 48px rgba(0,0,0,.25);
+}
+.modal-title{font-size:17px;font-weight:800;color:var(--navy);margin-bottom:8px;}
+.modal-body{font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
+.modal-btns{display:flex;gap:10px;}
+.modal-btn{
+  flex:1;padding:12px;border:none;border-radius:10px;
+  font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
+}
+.modal-btn.cancel{background:#f0f2f5;color:var(--muted);}
+.modal-btn.confirm{background:var(--navy);color:#fff;}
+.modal-btn:active{filter:brightness(.9);}
+
+/* ── 深色建設感細節 ──────────────────────────────── */
+/* 按鈕背景暗角，增加深度 */
+.func-btn::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.18) 100%);
+  pointer-events:none;
+}
+/* 底部安全區 */
+@supports(padding-bottom:env(safe-area-inset-bottom)){
+  .topbar{padding-top:max(14px,env(safe-area-inset-top));}
+}
+</style>
+</head>
+<body>
+
+<!-- ── 頁首 ─────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-logo">同興營造<span>工務</span></div>
+  <div class="topbar-info">
+    <div class="info-chip" id="chipSite" style="display:none;">
+      <span class="icon">📍</span><span id="labelSite"></span>
+    </div>
+    <div class="info-chip" id="chipUser" style="display:none;">
+      <span class="icon">👤</span><span id="labelUser"></span>
+    </div>
+    <button class="btn-change" id="btnChange" style="display:none;" onclick="askChange()">換人 / 換工地</button>
+  </div>
+</div>
+
+<!-- ── 設定畫面 ──────────────────────────── -->
+<div id="setupScreen">
+  <div class="setup-card">
+    <div class="setup-icon">🏗️</div>
+    <div class="setup-title">歡迎使用同興工務系統</div>
+    <div class="setup-sub">第一次使用請先完成設定，設定後直接進入工作畫面</div>
+
+    <div class="setup-field">
+      <label class="setup-label" for="selSite">📍 工作案場</label>
+      <select class="setup-input" id="selSite">
+        <option value="">— 請選擇案場 —</option>
+        <option>98工地</option>
+        <option>99工地</option>
+        <option>95工地</option>
+        <option>鼎隆大苑</option>
+        <option>毅聯R8</option>
+        <option>毅聯寧夏</option>
+        <option>廣宇江南</option>
+        <option>內湖富樂群</option>
+        <option>中壢映象</option>
+        <option>測試工地</option>
+      </select>
+    </div>
+
+    <div class="setup-field">
+      <label class="setup-label" for="inpName">👤 您的姓名</label>
+      <input class="setup-input" type="text" id="inpName"
+             placeholder="例：王大明" autocomplete="off"
+             inputmode="text">
+    </div>
+
+    <button class="btn-start" id="btnStart" onclick="saveSetup()" disabled>
+      開始使用
+    </button>
+  </div>
+</div>
+
+<!-- ── 主選單 ────────────────────────────── -->
+<div id="mainScreen">
+
+  <!-- 左：驗屋作業 -->
+  <a class="func-btn insp" id="btnInsp" href="#" onclick="goInsp(event)">
+    <div class="func-badge">初驗 / 複驗</div>
+    <div class="func-icon">🏠</div>
+    <div class="func-label">驗屋作業</div>
+    <div class="func-desc">選樓層 → 選戶別 → 拍照記錄</div>
+  </a>
+
+  <div class="func-divider"></div>
+
+  <!-- 右：缺失回報 -->
+  <a class="func-btn defect" id="btnDefect" href="#" onclick="goDefect(event)">
+    <div class="func-badge">圖面標記</div>
+    <div class="func-icon">🛠️</div>
+    <div class="func-label">缺失回報</div>
+    <div class="func-desc">在平面圖上標記缺失位置</div>
+  </a>
+
+</div>
+
+<!-- ── 確認 Modal ─────────────────────────── -->
+<div id="confirmModal">
+  <div class="modal-card">
+    <div class="modal-title">重新設定</div>
+    <div class="modal-body">
+      確定要切換案場或換人操作嗎？<br>
+      目前設定將會清除，需重新選擇。
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeModal()">取消</button>
+      <button class="modal-btn confirm" onclick="doReset()">確定切換</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
+const GITHUB_BASE = 'https://yehlc.github.io/Tonsin';
+
+// ── 即時啟用「開始使用」按鈕 ────────────────
+document.getElementById('selSite').addEventListener('change', checkReady);
+document.getElementById('inpName').addEventListener('input', checkReady);
+function checkReady() {
+  const ok = document.getElementById('selSite').value &&
+              document.getElementById('inpName').value.trim().length >= 2;
+  document.getElementById('btnStart').disabled = !ok;
+}
+
+// ── 初始化：讀取 localStorage ─────────────────
+(function init() {
+  const site = localStorage.getItem('kiosk_site');
+  const user = localStorage.getItem('kiosk_user');
+  if (site && user) {
+    showMain(site, user);
+  }
+})();
+
+// ── 儲存設定 ──────────────────────────────────
+function saveSetup() {
+  const site = document.getElementById('selSite').value;
+  const user = document.getElementById('inpName').value.trim();
+  if (!site || user.length < 2) return;
+  localStorage.setItem('kiosk_site', site);
+  localStorage.setItem('kiosk_user', user);
+  showMain(site, user);
+}
+
+// ── 顯示主選單 ────────────────────────────────
+function showMain(site, user) {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('mainScreen').style.display  = 'flex';
+
+  document.getElementById('labelSite').textContent = site;
+  document.getElementById('labelUser').textContent = user;
+  document.getElementById('chipSite').style.display = 'flex';
+  document.getElementById('chipUser').style.display = 'flex';
+  document.getElementById('btnChange').style.display = 'block';
+}
+
+// ── 跳轉：驗屋作業 ───────────────────────────
+function goInsp(e) {
+  e.preventDefault();
+  const site = localStorage.getItem('kiosk_site') || '';
+  const user = localStorage.getItem('kiosk_user') || '';
+  if (!site || !user) { doReset(); return; }
+
+  // liff-inspection 需要先選樓層，透過 index.html router 帶入 page=inspection
+  const url = `${GITHUB_BASE}/liff-inspection.html`
+    + `?site=${encodeURIComponent(site)}`
+    + `&user=${encodeURIComponent(user)}`
+    + `&api=${encodeURIComponent(API_BASE)}`
+    + `&floor=2F`          // 預設從 2F 開始，使用者可在頁面切換
+    + `&room=A1%E6%88%B7`  // 預設 A1戶
+    + `&cb=${Date.now()}`;
+  window.location.href = url;
+}
+
+// ── 跳轉：缺失回報 ───────────────────────────
+function goDefect(e) {
+  e.preventDefault();
+  const site = localStorage.getItem('kiosk_site') || '';
+  const user = localStorage.getItem('kiosk_user') || '';
+  if (!site || !user) { doReset(); return; }
+
+  const url = `${GITHUB_BASE}/liff-floorplan.html`
+    + `?site=${encodeURIComponent(site)}`
+    + `&user=${encodeURIComponent(user)}`
+    + `&api=${encodeURIComponent(API_BASE)}`
+    + `&cb=${Date.now()}`;
+  window.location.href = url;
+}
+
+// ── 換人/換工地 ──────────────────────────────
+function askChange()  { document.getElementById('confirmModal').classList.add('open'); }
+function closeModal() { document.getElementById('confirmModal').classList.remove('open'); }
+function doReset() {
+  closeModal();
+  localStorage.removeItem('kiosk_site');
+  localStorage.removeItem('kiosk_user');
+  document.getElementById('mainScreen').style.display  = 'none';
+  document.getElementById('setupScreen').style.display = 'flex';
+  document.getElementById('chipSite').style.display = 'none';
+  document.getElementById('chipUser').style.display = 'none';
+  document.getElementById('btnChange').style.display = 'none';
+  document.getElementById('selSite').value = '';
+  document.getElementById('inpName').value = '';
+  document.getElementById('btnStart').disabled = true;
+}
+</script>
+</body>
+</html>
