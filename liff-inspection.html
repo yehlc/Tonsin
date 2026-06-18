@@ -309,7 +309,14 @@
         let hasSigned = false;
 
         liff.init({ liffId: myLiffId }).then(() => {
-            if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+            if (!liff.isLoggedIn()) {
+                if (liff.isInClient()) {
+                    // LINE App 內：強制跳登入
+                    liff.login({ redirectUri: window.location.href }); return;
+                }
+                // ★ iPad 平板 / PC 瀏覽器：不在 LINE App，跳過登入
+                // currentUser / currentSite 已由 kiosk 的 URL 參數帶入，繼續執行
+            }
     if (liff.isLoggedIn()) {
         liff.getProfile().then(profile => { lineUserId = profile.userId; });
     }
