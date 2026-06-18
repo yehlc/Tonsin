@@ -355,9 +355,32 @@ async function bootstrap() {
   try {
     await liff.init({liffId: LIFF_ID});
     if (!liff.isLoggedIn()) {
-      // ★ 強制登入：PC/NB Desktop LINE 沒有自動登入時觸發
-      liff.login({ redirectUri: window.location.href });
-      return; // 等待跳轉，不繼續執行
+      if (liff.isInClient()) {
+        // ① LINE App 內（同仁手機）→ 正常登入
+        liff.login({ redirectUri: window.location.href });
+        return;
+      }
+      const isKiosk = localStorage.getItem('kiosk_mode') === '1';
+      if (isKiosk) {
+        // ② 公用平板 kiosk 模式 → 跳過登入，用 URL 參數
+      } else {
+        // ③ 外部訪客（無 LINE、非 kiosk）→ 拒絕存取
+        document.body.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;
+                      justify-content:center;height:100vh;background:#1A2F4B;
+                      font-family:'PingFang TC',sans-serif;padding:32px;">
+            <div style="font-size:56px;margin-bottom:20px;">🔒</div>
+            <div style="color:#fff;font-size:20px;font-weight:800;margin-bottom:10px;">
+              存取受限
+            </div>
+            <div style="color:rgba(255,255,255,.65);font-size:14px;text-align:center;line-height:1.7;max-width:280px;">
+              此系統僅供同興營造人員使用。<br>
+              請透過 <b style="color:#00b894;">LINE App</b> 開啟，<br>
+              或使用公用平板操作。
+            </div>
+          </div>`;
+        return;
+      }
     }
     if (liff.isLoggedIn()) {
       const p = await liff.getProfile();
