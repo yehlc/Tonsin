@@ -217,7 +217,7 @@
                 <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋單 (客戶用 Excel)</button>
                 <button class="btn-export btn-trade" onclick="exportTradeReport()">🛠️ 匯出派工單 (工班用 Excel)</button>
                 <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
-                <button class="btn-export" style="background:#e17055;" onclick="emailPdfToCustomer()">📋 寄送 PDF 至客戶信箱</button>
+                <button class="btn-export" style="background:#e17055;" onclick="emailExcelToCustomer()">📧 寄送 EXCEL 至客戶信箱</button>
             </div>
         </div>
     </div>
@@ -374,7 +374,10 @@
 
                         defects.forEach(d => {
                             // ★ 狀態防呆機制：此階段新增的缺失，強制顯示「待改善」
-                            let isDone = (d.Phase !== currentRound && d.Status && d.Status.includes('已改善'));
+                            // ★ Q2修正：只有在「改善期數 ≤ 當前期數」時才顯示已改善
+            const _phOrd = { "業主初驗":1,"業主複驗":2,"客戶初驗":3,"客戶複驗":4,"客戶三驗":5 };
+            let isDone = d.Status && d.Status.includes('已改善')
+                         && (_phOrd[d.FixedPhase]||999) <= (_phOrd[currentRound]||0);
                             
                             let statusText = isDone 
                                 ? '<span style="background:#1DB446; color:white; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight:bold;">✅ 已改善</span>' 
@@ -650,7 +653,10 @@
                     let initialSrc = d.HasImage ? loadingSvg : noImgSvg;
                     
                     // ★ 修正 3：套用狀態防呆機制
-                    let isDone = (d.Phase !== selectedRound && d.Status && d.Status.includes('已改善'));
+                    // ★ Q2修正：只有在「改善期數 ≤ 選定期數」時才顯示已改善
+                const _phOrd2 = { "業主初驗":1,"業主複驗":2,"客戶初驗":3,"客戶複驗":4,"客戶三驗":5 };
+                let isDone = d.Status && d.Status.includes('已改善')
+                             && (_phOrd2[d.FixedPhase]||999) <= (_phOrd2[selectedRound]||0);
                     
                     let statusBadge = isDone 
                         ? `<span style="background:#1DB446; color:white; font-size:12px; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:5px;">✅ 已改善</span>` 
@@ -1304,40 +1310,6 @@ async function downloadFile(url, filename) {
                     alert("❌ 寄送失敗：" + res.error);
                 }
             }).catch(e => {
-                alert("❌ 連線異常，無法寄送信件");
-            }).finally(() => {
-                btn.disabled = false; btn.innerText = originalText;
-            });
-        }
-
-
-        // ★ 寄送 PDF 至客戶信箱（由後端 Excel→PDF 轉換再寄出）
-        function emailPdfToCustomer() {
-            let selectedRound = document.getElementById('inspRound').value || currentRound;
-            
-            if (!selectedRound) { showToast('⚠️ 請先選擇驗收期數'); return; }
-            if (!confirm(`確定要將【${selectedRound}】PDF 寄送至該戶客戶信箱嗎？\n(寄送前請確認後台已填寫客戶 Email)\n\n⏳ PDF 轉換需約 15~30 秒，請耐心等候。`)) return;
-
-            let btn = event.target;
-            let originalText = btn.innerText;
-            btn.disabled = true; btn.innerText = "⏳ PDF 轉換中，請稍候...";
-
-            fetch(`${apiBaseUrl}/email-inspection-pdf`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-                body: JSON.stringify({
-                    site: currentSite,
-                    floor: currentFloor,
-                    room: currentRoom,
-                    round: selectedRound
-                })
-            }).then(r => r.json()).then(res => {
-                if (res.success) {
-                    showToast("✅ PDF 已成功寄送至客戶信箱！");
-                } else {
-                    alert("❌ 寄送失敗：" + res.error);
-                }
-            }).catch(() => {
                 alert("❌ 連線異常，無法寄送信件");
             }).finally(() => {
                 btn.disabled = false; btn.innerText = originalText;
