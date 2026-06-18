@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://yehlc.github.io" crossorigin>
     <link rel="dns-prefetch" href="https://yehlc.github.io">
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 0; overflow-x: hidden; touch-action: manipulation; }
         .header { background: #8e44ad; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -1354,50 +1355,77 @@ async function downloadFile(url, filename) {
         // ★ 修正：分享電子簽名要求 (使用 LINE 原生分享對象選擇器)
         // ==========================================
         function sendSignatureRequest() {
-            if (!lineUserId) return alert("無法取得您的 LINE ID，請確認已授權！");
-            
             let selectedRound = document.getElementById('inspRound').value;
             if (!selectedRound) selectedRound = currentRound;
 
-            if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】${selectedRound} 的電子簽名並分享給客戶嗎？`)) return;
-            
-            let signUrl = `https://liff.line.me/${myLiffId}/?page=inspection&mode=customer_sign&site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(selectedRound)}&api=${encodeURIComponent(apiBaseUrl)}&sharer=${encodeURIComponent(lineUserId)}`;
+            // ★ sharer：有 LINE ID 用 LINE ID，kiosk 用姓名（僅記錄用）
+            const sharer = lineUserId || ('kiosk_' + (currentUser || '平板'));
 
-            let flexBubble = {
+            const signUrl = `https://liff.line.me/${myLiffId}/?page=inspection&mode=customer_sign` +
+                `&site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}` +
+                `&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(selectedRound)}` +
+                `&api=${encodeURIComponent(apiBaseUrl)}&sharer=${encodeURIComponent(sharer)}`;
+
+            // ══ Kiosk 模式：顯示 QR Code 讓客戶掃描 ══════════════════
+            if (!lineUserId) {
+                if (!confirm(`確定要產生【${currentFloor}-${currentRoom}】${selectedRound} 的電子簽名 QR Code 嗎？
+
+客戶請用手機掃描畫面上的 QR Code 完成簽名。`)) return;
+                showQRCode(signUrl, selectedRound);
+                return;
+            }
+
+            // ══ LINE App 模式：原有 shareTargetPicker 分享 ══════════════
+            if (!confirm(`確定要將【${currentFloor}-${currentRoom}】${selectedRound} 的電子簽名傳送給客戶嗎？`)) return;
+
+            const flexBubble = {
                 "type": "bubble",
-                "header": { "type": "box", "layout": "vertical", "backgroundColor": "#8e44ad", "contents": [ { "type": "text", "text": "📝 驗屋修繕確認單", "weight": "bold", "color": "#ffffff", "size": "lg" } ] },
+                "header": { "type": "box", "layout": "vertical", "backgroundColor": "#8e44ad",
+                    "contents": [{ "type": "text", "text": "📝 驗屋修繕確認單", "weight": "bold", "color": "#ffffff", "size": "lg" }] },
                 "body": {
                     "type": "box", "layout": "vertical", "spacing": "sm",
                     "contents": [
                         { "type": "text", "text": `🏢 案場：${currentSite}`, "size": "sm" },
                         { "type": "text", "text": `📍 戶別：${currentFloor} - ${currentRoom}`, "size": "sm" },
                         { "type": "text", "text": `📅 期數：${selectedRound}`, "size": "sm", "weight": "bold", "color": "#e17055" },
-                        { "type": "text", "text": "本次驗屋已完成，請點擊下方按鈕，於線上檢視項目並完成電子簽名確認。", "wrap": true, "color": "#555555", "size": "sm", "margin": "md" }
+                        { "type": "text", "text": "本次驗屋已完成，請點擊下方按鈕，於線上完成電子簽名確認。",
+                          "wrap": true, "color": "#555555", "size": "sm", "margin": "md" }
                     ]
                 },
                 "footer": {
                     "type": "box", "layout": "vertical",
-                    "contents": [ { "type": "button", "style": "primary", "color": "#8e44ad", "action": { "type": "uri", "label": "✍️ 前往電子簽名", "uri": signUrl } } ]
+                    "contents": [{ "type": "button", "style": "primary", "color": "#8e44ad",
+                        "action": { "type": "uri", "label": "✍️ 前往電子簽名", "uri": signUrl } }]
                 }
             };
-
-            // ★ 完美解法：直接呼叫 LIFF 的 shareTargetPicker 讓使用者選擇要分享的好友
             if (liff.isApiAvailable('shareTargetPicker')) {
-                liff.shareTargetPicker([
-                    {
-                        "type": "flex",
-                        "altText": `驗屋修繕電子簽名單 - ${selectedRound}`,
-                        "contents": flexBubble
-                    }
-                ]).then(function (res) {
-                    if (res) {
-                        showToast("✅ 已成功分享給客戶！");
-                    }
-                }).catch(function (error) {
-                    alert("❌ 分享失敗：" + error.message);
-                });
+                liff.shareTargetPicker([{ "type": "flex",
+                    "altText": `驗屋修繕電子簽名單 - ${selectedRound}`, "contents": flexBubble
+                }]).then(res => { if (res) showToast("✅ 已成功分享給客戶！"); })
+                  .catch(err => alert("❌ 分享失敗：" + err.message));
             } else {
-                alert("⚠️ 您的裝置環境不支援快速分享，請複製以下連結傳送給客戶：\n\n" + signUrl);
+                alert("⚠️ 請複製以下連結傳送給客戶：\n\n" + signUrl);
+            }
+        }
+
+        // ── QR Code 覆蓋層控制 ─────────────────────────────────────
+        function showQRCode(url, round) {
+            const overlay = document.getElementById('qrOverlay');
+            const qrDiv   = document.getElementById('qrCodeDiv');
+            const label   = document.getElementById('qrRoundLabel');
+            // 清空上一次的 QR
+            qrDiv.innerHTML = '';
+            label.textContent = `${currentSite} ${currentFloor}-${currentRoom}　${round}`;
+            // 產生 QR Code（220x220）
+            new QRCode(qrDiv, { text: url, width: 220, height: 220,
+                colorDark: '#1A2F4B', colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M });
+            overlay.style.display = 'flex';
+        }
+        function closeQROverlay(e) {
+            if (!e || e.target === document.getElementById('qrOverlay')) {
+                document.getElementById('qrOverlay').style.display = 'none';
+                document.getElementById('qrCodeDiv').innerHTML = '';
             }
         }
 
@@ -1545,5 +1573,30 @@ function clearRoomSearch() {
             }
         }
     </script>
+
+<!-- ★ Kiosk QR Code 覆蓋層（客戶掃描簽名用）-->
+<div id="qrOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
+     z-index:9999;display:none;flex-direction:column;align-items:center;
+     justify-content:center;padding:24px;" onclick="closeQROverlay(event)">
+  <div id="qrCard" style="background:#fff;border-radius:20px;padding:28px 28px 24px;
+       max-width:360px;width:100%;text-align:center;"
+       onclick="event.stopPropagation()">
+    <div style="font-size:22px;font-weight:800;color:#1A2F4B;margin-bottom:6px;">
+      📱 請客戶掃描簽名
+    </div>
+    <div style="font-size:13px;color:#636e72;margin-bottom:18px;" id="qrRoundLabel"></div>
+    <div id="qrCodeDiv" style="display:flex;justify-content:center;margin-bottom:18px;"></div>
+    <div style="font-size:12px;color:#888;margin-bottom:18px;line-height:1.6;">
+      請客戶用手機掃描此 QR Code<br>
+      即可在線上完成電子簽名確認
+    </div>
+    <button onclick="closeQROverlay()" style="width:100%;padding:13px;background:#1A2F4B;
+            color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;
+            cursor:pointer;font-family:inherit;">
+      ✅ 關閉
+    </button>
+  </div>
+</div>
+
 </body>
 </html>
