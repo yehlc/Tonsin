@@ -293,6 +293,7 @@ function saveSetup() {
   if (!site || user.length < 2) return;
   localStorage.setItem('kiosk_site', site);
   localStorage.setItem('kiosk_user', user);
+  localStorage.setItem('kiosk_mode', '1'); // ★ 標記為公用平板，允許不登入 LINE
   showMain(site, user);
 }
 
