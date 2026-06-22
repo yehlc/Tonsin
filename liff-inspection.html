@@ -386,6 +386,11 @@
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
             initDrawingTypeSelect(currentSite); // ★ 依案場設定圖面下拉選單
+            // ★ 確保第一個圖面類型已選定
+            const _dtSel = document.getElementById('drawingType');
+            if (_dtSel && _dtSel.options.length > 0 && !_dtSel.value) {
+                _dtSel.selectedIndex = 0;
+            }
             currentFloor = decodeURIComponent(urlParams.get('floor') || "");
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
