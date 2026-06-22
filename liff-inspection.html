@@ -386,6 +386,11 @@
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
             initDrawingTypeSelect(currentSite); // ★ 依案場設定圖面下拉選單
+            // ★ 確保第一個圖面類型已選定
+            const _dtSel = document.getElementById('drawingType');
+            if (_dtSel && _dtSel.options.length > 0 && !_dtSel.value) {
+                _dtSel.selectedIndex = 0;
+            }
             currentFloor = decodeURIComponent(urlParams.get('floor') || "");
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
@@ -859,7 +864,8 @@
         }
 
         function renderCanvas() {
-            if(!floorImg.complete || !floorImg.src) return;
+            // ★ 防護：圖片未載入(complete=false)、無src、或載入失敗(naturalWidth=0)時不繪製
+            if(!floorImg || !floorImg.complete || !floorImg.src || floorImg.naturalWidth === 0) return;
             floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height);
             floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
             
@@ -1250,8 +1256,12 @@
             }).then(res => {
                 if (res.success) {
                     showToast(editId ? "✅ 缺失更新成功！" : "✅ 缺失新增成功！");
-                    cancelInspection();
-                    loadRoomDefects();
+                    try {
+                        cancelInspection();
+                        loadRoomDefects();
+                    } catch(uiErr) {
+                        console.warn('UI 重繪異常：', uiErr.message);
+                    }
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                     // server 回傳業務錯誤（非連線問題），直接顯示，不暫存
