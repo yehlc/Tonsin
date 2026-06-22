@@ -56,62 +56,49 @@
         .btn-submit { width: 100%; padding: 15px; background: #1DB446; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .btn-export { width: 100%; padding: 15px; background: #007bff; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 10px; }
         .btn-trade { background: #00b894; }
-        .btn-sign { background: #6c5ce7; }
+        .btn-sign   { background: #6c5ce7; }
         .btn-onsite { background: linear-gradient(135deg,#00b894,#00816a); }
 
         /* ── 現場簽名 Overlay ── */
-        #onsiteSignOverlay{
-            display:none;position:fixed;inset:0;
-            background:rgba(15,20,40,.88);z-index:8000;
-            flex-direction:column;align-items:center;justify-content:center;
-            padding:16px;
-        }
-        #onsiteSignCard{
-            background:#fff;border-radius:20px;width:100%;max-width:680px;
-            box-shadow:0 24px 64px rgba(0,0,0,.35);overflow:hidden;
-        }
-        #onsiteSignHeader{
-            background:linear-gradient(135deg,#00b894,#00816a);
-            padding:18px 22px;display:flex;align-items:center;justify-content:space-between;
-        }
+        #onsiteSignOverlay{display:none;position:fixed;inset:0;background:rgba(15,20,40,.88);z-index:8000;flex-direction:column;align-items:center;justify-content:center;padding:16px;}
+        #onsiteSignCard{background:#fff;border-radius:20px;width:100%;max-width:680px;box-shadow:0 24px 64px rgba(0,0,0,.35);overflow:hidden;}
+        #onsiteSignHeader{background:linear-gradient(135deg,#00b894,#00816a);padding:18px 22px;display:flex;align-items:center;justify-content:space-between;}
         #onsiteSignHeader h2{color:#fff;font-size:18px;font-weight:800;margin:0;}
-        #onsiteSignHeader .close-btn{
-            background:rgba(255,255,255,.2);border:none;color:#fff;
-            width:34px;height:34px;border-radius:50%;font-size:18px;
-            cursor:pointer;display:flex;align-items:center;justify-content:center;
-        }
+        #onsiteSignHeader .close-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
         #onsiteSignBody{padding:18px 20px 0;}
-        #onsiteRoundInfo{
-            background:#f0faf6;border:1px solid #b2dfdb;border-radius:10px;
-            padding:10px 14px;margin-bottom:14px;font-size:13px;color:#1A2F4B;
-            display:flex;gap:10px;flex-wrap:wrap;align-items:center;
-        }
+        #onsiteRoundInfo{background:#f0faf6;border:1px solid #b2dfdb;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#1A2F4B;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
         #onsiteRoundInfo span{font-weight:700;color:#00816a;}
-        #onsiteCanvasWrap{
-            border:2.5px dashed #b2dfdb;border-radius:12px;
-            background:#f9fdfc;overflow:hidden;position:relative;
-        }
-        #onsiteSignCanvas{
-            width:100%;height:220px;display:block;
-            touch-action:none;cursor:crosshair;
-        }
-        #onsiteCanvasHint{
-            position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-            pointer-events:none;color:#b2dfdb;font-size:14px;text-align:center;
-            transition:opacity .2s;
-        }
-        #onsiteSignFooter{
-            padding:14px 20px 20px;display:flex;gap:10px;
-        }
-        .onsite-btn{
-            flex:1;padding:14px;border:none;border-radius:12px;
-            font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;
-            transition:filter .15s;
-        }
+        #onsiteCanvasWrap{border:2.5px dashed #b2dfdb;border-radius:12px;background:#f9fdfc;overflow:hidden;position:relative;}
+        #onsiteSignCanvas{width:100%;height:220px;display:block;touch-action:none;cursor:crosshair;}
+        #onsiteCanvasHint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;color:#b2dfdb;font-size:14px;text-align:center;transition:opacity .2s;}
+        #onsiteSignFooter{padding:14px 20px 20px;display:flex;gap:10px;}
+        .onsite-btn{flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:filter .15s;}
         .onsite-btn:active{filter:brightness(.9);}
         .onsite-clear{background:#f0f2f5;color:#636e72;}
         .onsite-submit{background:#00b894;color:#fff;flex:2;}
         .onsite-submit:disabled{background:#b2bec3;}
+
+        /* ── 全棟進度總覽 ── */
+        #overviewWrap{padding:10px;overflow:auto;}
+        .ov-round-sel{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+        .ov-round-sel select{padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;flex:1;}
+        .ov-round-sel button{padding:8px 16px;background:#8e44ad;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;}
+        .ov-legend{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+        .ov-leg{display:flex;align-items:center;gap:4px;font-size:11px;color:#555;}
+        .ov-dot{width:14px;height:14px;border-radius:4px;flex-shrink:0;}
+        .ov-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+        table.ov-tbl{border-collapse:collapse;font-size:12px;white-space:nowrap;}
+        table.ov-tbl th,table.ov-tbl td{border:1px solid #ddd;padding:8px 10px;text-align:center;min-width:56px;}
+        table.ov-tbl th{background:#2c3e50;color:#fff;font-weight:700;position:sticky;top:0;z-index:5;}
+        table.ov-tbl th.floor-hd{background:#34495e;left:0;z-index:6;position:sticky;}
+        table.ov-tbl td.floor-cell{background:#f8f9fa;font-weight:700;color:#2c3e50;position:sticky;left:0;z-index:4;font-size:11px;}
+        .ov-cell{border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;transition:filter .15s;display:inline-block;width:100%;}
+        .ov-cell:active{filter:brightness(.85);}
+        .ov-empty{background:#e9ecef;color:#adb5bd;}
+        .ov-none{background:#ffe0e0;color:#c0392b;}
+        .ov-ok  {background:#d4edda;color:#155724;}
+        .ov-new {background:#fff3cd;color:#856404;}
+        .ov-name{font-size:9px;opacity:.8;display:block;margin-top:1px;}
         
         #listSection { display: none; padding: 15px; }
         .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; cursor: pointer; border-left: 4px solid #8e44ad; transition: background 0.2s; }
@@ -148,6 +135,7 @@
             <div class="tab active" id="tabAdd" onclick="switchTab('add')">✍️ 新增缺失</div>
             <div class="tab" id="tabMap" onclick="switchTab('map')">🗺️ 總覽(圖面)</div>
             <div class="tab" id="tabList" onclick="switchTab('list')">📋 清單總覽</div>
+            <div class="tab" id="tabOv" onclick="switchTab('overview')">🏢 全棟</div>
         </div>
 
         <div class="swipe-area" id="swipeArea">
@@ -274,7 +262,7 @@
                 <button class="btn-export btn-trade" onclick="exportTradeReport()">🛠️ 匯出派工單 (工班用 Excel)</button>
                 <button class="btn-export btn-onsite" onclick="openOnsiteSign()">✍️ 業主/客戶現場電子簽名</button>
                 <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
-                <button class="btn-export" style="background:#e17055;" onclick="emailExcelToCustomer()">📧 寄送 EXCEL 至客戶信箱</button>
+                <button class="btn-export" style="background:#e17055;" onclick="emailPdfToCustomer()">📋 寄送 PDF 至客戶信箱</button>
             </div>
         </div>
     </div>
@@ -1409,115 +1397,114 @@ async function downloadFile(url, filename) {
 
         // ==========================================
 
-        // ══ 業主現場電子簽名 ══════════════════════════════════════
-        let onsiteCtx = null, onsiteHasSigned = false, onsiteDrawing = false;
+        // ★ 寄送 PDF 至客戶信箱
+        function emailPdfToCustomer() {
+            let selectedRound = document.getElementById('inspRound')?.value || currentRound;
+            if (!selectedRound) { showToast('⚠️ 請先選擇驗收期數'); return; }
+            if (!confirm(`確定要將【${selectedRound}】PDF 寄送至該戶客戶信箱嗎？\n⏳ PDF 轉換需約 15~30 秒，請耐心等候。`)) return;
+            const btn = event.target; const orig = btn.innerText;
+            btn.disabled = true; btn.innerText = '⏳ PDF 轉換中...';
+            fetch(`${apiBaseUrl}/email-inspection-pdf`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                body: JSON.stringify({ site: currentSite, floor: currentFloor, room: currentRoom, round: selectedRound })
+            }).then(r => r.json()).then(res => {
+                res.success ? showToast('✅ PDF 已成功寄送至客戶信箱！') : alert('❌ 寄送失敗：' + res.error);
+            }).catch(() => alert('❌ 連線異常')).finally(() => { btn.disabled = false; btn.innerText = orig; });
+        }
 
+        // ══ 業主/客戶現場電子簽名 ══
+        let onsiteCtx = null, onsiteHasSigned = false, onsiteDrawing = false;
         function openOnsiteSign() {
             const round = document.getElementById('inspRound')?.value || currentRound;
             if (!round) { showToast('⚠️ 請先選擇驗收期數'); return; }
-
-            // 填入資訊列
-            document.getElementById('onsiteInfoText').textContent =
-                `${currentSite}　${currentFloor} - ${currentRoom}　${round}`;
-
-            // 初始化 Canvas
-            const canvas  = document.getElementById('onsiteSignCanvas');
-            const wrap    = document.getElementById('onsiteCanvasWrap');
-            canvas.width  = wrap.clientWidth  || 640;
-            canvas.height = 220;
-            onsiteCtx     = canvas.getContext('2d');
-            onsiteCtx.strokeStyle = '#1A2F4B';
-            onsiteCtx.lineWidth   = 2.8;
-            onsiteCtx.lineCap     = 'round';
-            onsiteCtx.lineJoin    = 'round';
-            onsiteHasSigned       = false;
-            onsiteDrawing         = false;
-            document.getElementById('btnOnsiteSubmit').disabled  = true;
-            document.getElementById('onsiteCanvasHint').style.opacity = '1';
-
-            // 觸控/滑鼠事件
-            function getPos(e) {
-                const r = canvas.getBoundingClientRect();
-                const src = e.touches ? e.touches[0] : e;
-                return { x: (src.clientX - r.left) * (canvas.width / r.width),
-                         y: (src.clientY - r.top)  * (canvas.height / r.height) };
-            }
-            function startDraw(e) {
-                e.preventDefault();
-                onsiteDrawing = true;
-                const p = getPos(e);
-                onsiteCtx.beginPath(); onsiteCtx.moveTo(p.x, p.y);
-                document.getElementById('onsiteCanvasHint').style.opacity = '0';
-            }
-            function doDraw(e) {
-                if (!onsiteDrawing) return; e.preventDefault();
-                const p = getPos(e);
-                onsiteCtx.lineTo(p.x, p.y); onsiteCtx.stroke();
-                onsiteHasSigned = true;
-                document.getElementById('btnOnsiteSubmit').disabled = false;
-            }
-            function endDraw(e) { onsiteDrawing = false; }
-
-            canvas.ontouchstart  = startDraw; canvas.ontouchmove = doDraw;
-            canvas.ontouchend    = endDraw;
-            canvas.onmousedown   = startDraw; canvas.onmousemove = doDraw;
-            canvas.onmouseup     = endDraw;
-
-            document.getElementById('onsiteSignOverlay').style.display = 'flex';
-        }
-
-        function clearOnsiteSign() {
-            if (!onsiteCtx) return;
+            document.getElementById('onsiteInfoText').textContent = `${currentSite}　${currentFloor} - ${currentRoom}　${round}`;
             const canvas = document.getElementById('onsiteSignCanvas');
-            onsiteCtx.clearRect(0, 0, canvas.width, canvas.height);
-            onsiteHasSigned = false;
+            const wrap   = document.getElementById('onsiteCanvasWrap');
+            canvas.width = wrap.clientWidth || 640; canvas.height = 220;
+            onsiteCtx = canvas.getContext('2d');
+            onsiteCtx.strokeStyle = '#1A2F4B'; onsiteCtx.lineWidth = 2.8; onsiteCtx.lineCap = 'round'; onsiteCtx.lineJoin = 'round';
+            onsiteHasSigned = false; onsiteDrawing = false;
             document.getElementById('btnOnsiteSubmit').disabled = true;
             document.getElementById('onsiteCanvasHint').style.opacity = '1';
+            function getPos(e) { const r=canvas.getBoundingClientRect(); const s=e.touches?e.touches[0]:e; return { x:(s.clientX-r.left)*(canvas.width/r.width), y:(s.clientY-r.top)*(canvas.height/r.height) }; }
+            function startDraw(e) { e.preventDefault(); onsiteDrawing=true; const p=getPos(e); onsiteCtx.beginPath(); onsiteCtx.moveTo(p.x,p.y); document.getElementById('onsiteCanvasHint').style.opacity='0'; }
+            function doDraw(e) { if(!onsiteDrawing)return; e.preventDefault(); const p=getPos(e); onsiteCtx.lineTo(p.x,p.y); onsiteCtx.stroke(); onsiteHasSigned=true; document.getElementById('btnOnsiteSubmit').disabled=false; }
+            function endDraw() { onsiteDrawing=false; }
+            canvas.ontouchstart=startDraw; canvas.ontouchmove=doDraw; canvas.ontouchend=endDraw;
+            canvas.onmousedown=startDraw; canvas.onmousemove=doDraw; canvas.onmouseup=endDraw;
+            document.getElementById('onsiteSignOverlay').style.display='flex';
         }
-
-        function closeOnsiteSign() {
-            document.getElementById('onsiteSignOverlay').style.display = 'none';
+        function clearOnsiteSign() {
+            if (!onsiteCtx) return;
+            const c=document.getElementById('onsiteSignCanvas');
+            onsiteCtx.clearRect(0,0,c.width,c.height); onsiteHasSigned=false;
+            document.getElementById('btnOnsiteSubmit').disabled=true;
+            document.getElementById('onsiteCanvasHint').style.opacity='1';
         }
-
-        function handleOnsiteOverlayClick(e) {
-            if (e.target === document.getElementById('onsiteSignOverlay')) closeOnsiteSign();
-        }
-
+        function closeOnsiteSign() { document.getElementById('onsiteSignOverlay').style.display='none'; }
+        function handleOnsiteOverlayClick(e) { if(e.target===document.getElementById('onsiteSignOverlay'))closeOnsiteSign(); }
         async function submitOnsiteSign() {
             if (!onsiteHasSigned) { showToast('⚠️ 請先完成簽名'); return; }
-
-            const round  = document.getElementById('inspRound')?.value || currentRound;
-            const canvas = document.getElementById('onsiteSignCanvas');
-            const sigB64 = canvas.toDataURL('image/png');
-            const btn    = document.getElementById('btnOnsiteSubmit');
-            btn.disabled = true; btn.textContent = '⏳ 儲存中...';
-
+            const round=document.getElementById('inspRound')?.value||currentRound;
+            const sigB64=document.getElementById('onsiteSignCanvas').toDataURL('image/png');
+            const btn=document.getElementById('btnOnsiteSubmit');
+            btn.disabled=true; btn.textContent='⏳ 儲存中...';
             try {
-                const r = await fetch(`${apiBaseUrl}/submit-room-signature`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json',
-                               'ngrok-skip-browser-warning': 'true' },
-                    body: JSON.stringify({
-                        site: currentSite, floor: currentFloor,
-                        room: currentRoom, round: round,
-                        signature: sigB64,
-                        sharer: lineUserId || ('kiosk_' + (currentUser || '現場')),
-                        apiBaseUrl: apiBaseUrl
-                    })
-                });
-                const res = await r.json();
-                if (res.success) {
-                    closeOnsiteSign();
-                    showToast('✅ 業主簽名已儲存！');
-                } else {
-                    throw new Error(res.error);
-                }
-            } catch(e) {
-                alert('❌ 儲存失敗：' + e.message);
-                btn.disabled = false; btn.textContent = '✅ 確認送出';
-            }
+                const r=await fetch(`${apiBaseUrl}/submit-room-signature`, { method:'POST', headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true'}, body:JSON.stringify({site:currentSite,floor:currentFloor,room:currentRoom,round,signature:sigB64,sharer:lineUserId||('kiosk_'+(currentUser||'現場')),apiBaseUrl}) });
+                const res=await r.json();
+                if(res.success){closeOnsiteSign();showToast('✅ 業主/客戶簽名已儲存！');}
+                else throw new Error(res.error);
+            } catch(e){alert('❌ 儲存失敗：'+e.message);btn.disabled=false;btn.textContent='✅ 確認送出';}
         }
-        // ═══════════════════════════════════════════════════════
+
+        // ══ 全棟進度總覽 ══
+        async function loadBuildingOverview() {
+            const round = document.getElementById('ovRound').value;
+            const wrap  = document.getElementById('ovTableWrap');
+            wrap.innerHTML = '<div style="text-align:center;padding:30px;font-size:20px;">⏳</div>';
+            try {
+                const r = await fetch(`${apiBaseUrl}/building-overview?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(round)}`, { headers:{'ngrok-skip-browser-warning':'true'} });
+                const res = await r.json();
+                if (!res.success) throw new Error(res.error);
+                renderOverviewTable(res.data, round);
+            } catch(e) { wrap.innerHTML = `<div style="text-align:center;padding:20px;color:#e74c3c;">❌ ${e.message}</div>`; }
+        }
+
+        function renderOverviewTable(data, round) {
+            if (!data || !data.length) { document.getElementById('ovTableWrap').innerHTML = '<div style="text-align:center;padding:30px;color:#888;">目前無驗屋資料</div>'; return; }
+            const rooms = [...new Set(data.map(d => d.Room))].sort();
+            const floorOrder = (f) => { const n=parseInt(f.replace(/[^0-9]/g,'')); return isNaN(n)?0:n; };
+            const floors = [...new Set(data.map(d => d.Floor))].sort((a,b) => floorOrder(b)-floorOrder(a));
+            const map = {};
+            data.forEach(d => { map[d.Floor+'|'+d.Room] = d; });
+            let html = '<table class="ov-tbl"><thead><tr><th class="floor-hd">樓層</th>';
+            rooms.forEach(r => html += `<th>${r}</th>`);
+            html += '</tr></thead><tbody>';
+            floors.forEach(floor => {
+                html += `<tr><td class="floor-cell">${floor}</td>`;
+                rooms.forEach(room => {
+                    const d = map[floor+'|'+room];
+                    if (!d) { html += '<td></td>'; return; }
+                    let cls = 'ov-empty', lbl = '⬜', tip = '尚未驗屋';
+                    if (d.TotalDefects > 0) {
+                        if (d.PendingDefects > 0)    { cls='ov-none'; lbl='🔴'; tip=`待改善 ${d.PendingDefects} 項`; }
+                        else if (d.AllFixed > 0)      { cls='ov-new';  lbl='✅'; tip='已全數改善'; }
+                        else                           { cls='ov-ok';   lbl='✅'; tip='無待改善'; }
+                    }
+                    const nm = d.CustomerName ? `<span class="ov-name">${d.CustomerName.substring(0,3)}</span>` : '';
+                    html += `<td><div class="ov-cell ${cls}" title="${floor} ${room} ${d.CustomerName||''} - ${tip}" onclick="goToUnit('${floor}','${room}')"><span>${lbl}</span>${nm}</div></td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById('ovTableWrap').innerHTML = html;
+        }
+
+        function goToUnit(floor, room) {
+            currentFloor = floor; currentRoom = room + '戶';
+            switchTab('list'); loadRoomDefects();
+            showToast(`📍 已切換至 ${floor} ${room}戶`);
+        }
 
 
         // ★ 修正：分享電子簽名要求 (使用 LINE 原生分享對象選擇器)
@@ -1743,6 +1730,53 @@ function clearRoomSearch() {
     </script>
 
 <!-- ★ Kiosk QR Code 覆蓋層（客戶掃描簽名用）-->
+
+<!-- ★ 全棟進度總覽頁面 -->
+<div id="page-overview" style="display:none;padding:10px 10px 30px;">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+    <select id="ovRound" style="flex:1;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
+      <option value="業主初驗">業主初驗</option>
+      <option value="業主複驗">業主複驗</option>
+      <option value="客戶初驗">客戶初驗</option>
+      <option value="客戶複驗">客戶複驗</option>
+      <option value="客戶三驗">客戶三驗</option>
+    </select>
+    <button onclick="loadBuildingOverview()" style="padding:9px 16px;background:#8e44ad;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;">🔄 載入</button>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;font-size:11px;">
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:#d4edda;border:1px solid #1D7C4D;display:inline-block;"></span>已驗無缺失</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:#ffe0e0;border:1px solid #c0392b;display:inline-block;"></span>有待改善</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:#fff3cd;border:1px solid #f39c12;display:inline-block;"></span>已改善完成</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:#e9ecef;border:1px solid #adb5bd;display:inline-block;"></span>尚未驗屋</span>
+  </div>
+  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;" id="ovTableWrap">
+    <div style="text-align:center;padding:30px;color:#888;">請點「🔄 載入」查看全棟進度</div>
+  </div>
+</div>
+
+<!-- ★ 業主/客戶現場電子簽名 Overlay -->
+<div id="onsiteSignOverlay" onclick="handleOnsiteOverlayClick(event)">
+  <div id="onsiteSignCard">
+    <div id="onsiteSignHeader">
+      <h2>✍️ 業主/客戶現場確認簽名</h2>
+      <button class="close-btn" onclick="closeOnsiteSign()">✕</button>
+    </div>
+    <div id="onsiteSignBody">
+      <div id="onsiteRoundInfo">📍 <span id="onsiteInfoText">載入中...</span></div>
+      <div style="font-size:12px;color:#636e72;margin-bottom:10px;">請業主/客戶於下方框內親筆簽名確認</div>
+      <div id="onsiteCanvasWrap">
+        <canvas id="onsiteSignCanvas"></canvas>
+        <div id="onsiteCanvasHint">👆 請在此處簽名</div>
+      </div>
+    </div>
+    <div id="onsiteSignFooter">
+      <button class="onsite-btn onsite-clear" onclick="clearOnsiteSign()">↩ 清除重簽</button>
+      <button class="onsite-btn onsite-submit" id="btnOnsiteSubmit" onclick="submitOnsiteSign()" disabled>✅ 確認送出</button>
+    </div>
+  </div>
+</div>
+
+
 <div id="qrOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
      z-index:9999;display:none;flex-direction:column;align-items:center;
      justify-content:center;padding:24px;" onclick="closeQROverlay(event)">
@@ -1763,34 +1797,6 @@ function clearRoomSearch() {
             cursor:pointer;font-family:inherit;">
       ✅ 關閉
     </button>
-  </div>
-</div>
-
-
-<!-- ★ 業主現場電子簽名 Overlay -->
-<div id="onsiteSignOverlay" onclick="handleOnsiteOverlayClick(event)">
-  <div id="onsiteSignCard">
-    <div id="onsiteSignHeader">
-      <h2>✍️ 業主現場確認簽名</h2>
-      <button class="close-btn" onclick="closeOnsiteSign()">✕</button>
-    </div>
-    <div id="onsiteSignBody">
-      <div id="onsiteRoundInfo">
-        📍 <span id="onsiteInfoText">載入中...</span>
-      </div>
-      <div style="font-size:12px;color:#636e72;margin-bottom:10px;">
-        請業主/客戶於下方框內親筆簽名確認
-      </div>
-      <div id="onsiteCanvasWrap">
-        <canvas id="onsiteSignCanvas"></canvas>
-        <div id="onsiteCanvasHint">👆 請在此處簽名</div>
-      </div>
-    </div>
-    <div id="onsiteSignFooter">
-      <button class="onsite-btn onsite-clear" onclick="clearOnsiteSign()">↩ 清除重簽</button>
-      <button class="onsite-btn onsite-submit" id="btnOnsiteSubmit"
-              onclick="submitOnsiteSign()" disabled>✅ 確認送出</button>
-    </div>
   </div>
 </div>
 
