@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head> 
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>驗屋系統</title> 
@@ -149,9 +149,7 @@
                         <option value="客戶三驗">5️⃣ 客戶三驗</option>
                     </select>
                     <select id="drawingType" onchange="updateDrawingImage()" style="flex: 2;">
-                        <option value="1.建築客變圖">1. 建築客變圖</option>
-                        <option value="2.電氣端點設備圖">2. 電氣端點設備圖</option>
-                        <option value="3.排水端點設備圖">3. 排水端點設備圖</option>
+                        <!-- ★ 由 initDrawingTypeSelect() 依案場動態填入 -->
                     </select>
                     <div style="display:flex; gap:8px; margin-top:8px;">
   <input type="text" id="roomSearch" placeholder="🔍 搜尋戶別，例：B2戶" 
@@ -306,6 +304,36 @@
         let currentFloor = "";
         let currentRoom = "";
         let currentUser = "";
+        // ════════════════════════════════════════════════
+        // ★ 案場專屬圖面設定（未設定的案場自動套用預設）
+        // 新增多圖建案：在 DRAWING_CONFIG 加一行即可
+        // ════════════════════════════════════════════════
+        const DRAWING_CONFIG = {
+            "98工地":  ["1.建築客變圖", "2.電力插座圖", "3.燈具開關圖", "4.排水端點設備圖"],
+            "鼎隆大苑":["1.建築客變圖", "2.電力插座圖", "3.燈具開關圖", "4.排水端點設備圖"],
+            // 其他有兩份電氣圖的建案請依此格式新增：
+            // "案場名稱": ["1.建築客變圖", "2.電力插座圖", "3.燈具開關圖", "4.排水端點設備圖"],
+        };
+        const DEFAULT_DRAWING_TYPES = [
+            "1.建築客變圖",
+            "2.電氣端點設備圖",
+            "3.排水端點設備圖"
+        ];
+        function getDrawingTypes(siteName) {
+            return DRAWING_CONFIG[siteName] || DEFAULT_DRAWING_TYPES;
+        }
+        function initDrawingTypeSelect(siteName) {
+            const sel   = document.getElementById('drawingType');
+            if (!sel) return;
+            const types = getDrawingTypes(siteName);
+            sel.innerHTML = types.map(t => {
+                const label = t.replace(/^\d+\./, '').trim(); // 去掉數字前綴顯示
+                return `<option value="${t}">${t.replace('.', '. ')}</option>`;
+            }).join('');
+            console.log(`[圖面設定] ${siteName} → ${types.length} 份圖:`, types);
+        }
+        // ════════════════════════════════════════════════
+
         let lineUserId = ""; 
         
         let currentRound = "業主初驗"; // 全域期數變數
@@ -386,6 +414,7 @@
     }
             const urlParams = new URLSearchParams(window.location.search);
             currentSite = decodeURIComponent(urlParams.get('site') || "");
+            initDrawingTypeSelect(currentSite);
             currentFloor = decodeURIComponent(urlParams.get('floor') || "");
             currentUser = decodeURIComponent(urlParams.get('user') || "未知");
             apiBaseUrl = decodeURIComponent(urlParams.get('api') || "https://unpregnant-tonically-caitlyn.ngrok-free.dev");
