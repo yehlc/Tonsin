@@ -687,9 +687,31 @@
             else if (tab === 'list') {
                 document.getElementById('tabList').classList.add('active');
                 document.getElementById('sharedMapSection').style.display = 'none';
-                document.getElementById('listSection').style.display = 'block';
-                cancelInspection(); 
+                document.getElementById('listSection').style.display = 'none';  // ★ 也隱藏，由 loadRoomDefects 控制
+                const _listWrap = document.getElementById('listSectionInner') || document.getElementById('listSection');
+                if (_listWrap) _listWrap.style.display = 'block';
+                cancelInspection();
+                loadRoomDefects();
             }
+            // ★ 全棟進度總覽
+            else if (tab === 'overview') {
+                document.getElementById('tabOv').classList.add('active');
+                document.getElementById('sharedMapSection').style.display = 'none';
+                document.getElementById('listSection').style.display = 'none';
+                const ovEl = document.getElementById('page-overview');
+                if (ovEl) ovEl.style.display = 'block';
+                cancelInspection();
+                // 自動同步選取的期數（若 inspRound 已有值）
+                const roundSel = document.getElementById('inspRound');
+                const ovRound  = document.getElementById('ovRound');
+                if (roundSel && ovRound && roundSel.value) ovRound.value = roundSel.value;
+            }
+            // 隱藏全棟總覽（切換到其他 tab 時）
+            const _ov = document.getElementById('page-overview');
+            if (_ov && tab !== 'overview') _ov.style.display = 'none';
+            // 隱藏現場簽名 overlay（切換 tab 時）
+            const _sig = document.getElementById('onsiteSignOverlay');
+            if (_sig) _sig.style.display = 'none';
             renderCanvas();
         }
 
