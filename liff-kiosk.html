@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head> 
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -375,10 +375,11 @@ function showTowerModal(site, action) {
 }
 
 function selectTower(tower) {
+  const action = pendingAction; // ★ 先存起來，再關閉 Modal（關閉會把 pendingAction 清掉）
   closeTowerModal();
   const site = localStorage.getItem('kiosk_site') || '';
   const user = localStorage.getItem('kiosk_user') || '';
-  navigateTo(pendingAction, site, user, tower);
+  navigateTo(action, site, user, tower);
 }
 
 function closeTowerModal() {
