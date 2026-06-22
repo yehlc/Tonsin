@@ -138,6 +138,19 @@ body{background:var(--bg);display:flex;flex-direction:column;}
   backdrop-filter:blur(4px);
 }
 
+/* ── 棟別選擇 Modal ──────────────────────────────── */
+#towerModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;}
+#towerModal.open{display:flex;}
+.tower-card{background:#fff;border-radius:20px;padding:28px;width:340px;box-shadow:0 16px 48px rgba(0,0,0,.3);}
+.tower-title{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px;text-align:center;}
+.tower-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;}
+.tower-btns{display:flex;gap:10px;flex-direction:column;}
+.tower-btn{padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;transition:filter .15s;}
+.tower-btn.a{background:linear-gradient(135deg,#1A6FA8,#0d4f7c);color:#fff;}
+.tower-btn.b{background:linear-gradient(135deg,#e17055,#b94030);color:#fff;}
+.tower-btn:active{filter:brightness(.9);}
+.tower-cancel{background:#f0f2f5;color:var(--muted);margin-top:4px;}
+
 /* ── 換人/換工地確認 Modal ──────────────────────── */
 #confirmModal{
   display:none;position:fixed;inset:0;
@@ -264,8 +277,24 @@ body{background:var(--bg);display:flex;flex-direction:column;}
   </div>
 </div>
 
+<!-- ★ 棟別選擇 Modal -->
+<div id="towerModal">
+  <div class="tower-card">
+    <div class="tower-title">選擇棟別</div>
+    <div class="tower-sub" id="towerModalSite"></div>
+    <div class="tower-btns" id="towerBtns"></div>
+  </div>
+</div>
+
 <script>
-const API_BASE = 'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
+const API_BASE    = 'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
+
+// ★ 多棟建案設定（有 A棟/B棟 的工地在此設定）
+const TOWER_CONFIG = {
+  "98工地": ["A棟", "B棟"],
+  "99工地": ["A棟", "B棟"],
+  // 其他單棟工地不需要設定，留空即可
+};
 const GITHUB_BASE = 'https://yehlc.github.io/Tonsin';
 
 // ── 即時啟用「開始使用」按鈕 ────────────────
@@ -310,21 +339,16 @@ function showMain(site, user) {
 }
 
 // ── 跳轉：驗屋作業 ───────────────────────────
+// ── 棟別選擇後導向 ──────────────────────────────────────────
+let pendingAction = null; // 'insp' or 'defect'
+
 function goInsp(e) {
   e.preventDefault();
   const site = localStorage.getItem('kiosk_site') || '';
   const user = localStorage.getItem('kiosk_user') || '';
   if (!site || !user) { doReset(); return; }
-
-  // liff-inspection 需要先選樓層，透過 index.html router 帶入 page=inspection
-  const url = `${GITHUB_BASE}/liff-inspection.html`
-    + `?site=${encodeURIComponent(site)}`
-    + `&user=${encodeURIComponent(user)}`
-    + `&api=${encodeURIComponent(API_BASE)}`
-    + `&floor=2F`          // 預設從 2F 開始，使用者可在頁面切換
-    + `&room=A1%E6%88%B7`  // 預設 A1戶
-    + `&cb=${Date.now()}`;
-  window.location.href = url;
+  if (TOWER_CONFIG[site]) { showTowerModal(site, 'insp'); return; }
+  navigateTo('insp', site, user, null);
 }
 
 // ── 跳轉：缺失回報 ───────────────────────────
@@ -333,13 +357,57 @@ function goDefect(e) {
   const site = localStorage.getItem('kiosk_site') || '';
   const user = localStorage.getItem('kiosk_user') || '';
   if (!site || !user) { doReset(); return; }
+  if (TOWER_CONFIG[site]) { showTowerModal(site, 'defect'); return; }
+  navigateTo('defect', site, user, null);
+}
 
-  const url = `${GITHUB_BASE}/liff-floorplan.html`
-    + `?site=${encodeURIComponent(site)}`
-    + `&user=${encodeURIComponent(user)}`
-    + `&api=${encodeURIComponent(API_BASE)}`
-    + `&cb=${Date.now()}`;
-  window.location.href = url;
+function showTowerModal(site, action) {
+  pendingAction = action;
+  const towers = TOWER_CONFIG[site];
+  document.getElementById('towerModalSite').textContent = site;
+  const container = document.getElementById('towerBtns');
+  container.innerHTML = towers.map((t, i) => `
+    <button class="tower-btn ${i===0?'a':'b'}" onclick="selectTower('${t}')">
+      🏢 ${t}
+    </button>`).join('') +
+    `<button class="tower-btn tower-cancel" onclick="closeTowerModal()">取消</button>`;
+  document.getElementById('towerModal').classList.add('open');
+}
+
+function selectTower(tower) {
+  closeTowerModal();
+  const site = localStorage.getItem('kiosk_site') || '';
+  const user = localStorage.getItem('kiosk_user') || '';
+  navigateTo(pendingAction, site, user, tower);
+}
+
+function closeTowerModal() {
+  document.getElementById('towerModal').classList.remove('open');
+  pendingAction = null;
+}
+
+function navigateTo(action, site, user, tower) {
+  const towerParam = tower ? `&tower=${encodeURIComponent(tower)}` : '';
+  if (action === 'insp') {
+    const defaultFloor = tower === 'B棟' ? '3F_B' : (tower === 'A棟' ? '3F_A' : '2F');
+    const url = `${GITHUB_BASE}/liff-inspection.html`
+      + `?site=${encodeURIComponent(site)}`
+      + `&user=${encodeURIComponent(user)}`
+      + `&api=${encodeURIComponent(API_BASE)}`
+      + `&floor=${encodeURIComponent(defaultFloor)}`
+      + `&room=A1%E6%88%B7`
+      + towerParam
+      + `&cb=${Date.now()}`;
+    window.location.href = url;
+  } else {
+    const url = `${GITHUB_BASE}/liff-floorplan.html`
+      + `?site=${encodeURIComponent(site)}`
+      + `&user=${encodeURIComponent(user)}`
+      + `&api=${encodeURIComponent(API_BASE)}`
+      + towerParam
+      + `&cb=${Date.now()}`;
+    window.location.href = url;
+  }
 }
 
 // ── 換人/換工地 ──────────────────────────────
