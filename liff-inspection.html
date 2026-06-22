@@ -262,9 +262,14 @@
         let currentFloor = "";
         let currentRoom = "";
         let currentUser = "";
+        // ════════════════════════════════════════════════════
+        // ★ 案場顯示名稱 — 圖面路徑和客戶文件用案名，非工地代號
+        // ════════════════════════════════════════════════════
         const SITE_DISPLAY_NAME = {
-            "98工地": "德鄰豊",
-            // "99工地": "XXX",  ← 其他有別名的案場
+            "98工地": "德鄰豊",     // GitHub: 驗屋圖資/德鄰豊/
+            "99工地": "德鄰織漾",   // GitHub: 驗屋圖資/德鄰織漾/
+            "95工地": "德鄰織樺",   // GitHub: 驗屋圖資/德鄰織樺/
+            // 其他有別名的案場依此格式新增
         };
         function imgSiteName(site) { return SITE_DISPLAY_NAME[site] || site; }
 
@@ -890,32 +895,43 @@
 
         function updateDrawingImage(keepFormOpen = false) {
             let drawingType = document.getElementById('drawingType').value;
+            // ★ 圖面路徑用案名（德鄰豊 / 德鄰織漾 / 德鄰織樺…），非工地代號
             const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資";
-            // ★ 圖面路徑用案名（非工地代號），如 98工地 → 德鄰豊
-            let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(imgSiteName(currentSite))}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.png`;
-            
+            const imgSite    = imgSiteName(currentSite);
+            let targetImgSrc = `${baseImgUrl}/${encodeURIComponent(imgSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.png`;
+
             if (!keepFormOpen) cancelInspection();
 
             // ★★★ 效能優化：使用三層快取
             //  1. 記憶體快取（同 session 切換最快，毫秒級）
             //  2. Cache API（跨 session、離線可用）
             //  3. 網路（第一次載入）
-            const onSuccess = () => {
-                floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; 
-                renderCanvas();
-                // 圖載完成後在 idle 時段預載相鄰戶別的同類圖紙
-                if(navigator.onLine) {
-                    if(window.requestIdleCallback) {
-                        requestIdleCallback(()=>precacheNearbyDrawings(), {timeout:3000});
-                    } else {
-                        setTimeout(precacheNearbyDrawings, 1500);
-                    }
-                }
-            };
-            const onFailure = () => {
-                floorImg.onload = () => { floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height; renderCanvas(); };
+            const showPlaceholder = () => {
+                floorImg.onload = () => { floorCanvas.width=floorImg.width; floorCanvas.height=floorImg.height; renderCanvas(); };
                 floorImg.onerror = null;
                 floorImg.src = `https://via.placeholder.com/800x400/ffeaa7/d63031?text=No+Image`;
+            };
+            const onSuccess = () => {
+                floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height;
+                renderCanvas();
+                if(navigator.onLine) {
+                    if(window.requestIdleCallback) requestIdleCallback(()=>precacheNearbyDrawings(), {timeout:3000});
+                    else setTimeout(precacheNearbyDrawings, 1500);
+                }
+            };
+            // ★ 備援路徑：3F_A 找不到 → 嘗試 3F（PDF 工具可能未加棟別後綴）
+            const onFailure = () => {
+                const fallbackFloor = currentFloor.replace(/_[AB]$/i, '');
+                if (fallbackFloor !== currentFloor) {
+                    const fallbackUrl = `${baseImgUrl}/${encodeURIComponent(imgSite)}/${encodeURIComponent(fallbackFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(drawingType)}.png`;
+                    floorImg = new Image();
+                    floorImg.crossOrigin = "Anonymous";
+                    floorImg.onload  = onSuccess;
+                    floorImg.onerror = showPlaceholder;
+                    floorImg.src = fallbackUrl;
+                    return;
+                }
+                showPlaceholder();
             };
 
             // 強制重新建立 Image 物件（避免 onload 重複觸發 / Safari 快取問題）
