@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>驗屋圖面轉檔工具 — 同興營造</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --ink:#1A2F4B;
+  --ink-lt:#2d4a6e;
+  --rule:#d0d9e3;
+  --bg:#f3f5f8;
+  --card:#ffffff;
+  --accent:#8e44ad;
+  --green:#00b894;
+  --orange:#e17055;
+  --red:#e74c3c;
+  --yellow:#f39c12;
+  --tag-h:40px;
+}
+html,body{height:100%;background:var(--bg);font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;color:var(--ink);}
+
+/* ── Layout ── */
+.shell{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh;}
+header{background:var(--ink);padding:14px 24px;display:flex;align-items:center;gap:12px;}
+header h1{color:#fff;font-size:16px;font-weight:800;letter-spacing:.4px;}
+header span{color:rgba(255,255,255,.5);font-size:13px;}
+.badge{background:var(--accent);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;}
+main{padding:20px 24px 40px;max-width:1100px;margin:0 auto;width:100%;}
+footer{padding:12px 24px;text-align:center;font-size:11px;color:#aaa;border-top:1px solid var(--rule);}
+
+/* ── Cards ── */
+.card{background:var(--card);border-radius:14px;padding:20px 22px;box-shadow:0 2px 12px rgba(26,47,75,.07);margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:800;color:var(--ink);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card-title::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;flex-shrink:0;}
+
+/* ── Form fields ── */
+.fields{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;}
+@media(max-width:640px){.fields{grid-template-columns:1fr 1fr;}}
+.field label{display:block;font-size:11px;font-weight:700;color:#888;letter-spacing:.5px;margin-bottom:5px;}
+.field input,.field select{width:100%;padding:9px 12px;border:1.5px solid var(--rule);border-radius:9px;font-size:14px;font-family:inherit;background:#fafbfc;color:var(--ink);transition:border-color .15s;}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);background:#fff;}
+
+/* ── Drawing type selector ── */
+.dtype-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.dtype-btn{padding:7px 14px;border:1.5px solid var(--rule);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:#fafbfc;color:#888;transition:all .15s;font-family:inherit;}
+.dtype-btn.active{border-color:var(--accent);background:var(--accent);color:#fff;}
+
+/* ── Drop zone ── */
+.dropzone{border:2.5px dashed var(--rule);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfc;}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:#f8f4ff;}
+.dropzone .dz-icon{font-size:36px;margin-bottom:8px;}
+.dropzone .dz-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px;}
+.dropzone .dz-sub{font-size:12px;color:#888;}
+#fileInput{display:none;}
+
+/* ── Page grid ── */
+.pages-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.pages-title{font-size:14px;font-weight:800;color:var(--ink);}
+.page-count{font-size:12px;color:#888;background:#f0f2f5;padding:3px 10px;border-radius:10px;}
+.page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
+
+.page-card{background:var(--card);border-radius:12px;border:2px solid var(--rule);overflow:hidden;transition:border-color .15s;cursor:default;}
+.page-card.assigned{border-color:var(--green);}
+.page-card.skipped{opacity:.45;}
+.page-thumb{width:100%;aspect-ratio:1/1.414;background:#e8ecf0;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+.page-thumb canvas{width:100%;height:100%;object-fit:contain;}
+.page-thumb .spinner{font-size:24px;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.page-num{position:absolute;top:6px;left:6px;background:rgba(26,47,75,.75);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;}
+
+.page-info{padding:10px 12px;}
+.page-info .lbl{font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;margin-bottom:5px;}
+.page-select{width:100%;padding:7px 10px;border:1.5px solid var(--rule);border-radius:8px;font-size:12px;font-family:inherit;background:#fafbfc;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+.page-select:focus{outline:none;border-color:var(--accent);}
+.page-select.assigned{border-color:var(--green);background-color:#f0fdf4;}
+.page-select.skipped{color:#aaa;}
+
+/* ── Tag strip (per-page assigned badge) ── */
+.assigned-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;margin-top:6px;}
+.tag-1{background:#dbeafe;color:#1e40af;}
+.tag-2{background:#dcfce7;color:#166534;}
+.tag-3{background:#fef9c3;color:#854d0e;}
+.tag-4{background:#fce7f3;color:#831843;}
+.tag-skip{background:#f0f2f5;color:#9ca3af;}
+
+/* ── Action bar ── */
+.action-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.btn{padding:11px 20px;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:filter .15s;}
+.btn:active{filter:brightness(.9);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-secondary{background:#f0f2f5;color:var(--ink-lt);}
+.btn-green{background:var(--green);color:#fff;}
+.btn:disabled{background:#d0d9e3;color:#aaa;cursor:not-allowed;}
+.progress-info{font-size:12px;color:#888;}
+
+/* ── Status bar ── */
+.status-bar{background:#f0f2f5;border-radius:8px;padding:10px 14px;font-size:12px;color:#555;display:flex;gap:16px;flex-wrap:wrap;}
+.status-item{display:flex;align-items:center;gap:5px;}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dot-green{background:var(--green);}
+.dot-gray{background:#b2bec3;}
+.dot-yellow{background:var(--yellow);}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:700;z-index:9999;transform:translateY(60px);opacity:0;transition:all .3s;}
+.toast.show{transform:translateY(0);opacity:1;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header>
+  <div>
+    <h1>🏗️ 驗屋圖面轉檔工具</h1>
+  </div>
+  <span>PDF → PNG，自動命名上傳 GitHub</span>
+  <span class="badge">同興營造</span>
+</header>
+
+<main>
+
+  <!-- Step 1: 案場設定 -->
+  <div class="card">
+    <div class="card-title">Step 1 &nbsp; 案場 / 樓層 / 戶別</div>
+    <div class="fields">
+      <div class="field">
+        <label>📍 案場名稱</label>
+        <select id="selSite">
+          <option value="">— 選擇案場 —</option>
+          <option>98工地</option>
+          <option>99工地</option>
+          <option>95工地</option>
+          <option>鼎隆大苑</option>
+          <option>毅聯R8</option>
+          <option>毅聯寧夏</option>
+          <option>廣宇江南</option>
+          <option>內湖富樂群</option>
+          <option>中壢映象</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>🏢 樓層（如 2F、6F_A）</label>
+        <input type="text" id="inpFloor" placeholder="例：2F">
+      </div>
+      <div class="field">
+        <label>🚪 戶別（如 A2戶、B1戶）</label>
+        <input type="text" id="inpRoom" placeholder="例：A2戶">
+      </div>
+      <div class="field">
+        <label>解析度</label>
+        <select id="selDpi">
+          <option value="1.5">標準（快速）</option>
+          <option value="2" selected>高品質（建議）</option>
+          <option value="3">最高（慢）</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 圖面類型 -->
+    <div style="margin-top:14px;">
+      <div style="font-size:11px;font-weight:700;color:#888;letter-spacing:.5px;margin-bottom:8px;">📐 圖面種類設定</div>
+      <div class="dtype-grid" id="dtypeGrid"></div>
+    </div>
+  </div>
+
+  <!-- Step 2: 上傳 PDF -->
+  <div class="card">
+    <div class="card-title">Step 2 &nbsp; 上傳 PDF 檔案</div>
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="dz-icon">📄</div>
+      <div class="dz-title">點擊或拖放 PDF 至此</div>
+      <div class="dz-sub">支援一次上傳多份 PDF（每份獨立處理）</div>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf" multiple>
+  </div>
+
+  <!-- Step 3: 標記頁面 -->
+  <div class="card" id="labelCard" style="display:none;">
+    <div class="pages-header">
+      <div class="card-title" style="margin:0;">Step 3 &nbsp; 標記每頁圖面種類</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="page-count" id="pageCount">0 頁</div>
+        <button class="btn btn-secondary" style="font-size:12px;padding:7px 12px;" onclick="autoAssign()">⚡ 自動標記</button>
+      </div>
+    </div>
+
+    <div class="status-bar" id="statusBar" style="margin-bottom:14px;">
+      <div class="status-item"><div class="dot dot-green"></div><span id="statAssigned">0 頁已標記</span></div>
+      <div class="status-item"><div class="dot dot-gray"></div><span id="statSkipped">0 頁跳過</span></div>
+      <div class="status-item"><div class="dot dot-yellow"></div><span id="statPending">0 頁待處理</span></div>
+    </div>
+
+    <div class="page-grid" id="pageGrid"></div>
+  </div>
+
+  <!-- Step 4: 下載 -->
+  <div class="card" id="downloadCard" style="display:none;">
+    <div class="card-title">Step 4 &nbsp; 下載 &amp; 上傳到 GitHub</div>
+    <div style="font-size:13px;color:#555;margin-bottom:14px;line-height:1.7;">
+      下載 ZIP 後，將裡面的資料夾整個上傳到 GitHub：<br>
+      <code style="background:#f0f2f5;padding:2px 6px;border-radius:4px;font-size:12px;">
+        Tonsin / 驗屋圖資 / {案場} / {樓層} /
+      </code>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-green" id="btnDownload" onclick="downloadZip()">⬇️ 下載 PNG ZIP</button>
+      <button class="btn btn-secondary" onclick="resetAll()">🔄 重新開始</button>
+      <span class="progress-info" id="genProgress"></span>
+    </div>
+    <div style="margin-top:14px;padding:12px 14px;background:#f0f2f5;border-radius:8px;font-size:12px;color:#555;line-height:1.8;" id="fileListPreview"></div>
+  </div>
+
+</main>
+
+<footer>同興營造工務系統 — 驗屋圖面工具 v1.0</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── PDF.js Worker ────────────────────────────────────────────
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── 圖面設定（與 liff-inspection.html 保持一致）────────────
+const DRAWING_CONFIG = {
+  "98工地":  ["1.建築客變圖","2.電力插座圖","3.燈具開關圖","4.排水端點設備圖"],
+  "鼎隆大苑":["1.建築客變圖","2.電力插座圖","3.燈具開關圖","4.排水端點設備圖"],
+};
+const DEFAULT_DRAWING_TYPES = ["1.建築客變圖","2.電氣端點設備圖","3.排水端點設備圖"];
+
+// 標記顏色對應
+const TYPE_TAG_CLASS = {
+  "1.建築客變圖":"tag-1","2.電力插座圖":"tag-2","2.電氣端點設備圖":"tag-2",
+  "3.燈具開關圖":"tag-3","3.排水端點設備圖":"tag-3",
+  "4.排水端點設備圖":"tag-4","skip":"tag-skip"
+};
+
+// 關鍵字自動偵測
+const PAGE_KEYWORDS = {
+  "1.建築客變圖": ["客變","建築","平面配置","配置圖","floor plan","客變圖","建材選配"],
+  "2.電力插座圖": ["電力","插座","開關","電力.開關","電力開關","電氣","power"],
+  "2.電氣端點設備圖":["電氣","插座","開關","electrical"],
+  "3.燈具開關圖": ["燈具","迴路","lighting","燈具迴路"],
+  "3.排水端點設備圖":["排水","給水","water","drainage"],
+  "4.排水端點設備圖":["排水","給水","water","drainage","給水排水"],
+};
+const SKIP_KEYWORDS = ["建材選配","選配表","materials","設計師","interior","隔間配置","水電配置"];
+
+// ── 狀態 ─────────────────────────────────────────────────────
+let currentDrawingTypes = [...DEFAULT_DRAWING_TYPES];
+let allPages = []; // [{canvas, blob, filename, assignment}]
+let pdfFiles  = [];
+
+// ── 案場選擇 → 更新圖面種類 ──────────────────────────────────
+document.getElementById('selSite').addEventListener('change', function() {
+  currentDrawingTypes = DRAWING_CONFIG[this.value] || DEFAULT_DRAWING_TYPES;
+  renderDtypeGrid();
+  rebuildPageSelects();
+});
+
+function renderDtypeGrid() {
+  const grid = document.getElementById('dtypeGrid');
+  grid.innerHTML = currentDrawingTypes.map((t,i) =>
+    `<div class="dtype-btn active" data-idx="${i}">${t}</div>`
+  ).join('') + `<div class="dtype-btn" style="border-style:dashed;" data-idx="-1">⛔ 跳過此頁</div>`;
+}
+renderDtypeGrid();
+
+// ── 拖放處理 ─────────────────────────────────────────────────
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  handleFiles([...e.dataTransfer.files].filter(f => f.name.endsWith('.pdf')));
+});
+document.getElementById('fileInput').addEventListener('change', e => {
+  handleFiles([...e.target.files]);
+  e.target.value = '';
+});
+
+// ── 處理上傳的 PDF 檔案 ───────────────────────────────────────
+async function handleFiles(files) {
+  if (!files.length) return;
+  allPages = [];
+  document.getElementById('pageGrid').innerHTML = '';
+  document.getElementById('labelCard').style.display = 'block';
+  document.getElementById('downloadCard').style.display = 'none';
+
+  for (const file of files) {
+    await loadPDF(file);
+  }
+  updateStatus();
+  autoAssign();
+  document.getElementById('downloadCard').style.display = 'block';
+  updateFilePreview();
+}
+
+async function loadPDF(file) {
+  const buf    = await file.arrayBuffer();
+  const pdf    = await pdfjsLib.getDocument({ data: buf }).promise;
+  const scale  = parseFloat(document.getElementById('selDpi').value);
+  const grid   = document.getElementById('pageGrid');
+  const total  = pdf.numPages;
+  document.getElementById('pageCount').textContent = (allPages.length + total) + ' 頁';
+
+  for (let i = 1; i <= total; i++) {
+    const page = await pdf.getPage(i);
+    const vp   = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    // 取得頁面文字用於自動偵測
+    let pageText = '';
+    try {
+      const tc = await page.getTextContent();
+      pageText = tc.items.map(x => x.str).join(' ');
+    } catch {}
+
+    const pageIdx = allPages.length;
+    allPages.push({ canvas, blob: null, assignment: '', pageText, sourceFile: file.name });
+
+    // 建立卡片
+    const card = document.createElement('div');
+    card.className = 'page-card';
+    card.id = `pc-${pageIdx}`;
+    card.innerHTML = `
+      <div class="page-thumb">
+        <canvas></canvas>
+        <span class="page-num">第 ${i} 頁 / ${file.name.substring(0,12)}</span>
+      </div>
+      <div class="page-info">
+        <div class="lbl">圖面種類</div>
+        <select class="page-select" id="ps-${pageIdx}" onchange="onAssign(${pageIdx}, this.value)">
+          <option value="">— 請選擇 —</option>
+          ${currentDrawingTypes.map(t=>`<option value="${t}">${t}</option>`).join('')}
+          <option value="skip">⛔ 跳過（不需要此頁）</option>
+        </select>
+        <div id="ptag-${pageIdx}"></div>
+      </div>`;
+    grid.appendChild(card);
+
+    // 把渲染好的 canvas 複製進卡片
+    const thumbCanvas = card.querySelector('.page-thumb canvas');
+    thumbCanvas.width  = canvas.width;
+    thumbCanvas.height = canvas.height;
+    thumbCanvas.getContext('2d').drawImage(canvas, 0, 0);
+  }
+}
+
+function rebuildPageSelects() {
+  allPages.forEach((p, idx) => {
+    const sel = document.getElementById(`ps-${idx}`);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">— 請選擇 —</option>` +
+      currentDrawingTypes.map(t => `<option value="${t}" ${t===cur?'selected':''}>${t}</option>`).join('') +
+      `<option value="skip" ${cur==='skip'?'selected':''}>⛔ 跳過（不需要此頁）</option>`;
+  });
+}
+
+// ── 選擇圖面種類 ──────────────────────────────────────────────
+function onAssign(idx, val) {
+  allPages[idx].assignment = val;
+  const card = document.getElementById(`pc-${idx}`);
+  const sel  = document.getElementById(`ps-${idx}`);
+  const tag  = document.getElementById(`ptag-${idx}`);
+  card.className = 'page-card' + (val === 'skip' ? ' skipped' : (val ? ' assigned' : ''));
+  sel.className  = 'page-select' + (val === 'skip' ? ' skipped' : (val ? ' assigned' : ''));
+  tag.innerHTML  = val ? `<span class="assigned-tag ${TYPE_TAG_CLASS[val]||'tag-1'}">${val==='skip'?'跳過':val}</span>` : '';
+  updateStatus();
+  updateFilePreview();
+}
+
+// ── 自動標記 ─────────────────────────────────────────────────
+function autoAssign() {
+  allPages.forEach((p, idx) => {
+    if (p.assignment) return; // 已手動設定的不蓋掉
+    const txt = (p.pageText + ' ' + p.sourceFile).toLowerCase();
+
+    // 先檢查是否要跳過
+    if (SKIP_KEYWORDS.some(k => txt.includes(k.toLowerCase()))) {
+      setAssign(idx, 'skip'); return;
+    }
+
+    // 依關鍵字匹配圖面種類
+    for (const dt of currentDrawingTypes) {
+      const kws = PAGE_KEYWORDS[dt] || [];
+      if (kws.some(k => txt.includes(k.toLowerCase()))) {
+        setAssign(idx, dt); return;
+      }
+    }
+
+    // 依順序推測（PDF 通常照固定順序：建築→電力→燈具/電氣→排水）
+    const unassignedIdx = allPages.slice(0, idx).filter(p => p.assignment && p.assignment !== 'skip').length;
+    if (unassignedIdx < currentDrawingTypes.length) {
+      setAssign(idx, currentDrawingTypes[unassignedIdx]);
+    }
+  });
+  showToast('⚡ 自動標記完成，請確認是否正確');
+}
+
+function setAssign(idx, val) {
+  const sel = document.getElementById(`ps-${idx}`);
+  if (sel) sel.value = val;
+  onAssign(idx, val);
+}
+
+// ── 狀態計算 ─────────────────────────────────────────────────
+function updateStatus() {
+  const assigned = allPages.filter(p => p.assignment && p.assignment !== 'skip').length;
+  const skipped  = allPages.filter(p => p.assignment === 'skip').length;
+  const pending  = allPages.filter(p => !p.assignment).length;
+  document.getElementById('statAssigned').textContent = assigned + ' 頁已標記';
+  document.getElementById('statSkipped').textContent  = skipped  + ' 頁跳過';
+  document.getElementById('statPending').textContent  = pending  + ' 頁待處理';
+  document.getElementById('pageCount').textContent = allPages.length + ' 頁';
+}
+
+// ── 預覽檔名清單 ──────────────────────────────────────────────
+function updateFilePreview() {
+  const site  = document.getElementById('selSite').value || '(案場)';
+  const floor = document.getElementById('inpFloor').value.trim() || '(樓層)';
+  const room  = document.getElementById('inpRoom').value.trim() || '(戶別)';
+
+  const lines = allPages
+    .filter(p => p.assignment && p.assignment !== 'skip')
+    .map(p => `📄 <code style="font-size:11px;">驗屋圖資 / ${site} / ${floor} / ${room}_${p.assignment}.png</code>`);
+
+  document.getElementById('fileListPreview').innerHTML = lines.length
+    ? `<b>將產生以下檔案：</b><br>${lines.join('<br>')}`
+    : `<span style="color:#aaa;">（尚未標記任何圖面）</span>`;
+}
+
+document.getElementById('selSite').addEventListener('change', updateFilePreview);
+document.getElementById('inpFloor').addEventListener('input', updateFilePreview);
+document.getElementById('inpRoom').addEventListener('input', updateFilePreview);
+
+// ── 下載 ZIP ─────────────────────────────────────────────────
+async function downloadZip() {
+  const site  = document.getElementById('selSite').value;
+  const floor = document.getElementById('inpFloor').value.trim();
+  const room  = document.getElementById('inpRoom').value.trim();
+
+  if (!site || !floor || !room) {
+    showToast('⚠️ 請先填寫案場、樓層、戶別'); return;
+  }
+  const toExport = allPages.filter(p => p.assignment && p.assignment !== 'skip');
+  if (!toExport.length) {
+    showToast('⚠️ 沒有任何頁面已標記圖面種類'); return;
+  }
+
+  const btn = document.getElementById('btnDownload');
+  btn.disabled = true;
+  const zip = new JSZip();
+  const folder = zip.folder(`驗屋圖資`).folder(site).folder(floor);
+  const prog = document.getElementById('genProgress');
+
+  for (let i = 0; i < toExport.length; i++) {
+    const p = toExport[i];
+    prog.textContent = `轉換中 ${i+1}/${toExport.length}…`;
+    const blob = await canvasToBlob(p.canvas);
+    const fname = `${room}_${p.assignment}.png`;
+    folder.file(fname, blob);
+  }
+
+  prog.textContent = '打包中…';
+  const content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = `驗屋圖資_${site}_${floor}_${room}.zip`;
+  a.click();
+  prog.textContent = `✅ 完成！${toExport.length} 張 PNG`;
+  btn.disabled = false;
+  showToast('✅ ZIP 下載完成！請上傳至 GitHub');
+}
+
+function canvasToBlob(canvas) {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+// ── 重置 ─────────────────────────────────────────────────────
+function resetAll() {
+  allPages = [];
+  document.getElementById('pageGrid').innerHTML = '';
+  document.getElementById('labelCard').style.display = 'none';
+  document.getElementById('downloadCard').style.display = 'none';
+  document.getElementById('fileListPreview').innerHTML = '';
+  document.getElementById('genProgress').textContent = '';
+  document.getElementById('inpFloor').value = '';
+  document.getElementById('inpRoom').value = '';
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
