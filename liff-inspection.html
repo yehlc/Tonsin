@@ -1241,26 +1241,32 @@
                 return;
             }
 
-            fetch(url, {
-                method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+            // ★ safeJsonFetch：先取 text() 再嘗試 JSON.parse
+            //   確保無論 server 回傳 HTML 或 JSON，都能看到真正的錯誤訊息
+            safeJsonFetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify(payload)
-            }).then(r => r.json()).then(res => {
-                if (res.success) { 
-                    showToast(editId ? "✅ 缺失更新成功！" : "✅ 缺失新增成功！"); 
-                    cancelInspection(); 
+            }).then(res => {
+                if (res.success) {
+                    showToast(editId ? "✅ 缺失更新成功！" : "✅ 缺失新增成功！");
+                    cancelInspection();
                     loadRoomDefects();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                } else { alert("❌ 操作失敗：" + res.error); }
+                } else {
+                    // server 回傳業務錯誤（非連線問題），直接顯示，不暫存
+                    alert("❌ 操作失敗：" + res.error);
+                }
             }).catch(e => {
-                // 連線異常：可能是 ngrok/API 未啟動，或伺服器回傳非 JSON
+                // 真正的連線/parse 異常才暫存
                 console.error('[API 連線異常]', e.message);
                 let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
-                offlineQueue.push({ payload: payload, isEdit: !!editId });
+                offlineQueue.push({ payload: payload, isEdit: !!editId, apiBase: apiBaseUrl });
                 try {
                     localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
-                    showToast("📶 連線異常，已暫存至本機！網路恢復後自動同步。");
+                    showToast("📶 API 連線失敗，已暫存！錯誤：" + e.message.substring(0,60));
                 } catch (err) {
-                    alert("連線異常，且本機暫存空間不足，請確認 API 伺服器是否運行中。\n錯誤：" + e.message);
+                    alert("連線失敗且本機空間不足。\n錯誤：" + e.message);
                 }
                 cancelInspection();
                 checkOfflineData();
@@ -1268,6 +1274,22 @@
                 btn.disabled = false; btn.innerText = editId ? "🔄 更新此筆資料" : "📤 儲存並送出";
             });
         }
+
+        // ★ safeJsonFetch：確保無論 server 回傳 HTML/JSON 都能正確解析
+        // 如果 server 回傳 HTML（nginx 502、ngrok 警告等），會拋出帶有原始文字的 Error
+        // 呼叫端可根據是否進入 catch 來區分「連線異常」vs「業務錯誤」
+        async function safeJsonFetch(url, options) {
+            const r = await fetch(url, options);
+            const text = await r.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch {
+                throw new Error(`HTTP ${r.status}: ${text.substring(0, 120).replace(/\n/g,' ')}`);
+            }
+            return json;
+        }
+
         window.checkOfflineData = function() {
             let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
             let banner = document.getElementById('offlineBanner');
@@ -1302,31 +1324,43 @@
             for (let i = 0; i < offlineQueue.length; i++) {
                 let item = offlineQueue[i];
                 try {
-                    // ★ 修正：動態組合當下的 apiBaseUrl，避免 ngrok 網址更新後死連結
-                    let targetUrl = item.isEdit ? `${apiBaseUrl}/update-inspection-defect` : `${apiBaseUrl}/submit-inspection`;
-                    
-                    let r = await fetch(targetUrl, {
-                        method: "POST", 
+                    // 使用 item.apiBase（儲存時紀錄）或當前 apiBaseUrl
+                    let baseUrl = item.apiBase || apiBaseUrl;
+                    let targetUrl = item.isEdit
+                        ? `${baseUrl}/update-inspection-defect`
+                        : `${baseUrl}/submit-inspection`;
+
+                    let res = await safeJsonFetch(targetUrl, {
+                        method: "POST",
                         headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                         body: JSON.stringify(item.payload)
                     });
-                    let res = await r.json();
                     if (res.success) {
                         successCount++;
                     } else {
-                        failedQueue.push(item); 
+                        // server 回應失敗訊息（業務邏輯錯誤）→ 不重試，直接顯示
+                        console.warn('[sync] 伺服器拒絕：', res.error);
+                        failedQueue.push({ ...item, lastError: res.error });
                     }
                 } catch (e) {
-                    failedQueue.push(item);
+                    // 連線錯誤，下次再試
+                    console.error('[sync] 連線失敗：', e.message);
+                    failedQueue.push({ ...item, lastError: e.message });
                 }
             }
 
             localStorage.setItem('tonsin_offline_defects', JSON.stringify(failedQueue));
-            
-            showToast(`✅ 成功同步 ${successCount} 筆資料！`);
-            banner.onclick = syncOfflineData; 
-            checkOfflineData(); 
-            loadRoomDefects(); 
+
+            if (successCount > 0) {
+                showToast(`✅ 成功同步 ${successCount} 筆，失敗 ${failedQueue.length} 筆`);
+                loadRoomDefects();
+            } else if (failedQueue.length > 0) {
+                // 顯示第一筆失敗原因，幫助診斷
+                const errMsg = failedQueue[0].lastError || '未知原因';
+                alert(`⚠️ 同步失敗（共 ${failedQueue.length} 筆）\n\n失敗原因：${errMsg}\n\n請確認：\n1. Node.js API 伺服器是否運行中\n2. ngrok 隧道是否正常`);
+            }
+            banner.onclick = syncOfflineData;
+            checkOfflineData();
         }
 
         window.deleteInspection = function() {
