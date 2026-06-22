@@ -859,7 +859,8 @@
         }
 
         function renderCanvas() {
-            if(!floorImg.complete || !floorImg.src) return;
+            // ★ 防護：圖片未載入(complete=false)、無src、或載入失敗(naturalWidth=0)時不繪製
+            if(!floorImg || !floorImg.complete || !floorImg.src || floorImg.naturalWidth === 0) return;
             floorCtx.clearRect(0, 0, floorCanvas.width, floorCanvas.height);
             floorCtx.drawImage(floorImg, 0, 0, floorCanvas.width, floorCanvas.height);
             
@@ -1250,8 +1251,12 @@
             }).then(res => {
                 if (res.success) {
                     showToast(editId ? "✅ 缺失更新成功！" : "✅ 缺失新增成功！");
-                    cancelInspection();
-                    loadRoomDefects();
+                    try {
+                        cancelInspection();
+                        loadRoomDefects();
+                    } catch(uiErr) {
+                        console.warn('UI 重繪異常：', uiErr.message);
+                    }
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                     // server 回傳業務錯誤（非連線問題），直接顯示，不暫存
