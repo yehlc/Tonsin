@@ -891,7 +891,7 @@
                             if (d.ID.toString() === currentlyEditingId) {
                                 d.px = px; d.py = py;
                             } else {
-                                drawExistingPin(px, py, d.ID, d.Status, d.Phase); 
+                                drawExistingPin(px, py, d.ID, d.Status, d.Phase, d.FixedPhase); 
                                 d.px = px; d.py = py; 
                             }
                         }
@@ -913,14 +913,19 @@
             floorCtx.fillStyle = '#dc3545'; floorCtx.fill(); floorCtx.stroke();
         }
 
-        function drawExistingPin(px, py, id, status, phase) {
+        function drawExistingPin(px, py, id, status, phase, fixedPhase) {
             let size = Math.max(floorCanvas.width * 0.008, 6); 
             floorCtx.lineWidth = 3; floorCtx.strokeStyle = '#fff';
             floorCtx.beginPath(); floorCtx.moveTo(px, py); 
             floorCtx.lineTo(px - size, py - size * 2); floorCtx.lineTo(px + size, py - size * 2); 
             floorCtx.closePath(); 
             
-            let pinColor = (status && status.includes('已改善')) ? '#1DB446' : '#007bff';
+            // ★ 修正：依 FixedPhase 判斷當前期數是否真的已改善
+            const _phP = {"業主初驗":1,"業主複驗":2,"客戶初驗":3,"客戶複驗":4,"客戶三驗":5};
+            const _curR = (document.getElementById('inspRound')||{value:''}).value;
+            const _realDone = (status && status.includes('已改善'))
+                && (_phP[fixedPhase]||999) <= (_phP[_curR]||0);
+            let pinColor = _realDone ? '#1DB446' : '#007bff';
             
             floorCtx.fillStyle = pinColor; floorCtx.fill(); floorCtx.stroke();
             
@@ -1247,16 +1252,16 @@
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else { alert("❌ 操作失敗：" + res.error); }
             }).catch(e => {
+                // 連線異常：可能是 ngrok/API 未啟動，或伺服器回傳非 JSON
+                console.error('[API 連線異常]', e.message);
                 let offlineQueue = JSON.parse(localStorage.getItem('tonsin_offline_defects') || '[]');
                 offlineQueue.push({ payload: payload, isEdit: !!editId });
-                
                 try {
                     localStorage.setItem('tonsin_offline_defects', JSON.stringify(offlineQueue));
-                    showToast("連線異常，已為您自動切換至離線暫存！");
+                    showToast("📶 連線異常，已暫存至本機！網路恢復後自動同步。");
                 } catch (err) {
-                    alert("連線異常，且手機暫存空間不足，請稍後再試。");
+                    alert("連線異常，且本機暫存空間不足，請確認 API 伺服器是否運行中。\n錯誤：" + e.message);
                 }
-
                 cancelInspection();
                 checkOfflineData();
             }).finally(() => {
