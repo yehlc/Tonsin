@@ -386,8 +386,9 @@
                 "4F": ["A1戶","A2戶","A3戶","B1戶","B2戶","B3戶","B5戶","B6戶"],
                 "5F": ["A1戶","A2戶","A3戶","B1戶","B2戶","B3戶","B5戶","B6戶"]
             },
-            // ★ 98工地（德鄰豊）— A棟 2F_A~20F_A，B棟 2F_B~19F_B
+            // ★ 98工地（德鄰豊）— 1F(店面), A棟 2F_A~20F_A，B棟 2F_B~19F_B
             "98工地": {
+                "1F":   ["店面A","店面B","店面C","店面D","店面E"],
                 "2F_A": ["A1戶","A2戶","A3戶","A5戶"],
                 "3F_A": ['A1戶', 'A2戶', 'A3戶', 'A5戶'],
                 "4F_A": ['A1戶', 'A2戶', 'A3戶', 'A5戶'],
@@ -723,9 +724,11 @@
                 // ★ 依棟別過濾：A棟只顯示 *_A，B棟只顯示 *_B，無棟別顯示全部
                 let floors = allFloors;
                 if (currentTower === 'A棟') {
-                    floors = allFloors.filter(f => f.endsWith('_A'));
+                    // A棟專屬樓層 + 無棟別後綴的共用樓層（如 1F 店面）
+                    floors = allFloors.filter(f => f.endsWith('_A') || !/_[AB]$/.test(f));
                 } else if (currentTower === 'B棟') {
-                    floors = allFloors.filter(f => f.endsWith('_B'));
+                    // B棟專屬樓層 + 無棟別後綴的共用樓層
+                    floors = allFloors.filter(f => f.endsWith('_B') || !/_[AB]$/.test(f));
                 }
                 for (let f of floors) {
                     for (let r of ROOM_CONFIG[currentSite][f]) {
@@ -1723,11 +1726,13 @@ async function downloadFile(url, filename) {
                 const res = await r.json();
                 if (!res.success) throw new Error(res.error);
                 let rawData = res.data || [];
-                // ★ 依棟別過濾：A棟只顯示以 A 開頭的戶、B棟只顯示 B 開頭
+                // ★ 依棟別過濾：A棟顯示 A 開頭 + 共用樓層（1F 店面）
+                //              B棟顯示 B 開頭 + 共用樓層
+                const _isSharedFloor = d => !/_[AB]$/.test(d.Floor || '');
                 if (currentTower === 'A棟') {
-                    rawData = rawData.filter(d => d.Room.startsWith('A'));
+                    rawData = rawData.filter(d => d.Room.startsWith('A') || _isSharedFloor(d));
                 } else if (currentTower === 'B棟') {
-                    rawData = rawData.filter(d => d.Room.startsWith('B'));
+                    rawData = rawData.filter(d => d.Room.startsWith('B') || _isSharedFloor(d));
                 }
                 _ovData = rawData;
                 _ovFilter = 'all';
