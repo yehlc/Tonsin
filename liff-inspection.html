@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head> 
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>驗屋系統</title> 
@@ -950,7 +950,13 @@
         }
 
         function updateDrawingImage(keepFormOpen = false) {
-            let drawingType = document.getElementById('drawingType').value;
+            const _dtEl = document.getElementById('drawingType');
+            // ★ drawingType 為空時（如舊格式設失敗），自動 fallback 到第一個選項
+            if (_dtEl && !_dtEl.value && _dtEl.options.length > 0) {
+                _dtEl.selectedIndex = 0;
+            }
+            let drawingType = _dtEl ? _dtEl.value : '';
+            if (!drawingType) return; // 沒有選項，不繪製
             // ★ 圖面路徑用案名（德鄰豊 / 德鄰織漾 / 德鄰織樺…），非工地代號
             const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資";
             const imgSite    = imgSiteName(currentSite);
@@ -1023,9 +1029,16 @@
             document.getElementById('sharedMapSection').style.display = 'block';
             document.getElementById('listSection').style.display = 'none';
 
-            if (document.getElementById('drawingType').value !== d.DrawingType) {
-                document.getElementById('drawingType').value = d.DrawingType;
-                updateDrawingImage(true); 
+            // ★ 設 DrawingType 前先確認選項存在；舊格式名稱不存在時 fallback 第一個選項
+            const _dtSel2 = document.getElementById('drawingType');
+            if (_dtSel2 && _dtSel2.value !== d.DrawingType) {
+                _dtSel2.value = d.DrawingType;
+                if (!_dtSel2.value && _dtSel2.options.length > 0) {
+                    // DrawingType 名稱在目前選單中找不到（舊格式 vs 新格式），fallback
+                    _dtSel2.selectedIndex = 0;
+                    console.warn('[drawingType] 舊格式找不到對應選項，已 fallback:', d.DrawingType);
+                }
+                updateDrawingImage(true);
             }
 
             document.getElementById('editDefectId').value = d.ID;
@@ -1109,7 +1122,14 @@
                 document.getElementById('mapHint').style.color = "#fff";
                 document.getElementById('mapHint').innerText = "🗺️ 圖面總覽 (點擊圖釘編輯)";
             }
-            renderCanvas(); 
+            // ★ cancelInspection 後確保 drawingType 有有效值
+            const _dtCancel = document.getElementById('drawingType');
+            if (_dtCancel && !_dtCancel.value && _dtCancel.options.length > 0) {
+                _dtCancel.selectedIndex = 0;
+                updateDrawingImage(); // 重新載入圖面
+            } else {
+                renderCanvas();
+            }
         };
 
         function appendDesc(text) {
@@ -1557,6 +1577,14 @@ async function downloadFile(url, filename) {
                 renderOverviewTable(res.data);
             }catch(e){wrap.innerHTML=`<div style="text-align:center;padding:20px;color:#e74c3c;">❌ ${e.message}</div>`;}
         }
+        function goToUnit(floor, room) {
+            // ★ 用 jumpToRoom 確保 roomNavSelect、siteFloorTitle、圖面全部正確更新
+            const roomKey = (room || '').endsWith('戶') ? room : (room + '戶');
+            jumpToRoom(floor + '|' + roomKey);   // 呼叫現有的 jumpToRoom 函式
+            switchTab('list');                    // 切到清單 tab
+            showToast('📍 已切換至 ' + floor + ' ' + roomKey);
+        }
+
         function renderOverviewTable(data){
             if(!data||!data.length){document.getElementById('ovTableWrap').innerHTML='<div style="text-align:center;padding:30px;color:#888;">目前無驗屋資料</div>';return;}
             const rooms=[...new Set(data.map(d=>d.Room))].sort();
@@ -1581,10 +1609,7 @@ async function downloadFile(url, filename) {
             h+='</tbody></table></div>';
             document.getElementById('ovTableWrap').innerHTML=h;
         }
-        function goToUnit(floor,room){
-            currentFloor=floor;currentRoom=room+'戶';
-            switchTab('list');loadRoomDefects();showToast(`📍 已切換至 ${floor} ${room}戶`);
-        }
+        
 
 
         function sendSignatureRequest() {
