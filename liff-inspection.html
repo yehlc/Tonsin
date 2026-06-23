@@ -77,18 +77,79 @@
         .onsite-submit{background:#00b894;color:#fff;flex:2;}
         .onsite-submit:disabled{background:#b2bec3;}
 
-        /* ── 全棟進度總覽 ── */
-        #page-overview{display:none;padding:10px 10px 30px;}
-        .ov-tbl{border-collapse:collapse;font-size:12px;white-space:nowrap;}
-        .ov-tbl th,.ov-tbl td{border:1px solid #ddd;padding:7px 10px;text-align:center;min-width:56px;}
-        .ov-tbl th{background:#2c3e50;color:#fff;font-weight:700;position:sticky;top:0;}
-        .ov-tbl th.fh{background:#34495e;left:0;position:sticky;z-index:6;}
-        .ov-tbl td.fc{background:#f8f9fa;font-weight:700;font-size:11px;position:sticky;left:0;z-index:4;}
-        .ovc{border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;display:inline-block;width:100%;}
-        .ovc-e{background:#e9ecef;color:#adb5bd;}
-        .ovc-r{background:#ffe0e0;color:#c0392b;}
-        .ovc-g{background:#d4edda;color:#155724;}
-        .ovc-n{font-size:9px;opacity:.8;display:block;margin-top:1px;}
+        /* ══ 全棟進度總覽（重設計）══ */
+        #page-overview{display:none;background:#16213e;min-height:100%;padding-bottom:24px;}
+
+        /* 頂部設定列 */
+        .ov-topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;
+                   background:#1a2744;border-bottom:1px solid #2d3f66;flex-wrap:wrap;}
+        .ov-topbar select{flex:1;min-width:130px;padding:8px 10px;background:#253354;color:#fff;
+                          border:1px solid #3a5080;border-radius:8px;font-size:13px;font-family:inherit;}
+        .ov-load-btn{padding:8px 16px;background:#8e44ad;color:#fff;border:none;border-radius:8px;
+                     font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+        .ov-load-btn:active{filter:brightness(.85);}
+
+        /* 統計卡片 */
+        .ov-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));
+                  gap:8px;padding:10px 12px;}
+        .ov-stat{background:#1a2744;border-radius:10px;padding:10px 8px;text-align:center;
+                 cursor:pointer;border:2px solid transparent;transition:all .2s;}
+        .ov-stat.active,.ov-stat:active{border-color:#8e44ad;}
+        .ov-stat-num{font-size:22px;font-weight:900;line-height:1;}
+        .ov-stat-lbl{font-size:10px;color:#8899bb;margin-top:3px;}
+        .ov-s-total .ov-stat-num{color:#aabbcc;}
+        .ov-s-pend  .ov-stat-num{color:#e74c3c;}
+        .ov-s-prog  .ov-stat-num{color:#f39c12;}
+        .ov-s-done  .ov-stat-num{color:#2ecc71;}
+        .ov-s-sign  .ov-stat-num{color:#3498db;}
+        .ov-s-uninsp .ov-stat-num{color:#636e72;}
+
+        /* 進度條 */
+        .ov-prog-wrap{padding:4px 12px 8px;display:flex;align-items:center;gap:8px;}
+        .ov-prog-bar{flex:1;height:6px;background:#2d3f66;border-radius:3px;overflow:hidden;}
+        .ov-prog-fill{height:100%;background:linear-gradient(90deg,#e74c3c,#f39c12,#2ecc71);
+                      border-radius:3px;transition:width .4s;}
+        .ov-prog-label{font-size:12px;color:#aabbcc;white-space:nowrap;}
+
+        /* 篩選按鈕 */
+        .ov-filters{display:flex;gap:6px;padding:0 12px 10px;flex-wrap:wrap;}
+        .ov-fbtn{padding:5px 10px;border:1px solid #2d3f66;background:transparent;color:#8899bb;
+                 border-radius:16px;font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s;}
+        .ov-fbtn.active{background:#8e44ad;border-color:#8e44ad;color:#fff;}
+
+        /* 格狀表格 */
+        .ov-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 12px;}
+        table.ov-grid{border-collapse:separate;border-spacing:3px;font-size:12px;min-width:100%;}
+        table.ov-grid th{background:#1a2744;color:#8899bb;font-weight:700;padding:6px 8px;
+                         font-size:11px;white-space:nowrap;}
+        table.ov-grid th.fl-hd{position:sticky;left:0;z-index:6;background:#1a2744;}
+        table.ov-grid td.fl-cell{background:#1a2744;color:#aabbcc;font-size:11px;font-weight:800;
+                                  padding:6px 8px;position:sticky;left:0;z-index:4;white-space:nowrap;}
+        table.ov-grid td.empty-cell{background:transparent;}
+
+        /* 戶別格子 */
+        .ov-unit{border-radius:8px;padding:6px 5px;cursor:pointer;transition:all .15s;
+                 position:relative;min-width:56px;text-align:center;display:block;}
+        .ov-unit:active{transform:scale(.92);}
+        .ov-unit .u-name{font-size:10px;display:block;overflow:hidden;
+                          text-overflow:ellipsis;white-space:nowrap;max-width:60px;}
+        .ov-unit .u-cnt{position:absolute;top:-3px;right:-3px;background:#e74c3c;color:#fff;
+                         font-size:9px;font-weight:800;border-radius:8px;padding:1px 5px;
+                         min-width:16px;line-height:1.4;}
+        .ov-unit .u-sign{position:absolute;bottom:2px;right:3px;font-size:9px;}
+
+        /* 狀態色 */
+        .ov-unit.s-uninsp{background:#2d3f5a;color:#636e72;}
+        .ov-unit.s-pend  {background:#4a1a1a;color:#e74c3c;border:1px solid #c0392b44;}
+        .ov-unit.s-prog  {background:#4a3000;color:#f39c12;border:1px solid #d4850044;}
+        .ov-unit.s-done  {background:#0d3320;color:#2ecc71;border:1px solid #1a6b3844;}
+        .ov-unit.s-sign  {background:#0a2040;color:#3498db;border:1px solid #1a5a9044;}
+
+        /* 篩選隱藏 */
+        .ov-unit.filtered{display:none;}
+
+        /* 空狀態 */
+        .ov-empty{padding:40px;text-align:center;color:#4a5a7a;font-size:14px;}
         
         #listSection { display: none; padding: 15px; }
         .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; cursor: pointer; border-left: 4px solid #8e44ad; transition: background 0.2s; }
@@ -1564,53 +1625,124 @@ async function downloadFile(url, filename) {
         }
 
         // ════════════════════════════════════════════════
-        // ★ 全棟進度總覽
-        // ════════════════════════════════════════════════
-        async function loadBuildingOverview(){
-            const round=document.getElementById('ovRound').value;
-            const wrap=document.getElementById('ovTableWrap');
-            wrap.innerHTML='<div style="text-align:center;padding:30px;font-size:20px;">⏳</div>';
-            try{
-                const r=await fetch(`${apiBaseUrl}/building-overview?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(round)}`,{headers:{'ngrok-skip-browser-warning':'true'}});
-                const res=await r.json();
-                if(!res.success)throw new Error(res.error);
-                renderOverviewTable(res.data);
-            }catch(e){wrap.innerHTML=`<div style="text-align:center;padding:20px;color:#e74c3c;">❌ ${e.message}</div>`;}
+        // ★ 全棟進度總覽（重設計版）
+        let _ovData = [];
+        let _ovFilter = 'all';
+
+        async function loadBuildingOverview() {
+            const round = document.getElementById('ovRound').value;
+            const wrap  = document.getElementById('ovTableWrap');
+            wrap.innerHTML = '<div class="ov-empty">⏳ 資料載入中...</div>';
+            const statsEl = document.getElementById('ovStats');
+            const progEl  = document.getElementById('ovProgWrap');
+            if (statsEl) statsEl.style.display = 'none';
+            if (progEl)  progEl.style.display  = 'none';
+            try {
+                const r = await fetch(
+                    `${apiBaseUrl}/building-overview?site=${encodeURIComponent(currentSite)}&round=${encodeURIComponent(round)}`,
+                    { headers: { 'ngrok-skip-browser-warning': 'true' } }
+                );
+                const res = await r.json();
+                if (!res.success) throw new Error(res.error);
+                _ovData   = res.data || [];
+                _ovFilter = 'all';
+                document.querySelectorAll('.ov-stat').forEach(el => el.classList.remove('active'));
+                document.querySelector('.ov-s-total')?.classList.add('active');
+                renderOverviewTable(_ovData);
+            } catch(e) {
+                wrap.innerHTML = `<div class="ov-empty" style="color:#e74c3c;">❌ ${e.message}</div>`;
+            }
         }
+
+        function getUnitStatus(d) {
+            if (!d || d.TotalDefects === 0) return 'uninsp';
+            if (d.HasSignature && d.PendingDefects === 0) return 'sign';
+            if (d.PendingDefects === 0) return 'done';
+            if (d.AllFixed > 0) return 'prog';
+            return 'pend';
+        }
+
+        function ovFilter(f) {
+            _ovFilter = f;
+            document.querySelectorAll('.ov-stat').forEach(el => el.classList.remove('active'));
+            const map = {all:'ov-s-total',pend:'ov-s-pend',prog:'ov-s-prog',done:'ov-s-done',sign:'ov-s-sign',uninsp:'ov-s-uninsp'};
+            document.querySelector('.' + (map[f] || 'ov-s-total'))?.classList.add('active');
+            document.querySelectorAll('td.ov-td').forEach(td => {
+                const unit = td.querySelector('.ov-unit');
+                const show = !unit || f === 'all' || unit.dataset.status === f;
+                td.style.opacity = show ? '' : '0.15';
+                td.style.pointerEvents = show ? '' : 'none';
+            });
+        }
+
         function goToUnit(floor, room) {
-            // ★ 用 jumpToRoom 確保 roomNavSelect、siteFloorTitle、圖面全部正確更新
             const roomKey = (room || '').endsWith('戶') ? room : (room + '戶');
-            jumpToRoom(floor + '|' + roomKey);   // 呼叫現有的 jumpToRoom 函式
-            switchTab('list');                    // 切到清單 tab
+            jumpToRoom(floor + '|' + roomKey);
+            switchTab('list');
             showToast('📍 已切換至 ' + floor + ' ' + roomKey);
         }
 
-        function renderOverviewTable(data){
-            if(!data||!data.length){document.getElementById('ovTableWrap').innerHTML='<div style="text-align:center;padding:30px;color:#888;">目前無驗屋資料</div>';return;}
-            const rooms=[...new Set(data.map(d=>d.Room))].sort();
-            const floorNum=f=>parseInt(f.replace(/[^0-9]/g,''))||0;
-            const floors=[...new Set(data.map(d=>d.Floor))].sort((a,b)=>floorNum(b)-floorNum(a));
-            const map={};data.forEach(d=>{map[d.Floor+'|'+d.Room]=d;});
-            let h='<div style="overflow-x:auto;"><table class="ov-tbl"><thead><tr><th class="fh">樓層</th>';
-            rooms.forEach(r=>h+=`<th>${r}</th>`);
-            h+='</tr></thead><tbody>';
-            floors.forEach(floor=>{
-                h+=`<tr><td class="fc">${floor}</td>`;
-                rooms.forEach(room=>{
-                    const d=map[floor+'|'+room];
-                    if(!d){h+='<td></td>';return;}
-                    let cls='ovc-e',lbl='⬜';
-                    if(d.TotalDefects>0){cls=d.PendingDefects>0?'ovc-r':'ovc-g';lbl=d.PendingDefects>0?'🔴':'✅';}
-                    const nm=d.CustomerName?`<span class="ovc-n">${d.CustomerName.substring(0,3)}</span>`:'';
-                    h+=`<td><div class="ovc ${cls}" onclick="goToUnit('${floor}','${room}')" title="${floor} ${room} ${d.CustomerName||''}">${lbl}${nm}</div></td>`;
-                });
-                h+='</tr>';
+        function renderOverviewTable(data) {
+            if (!data || !data.length) {
+                document.getElementById('ovTableWrap').innerHTML = '<div class="ov-empty">目前無驗屋資料，請確認資料庫已建立 UnitCustomers 資料</div>';
+                return;
+            }
+            // 統計
+            const stats = { all: data.length, pend: 0, prog: 0, done: 0, sign: 0, uninsp: 0 };
+            let inspected = 0, resolved = 0;
+            data.forEach(d => {
+                const s = getUnitStatus(d);
+                if (stats[s] !== undefined) stats[s]++;
+                if (d.TotalDefects > 0) { inspected++; if (d.PendingDefects === 0) resolved++; }
             });
-            h+='</tbody></table></div>';
-            document.getElementById('ovTableWrap').innerHTML=h;
-        }
-        
+            ['all','pend','prog','done','sign','uninsp'].forEach(k => {
+                const el = document.getElementById('ovN-' + k);
+                if (el) el.textContent = stats[k] !== undefined ? stats[k] : '-';
+            });
+            const statsEl = document.getElementById('ovStats');
+            const progEl  = document.getElementById('ovProgWrap');
+            if (statsEl) statsEl.style.display = 'grid';
 
+            // 進度條
+            const pct = inspected > 0 ? Math.round((resolved / inspected) * 100) : 0;
+            const lbl = document.getElementById('ovProgLabel');
+            const fill = document.getElementById('ovProgFill');
+            if (lbl)  lbl.textContent   = `缺失改善率 ${pct}%（已驗 ${inspected} 戶，全數改善 ${resolved} 戶）`;
+            if (fill) fill.style.width  = pct + '%';
+            if (progEl) progEl.style.display = 'flex';
+
+            // 建立格狀表
+            const floorNum = f => parseInt(f.replace(/[^0-9]/g, '')) || 0;
+            const rooms  = [...new Set(data.map(d => d.Room))].sort();
+            const floors = [...new Set(data.map(d => d.Floor))].sort((a, b) => floorNum(b) - floorNum(a));
+            const mapD   = {};
+            data.forEach(d => { mapD[d.Floor + '|' + d.Room] = d; });
+
+            const sLabel = { uninsp:'尚未驗屋', pend:'有待改善', prog:'改善中', done:'全數改善', sign:'已簽名' };
+
+            let h = '<table class="ov-grid"><thead><tr>';
+            h += '<th class="fl-hd">樓層</th>';
+            rooms.forEach(r => { h += `<th>${r}</th>`; });
+            h += '</tr></thead><tbody>';
+
+            floors.forEach(floor => {
+                h += `<tr><td class="fl-cell">${floor}</td>`;
+                rooms.forEach(room => {
+                    const d = mapD[floor + '|' + room];
+                    if (!d) { h += '<td class="empty-cell"></td>'; return; }
+                    const s   = getUnitStatus(d);
+                    const nm  = d.CustomerName ? d.CustomerName.substring(0, 4) : '';
+                    const cnt = d.PendingDefects > 0 ? `<span class="u-cnt">${d.PendingDefects}</span>` : '';
+                    const sig = d.HasSignature ? `<span class="u-sign">✍</span>` : '';
+                    const tip = `${floor} ${room}戶 ${d.CustomerName || ''} | ${sLabel[s] || ''}${d.PendingDefects > 0 ? ' (待改善' + d.PendingDefects + '項)' : ''}`;
+                    h += `<td class="ov-td"><div class="ov-unit s-${s}" data-status="${s}" onclick="goToUnit('${floor}','${room}')" title="${tip}">${cnt}<span class="u-name">${nm}</span>${sig}</div></td>`;
+                });
+                h += '</tr>';
+            });
+            h += '</tbody></table>';
+            document.getElementById('ovTableWrap').innerHTML = h;
+            if (_ovFilter !== 'all') ovFilter(_ovFilter);
+        }
 
         function sendSignatureRequest() {
             let selectedRound = document.getElementById('inspRound').value;
@@ -1834,22 +1966,60 @@ function clearRoomSearch() {
 
 <!-- ★ Kiosk QR Code 覆蓋層（客戶掃描簽名用）-->
 
-<!-- ★ 全棟進度總覽 -->
-<div id="page-overview" style="display:none;padding:10px 10px 30px;">
-  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-    <select id="ovRound" style="flex:1;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
-      <option value="業主初驗">業主初驗</option><option value="業主複驗">業主複驗</option>
-      <option value="客戶初驗">客戶初驗</option><option value="客戶複驗">客戶複驗</option>
+<!-- ★ 全棟進度總覽（重設計版）-->
+<div id="page-overview">
+  <!-- 期數選擇 + 載入 -->
+  <div class="ov-topbar">
+    <select id="ovRound">
+      <option value="業主初驗">業主初驗</option>
+      <option value="業主複驗">業主複驗</option>
+      <option value="客戶初驗">客戶初驗</option>
+      <option value="客戶複驗">客戶複驗</option>
       <option value="客戶三驗">客戶三驗</option>
     </select>
-    <button onclick="loadBuildingOverview()" style="padding:9px 16px;background:#8e44ad;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;">🔄 載入</button>
+    <button class="ov-load-btn" onclick="loadBuildingOverview()">🔄 載入</button>
   </div>
-  <div style="display:flex;gap:8px;margin-bottom:10px;font-size:11px;flex-wrap:wrap;">
-    <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#d4edda;border:1px solid #1D7C4D;vertical-align:middle;"></span> 已驗無缺失</span>
-    <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ffe0e0;border:1px solid #c0392b;vertical-align:middle;"></span> 有待改善</span>
-    <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#e9ecef;border:1px solid #adb5bd;vertical-align:middle;"></span> 尚未驗屋</span>
+
+  <!-- 統計卡片 -->
+  <div class="ov-stats" id="ovStats" style="display:none;">
+    <div class="ov-stat ov-s-total active" onclick="ovFilter('all')">
+      <div class="ov-stat-num" id="ovN-all">-</div>
+      <div class="ov-stat-lbl">總戶數</div>
+    </div>
+    <div class="ov-stat ov-s-pend" onclick="ovFilter('pend')">
+      <div class="ov-stat-num" id="ovN-pend">-</div>
+      <div class="ov-stat-lbl">有待改善</div>
+    </div>
+    <div class="ov-stat ov-s-prog" onclick="ovFilter('prog')">
+      <div class="ov-stat-num" id="ovN-prog">-</div>
+      <div class="ov-stat-lbl">改善中</div>
+    </div>
+    <div class="ov-stat ov-s-done" onclick="ovFilter('done')">
+      <div class="ov-stat-num" id="ovN-done">-</div>
+      <div class="ov-stat-lbl">全數改善</div>
+    </div>
+    <div class="ov-stat ov-s-sign" onclick="ovFilter('sign')">
+      <div class="ov-stat-num" id="ovN-sign">-</div>
+      <div class="ov-stat-lbl">已簽名</div>
+    </div>
+    <div class="ov-stat ov-s-uninsp" onclick="ovFilter('uninsp')">
+      <div class="ov-stat-num" id="ovN-uninsp">-</div>
+      <div class="ov-stat-lbl">未驗屋</div>
+    </div>
   </div>
-  <div id="ovTableWrap"><div style="text-align:center;padding:30px;color:#888;">請點「🔄 載入」</div></div>
+
+  <!-- 進度條 -->
+  <div class="ov-prog-wrap" id="ovProgWrap" style="display:none;">
+    <span class="ov-prog-label" id="ovProgLabel">改善率 0%</span>
+    <div class="ov-prog-bar"><div class="ov-prog-fill" id="ovProgFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- 格狀表格 -->
+  <div class="ov-tbl-wrap">
+    <div id="ovTableWrap">
+      <div class="ov-empty">請選擇驗收期數後點「🔄 載入」</div>
+    </div>
+  </div>
 </div>
 
 <!-- ★ 業主/客戶現場電子簽名 Overlay -->
