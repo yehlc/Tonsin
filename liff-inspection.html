@@ -150,6 +150,12 @@
 
         /* 空狀態 */
         .ov-empty{padding:40px;text-align:center;color:#4a5a7a;font-size:14px;}
+        /* 棟別切換按鈕 */
+        .ov-tower-sw{padding:7px 14px;background:#2d3f66;color:#aabbcc;border:1px solid #3a5080;
+                     border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+                     transition:all .2s;white-space:nowrap;}
+        .ov-tower-sw:hover{background:#3a5080;color:#fff;}
+        .ov-tower-sw:active{filter:brightness(.85);}
         
         #listSection { display: none; padding: 15px; }
         .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; cursor: pointer; border-left: 4px solid #8e44ad; transition: background 0.2s; }
@@ -380,8 +386,9 @@
                 "4F": ["A1戶","A2戶","A3戶","B1戶","B2戶","B3戶","B5戶","B6戶"],
                 "5F": ["A1戶","A2戶","A3戶","B1戶","B2戶","B3戶","B5戶","B6戶"]
             },
-            // ★ 98工地（德鄰豊）— A棟 3F_A~20F_A，B棟 3F_B~19F_B
+            // ★ 98工地（德鄰豊）— A棟 2F_A~20F_A，B棟 2F_B~19F_B
             "98工地": {
+                "2F_A": ["A1戶","A2戶","A3戶","A5戶"],
                 "3F_A": ['A1戶', 'A2戶', 'A3戶', 'A5戶'],
                 "4F_A": ['A1戶', 'A2戶', 'A3戶', 'A5戶'],
                 "5F_A": ['A1戶', 'A2戶', 'A3戶', 'A5戶'],
@@ -400,6 +407,7 @@
                 "18F_A": ['A1戶', 'A2戶', 'A3戶', 'A5戶'],
                 "19F_A": ['A1戶', 'A2戶', 'A3戶', 'A5戶'],
                 "20F_A": ['A1戶', 'A2戶', 'A3戶', 'A5戶'],
+                "2F_B": ["B1戶","B2戶","B3戶","B5戶","B6戶"],
                 "3F_B": ['B1戶', 'B2戶', 'B3戶', 'B5戶', 'B6戶'],
                 "4F_B": ['B1戶', 'B2戶', 'B3戶', 'B5戶', 'B6戶'],
                 "5F_B": ['B1戶', 'B2戶', 'B3戶', 'B5戶', 'B6戶'],
@@ -1616,7 +1624,7 @@ async function downloadFile(url, filename) {
         // ★ 案場專屬圖面設定
         // ════════════════════════════════════════════════
         const DRAWING_CONFIG = {
-            "98工地":  ["1.建築客變圖","2.電力插座圖","3.燈具開關圖","4.排水端點設備圖"],
+            "98工地":  ["1.建築客變圖","2.電氣端點設備圖","3.排水端點設備圖"],
             "鼎隆大苑":["1.建築客變圖","2.電力插座圖","3.燈具開關圖","4.排水端點設備圖"],
         };
         const DEFAULT_DRAWING_TYPES = ["1.建築客變圖","2.電氣端點設備圖","3.排水端點設備圖"];
@@ -1696,7 +1704,8 @@ async function downloadFile(url, filename) {
             const badge = document.getElementById('ovTowerBadge');
             if (badge) {
                 if (currentTower) {
-                    badge.textContent = '🏢 ' + currentTower + '（返回首頁可切換）';
+                    const otherTower = currentTower === 'A棟' ? 'B棟' : 'A棟';
+                    badge.textContent = '🏢 ' + currentTower + ' ▶ 切換至 ' + otherTower;
                     badge.style.display = 'block';
                 } else {
                     badge.style.display = 'none';
@@ -1738,6 +1747,28 @@ async function downloadFile(url, filename) {
             return 'pend';
         }
 
+
+        // ★ 棟別切換（在全棟頁面內直接切換，無需回首頁）
+        function switchTowerOverview() {
+            if (!currentTower) return;
+            const newTower = currentTower === 'A棟' ? 'B棟' : 'A棟';
+            currentTower = newTower;
+            // 重建戶別下拉清單（讓 ◀▶ 導航也同步切換）
+            buildFlatRoomList(currentFloor + '_' + (newTower === 'A棟' ? 'A' : 'B') + '|'
+                + (newTower === 'A棟' ? 'A1戶' : 'B1戶'));
+            // 更新 badge 文字
+            const badge = document.getElementById('ovTowerBadge');
+            if (badge) {
+                badge.textContent = '🏢 ' + currentTower + ' ▶ 切換至 ' + (currentTower === 'A棟' ? 'B棟' : 'A棟');
+            }
+            // 如果全棟資料已載入，重新過濾並渲染
+            if (_ovData && _ovData.length > 0) {
+                let rawData = _ovData;
+                // 重置到完整資料再過濾（需從 API 重取，因為 _ovData 可能已被過濾）
+                loadBuildingOverview();
+            }
+        }
+
         function ovFilter(f) {
             _ovFilter = f;
             document.querySelectorAll('.ov-stat').forEach(el => el.classList.remove('active'));
@@ -1771,18 +1802,55 @@ async function downloadFile(url, filename) {
         }
 
         function renderOverviewTable(data) {
-            if (!data || !data.length) {
-                document.getElementById('ovTableWrap').innerHTML = '<div class="ov-empty">目前無驗屋資料，請確認資料庫已建立 UnitCustomers 資料</div>';
+            // ★ 以 ROOM_CONFIG 為格狀表的完整骨架，API 資料只是狀態 overlay
+            //   這樣即使某樓層沒有 UnitCustomers 資料，也會顯示「未驗屋」
+            const siteConf = ROOM_CONFIG[currentSite];
+            let rcFloors = [];
+            let rcRooms  = [];
+
+            if (siteConf) {
+                // 依棟別篩選樓層
+                let allRcFloors = Object.keys(siteConf);
+                if (currentTower === 'A棟')      rcFloors = allRcFloors.filter(f => f.endsWith('_A'));
+                else if (currentTower === 'B棟')  rcFloors = allRcFloors.filter(f => f.endsWith('_B'));
+                else                              rcFloors = allRcFloors;
+                // 樓層依數字由高到低排序
+                const fn = f => parseInt(f.replace(/[^0-9]/g,'')) || 0;
+                rcFloors.sort((a, b) => fn(b) - fn(a));
+                // 蒐集所有戶別（去重排序）
+                const roomSet = new Set();
+                rcFloors.forEach(f => siteConf[f].forEach(r => roomSet.add(r.replace(/戶$/, ''))));
+                rcRooms = [...roomSet].sort();
+            }
+
+            // 若無 ROOM_CONFIG，fallback 到 API 資料
+            if (!rcFloors.length && (!data || !data.length)) {
+                document.getElementById('ovTableWrap').innerHTML = '<div class="ov-empty">目前無驗屋資料</div>';
                 return;
             }
-            // 統計
-            const stats = { all: data.length, pend: 0, prog: 0, done: 0, sign: 0, uninsp: 0 };
-            let inspected = 0, resolved = 0;
-            data.forEach(d => {
-                const s = getUnitStatus(d);
-                if (stats[s] !== undefined) stats[s]++;
-                if (d.TotalDefects > 0) { inspected++; if (d.PendingDefects === 0) resolved++; }
+
+            // 建立 API 資料 map（key: 無後綴 floor + '|' + room，如 "3F|A1"）
+            const mapD = {};
+            (data || []).forEach(d => {
+                const lookupFloor = d.Floor.replace(/_[AB]$/, '');
+                mapD[lookupFloor + '|' + d.Room] = d;
             });
+
+            // 統計（以 ROOM_CONFIG 為總戶數基準）
+            const floorRoomPairs = rcFloors.flatMap(f =>
+                (siteConf[f] || []).map(r => ({ rcFloor: f, room: r.replace(/戶$/, '') }))
+            );
+            const totalUnits = floorRoomPairs.length || (data || []).length;
+            const stats = { all: totalUnits, pend: 0, prog: 0, done: 0, sign: 0, uninsp: 0 };
+            let inspected = 0, resolved = 0;
+            floorRoomPairs.forEach(({ rcFloor, room }) => {
+                const lf = rcFloor.replace(/_[AB]$/, '');
+                const d  = mapD[lf + '|' + room];
+                const s  = getUnitStatus(d);
+                stats[s] = (stats[s] || 0) + 1;
+                if (d && d.TotalDefects > 0) { inspected++; if (d.PendingDefects === 0) resolved++; }
+            });
+
             ['all','pend','prog','done','sign','uninsp'].forEach(k => {
                 const el = document.getElementById('ovN-' + k);
                 if (el) el.textContent = stats[k] !== undefined ? stats[k] : '-';
@@ -1791,39 +1859,35 @@ async function downloadFile(url, filename) {
             const progEl  = document.getElementById('ovProgWrap');
             if (statsEl) statsEl.style.display = 'grid';
 
-            // 進度條
-            const pct = inspected > 0 ? Math.round((resolved / inspected) * 100) : 0;
-            const lbl = document.getElementById('ovProgLabel');
+            const pct  = inspected > 0 ? Math.round((resolved / inspected) * 100) : 0;
+            const lbl  = document.getElementById('ovProgLabel');
             const fill = document.getElementById('ovProgFill');
-            if (lbl)  lbl.textContent   = `缺失改善率 ${pct}%（已驗 ${inspected} 戶，全數改善 ${resolved} 戶）`;
-            if (fill) fill.style.width  = pct + '%';
+            if (lbl)  lbl.textContent = `缺失改善率 ${pct}%（已驗 ${inspected} 戶，全數改善 ${resolved} 戶）`;
+            if (fill) fill.style.width = pct + '%';
             if (progEl) progEl.style.display = 'flex';
 
-            // 建立格狀表
-            const floorNum = f => parseInt(f.replace(/[^0-9]/g, '')) || 0;
-            const rooms  = [...new Set(data.map(d => d.Room))].sort();
-            const floors = [...new Set(data.map(d => d.Floor))].sort((a, b) => floorNum(b) - floorNum(a));
-            const mapD   = {};
-            data.forEach(d => { mapD[d.Floor + '|' + d.Room] = d; });
-
+            // 建立格狀表（用 ROOM_CONFIG 的完整樓層 × 戶別）
             const sLabel = { uninsp:'尚未驗屋', pend:'有待改善', prog:'改善中', done:'全數改善', sign:'已簽名' };
-
             let h = '<table class="ov-grid"><thead><tr>';
             h += '<th class="fl-hd">樓層</th>';
-            rooms.forEach(r => { h += `<th>${r}</th>`; });
+            rcRooms.forEach(r => { h += `<th>${r}</th>`; });
             h += '</tr></thead><tbody>';
 
-            floors.forEach(floor => {
-                h += `<tr><td class="fl-cell">${floor}</td>`;
-                rooms.forEach(room => {
-                    const d = mapD[floor + '|' + room];
-                    if (!d) { h += '<td class="empty-cell"></td>'; return; }
+            rcFloors.forEach(rcFloor => {
+                const dispFloor = rcFloor.replace(/_[AB]$/, '');  // 顯示用（去後綴）
+                const lookupFloor = dispFloor;
+                const floorRooms = siteConf ? (siteConf[rcFloor] || []).map(r => r.replace(/戶$/, '')) : rcRooms;
+                h += `<tr><td class="fl-cell">${dispFloor}</td>`;
+                rcRooms.forEach(room => {
+                    if (!floorRooms.includes(room)) { h += '<td class="empty-cell"></td>'; return; }
+                    const d   = mapD[lookupFloor + '|' + room];
                     const s   = getUnitStatus(d);
-                    const nm  = d.CustomerName ? d.CustomerName.substring(0, 4) : '';
-                    const cnt = d.PendingDefects > 0 ? `<span class="u-cnt">${d.PendingDefects}</span>` : '';
-                    const sig = d.HasSignature ? `<span class="u-sign">✍</span>` : '';
-                    const tip = `${floor} ${room}戶 ${d.CustomerName || ''} | ${sLabel[s] || ''}${d.PendingDefects > 0 ? ' (待改善' + d.PendingDefects + '項)' : ''}`;
-                    h += `<td class="ov-td"><div class="ov-unit s-${s}" data-status="${s}" onclick="goToUnit('${floor}','${room}')" title="${tip}">${cnt}<span class="u-name">${nm}</span>${sig}</div></td>`;
+                    const nm  = (d && d.CustomerName) ? d.CustomerName.substring(0, 4) : '';
+                    const cnt = (d && d.PendingDefects > 0) ? `<span class="u-cnt">${d.PendingDefects}</span>` : '';
+                    const sig = (d && d.HasSignature) ? `<span class="u-sign">✍</span>` : '';
+                    const tip = `${dispFloor} ${room}戶 ${(d && d.CustomerName) || ''} | ${sLabel[s] || ''}`;
+                    // ★ goToUnit 傳入 rcFloor（含棟別後綴），確保導航正確
+                    h += `<td class="ov-td"><div class="ov-unit s-${s}" data-status="${s}" onclick="goToUnit('${rcFloor}','${room}')" title="${tip}">${cnt}<span class="u-name">${nm}</span>${sig}</div></td>`;
                 });
                 h += '</tr>';
             });
@@ -2065,7 +2129,7 @@ function clearRoomSearch() {
       <option value="客戶複驗">客戶複驗</option>
       <option value="客戶三驗">客戶三驗</option>
     </select>
-    <div id="ovTowerBadge" style="display:none;padding:6px 12px;background:#253354;color:#aabbcc;border-radius:8px;font-size:13px;font-weight:700;border:1px solid #3a5080;white-space:nowrap;"></div>
+    <button id="ovTowerBadge" class="ov-tower-sw" style="display:none;" onclick="switchTowerOverview()"></button>
     <button class="ov-load-btn" onclick="loadBuildingOverview()">🔄 載入</button>
   </div>
 
