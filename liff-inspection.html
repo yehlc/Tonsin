@@ -366,8 +366,9 @@
         };
         function imgSiteName(site) { return SITE_DISPLAY_NAME[site] || site; }
 
-        let lineUserId = ""; 
-        
+        let lineUserId = "";
+        let currentTower = "";   // ★ 棟別（A棟 / B棟 / 空=無分棟）
+
         let currentRound = "業主初驗"; // 全域期數變數
         let sharerId = ""; // ★ 新增：用來記錄分享者的 LINE ID
         
@@ -419,12 +420,12 @@
             },
             // ★ 95工地（德鄰織樺）— 單棟，4戶型，請依實際樓層調整（目前暫設 3F~8F）
             "95工地": {
-		"2F": ['A1戶', 'A2戶', 'B1戶', 'B2戶'],
                 "3F": ['A1戶', 'A2戶', 'B1戶', 'B2戶'],
                 "4F": ['A1戶', 'A2戶', 'B1戶', 'B2戶'],
                 "5F": ['A1戶', 'A2戶', 'B1戶', 'B2戶'],
                 "6F": ['A1戶', 'A2戶', 'B1戶', 'B2戶'],
-                "7F": ['A1戶', 'A2戶', 'B1戶', 'B2戶']
+                "7F": ['A1戶', 'A2戶', 'B1戶', 'B2戶'],
+                "8F": ['A1戶', 'A2戶', 'B1戶', 'B2戶']
             },
             "廣宇江南": {
                 "1F": ["A1戶"],
@@ -495,7 +496,8 @@
         liff.getProfile().then(profile => { lineUserId = profile.userId; });
     }
             const urlParams = new URLSearchParams(window.location.search);
-            currentSite = decodeURIComponent(urlParams.get('site') || "");
+            currentSite  = decodeURIComponent(urlParams.get('site')  || "");
+            currentTower = decodeURIComponent(urlParams.get('tower') || ""); // ★ 棟別（A棟/B棟）
             initDrawingTypeSelect(currentSite); // ★ 依案場設定圖面下拉選單
             // ★ 確保第一個圖面類型已選定
             const _dtSel = document.getElementById('drawingType');
@@ -709,11 +711,18 @@
             navSelect.innerHTML = ""; 
 
             if (ROOM_CONFIG[currentSite]) {
-                let floors = Object.keys(ROOM_CONFIG[currentSite]);
+                let allFloors = Object.keys(ROOM_CONFIG[currentSite]);
+                // ★ 依棟別過濾：A棟只顯示 *_A，B棟只顯示 *_B，無棟別顯示全部
+                let floors = allFloors;
+                if (currentTower === 'A棟') {
+                    floors = allFloors.filter(f => f.endsWith('_A'));
+                } else if (currentTower === 'B棟') {
+                    floors = allFloors.filter(f => f.endsWith('_B'));
+                }
                 for (let f of floors) {
                     for (let r of ROOM_CONFIG[currentSite][f]) {
                         flatRoomList.push({ floor: f, room: r });
-                        
+
                         let opt = document.createElement('option');
                         opt.value = `${f}|${r}`;
                         opt.text = `▼ ${f} - ${r}`;
@@ -1683,6 +1692,16 @@ async function downloadFile(url, filename) {
             const round = document.getElementById('ovRound').value;
             const wrap  = document.getElementById('ovTableWrap');
             wrap.innerHTML = '<div class="ov-empty">⏳ 資料載入中...</div>';
+            // 顯示棟別徽章
+            const badge = document.getElementById('ovTowerBadge');
+            if (badge) {
+                if (currentTower) {
+                    badge.textContent = '🏢 ' + currentTower + '（返回首頁可切換）';
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
             const statsEl = document.getElementById('ovStats');
             const progEl  = document.getElementById('ovProgWrap');
             if (statsEl) statsEl.style.display = 'none';
@@ -1694,7 +1713,14 @@ async function downloadFile(url, filename) {
                 );
                 const res = await r.json();
                 if (!res.success) throw new Error(res.error);
-                _ovData   = res.data || [];
+                let rawData = res.data || [];
+                // ★ 依棟別過濾：A棟只顯示以 A 開頭的戶、B棟只顯示 B 開頭
+                if (currentTower === 'A棟') {
+                    rawData = rawData.filter(d => d.Room.startsWith('A'));
+                } else if (currentTower === 'B棟') {
+                    rawData = rawData.filter(d => d.Room.startsWith('B'));
+                }
+                _ovData = rawData;
                 _ovFilter = 'all';
                 document.querySelectorAll('.ov-stat').forEach(el => el.classList.remove('active'));
                 document.querySelector('.ov-s-total')?.classList.add('active');
@@ -2039,6 +2065,7 @@ function clearRoomSearch() {
       <option value="客戶複驗">客戶複驗</option>
       <option value="客戶三驗">客戶三驗</option>
     </select>
+    <div id="ovTowerBadge" style="display:none;padding:6px 12px;background:#253354;color:#aabbcc;border-radius:8px;font-size:13px;font-weight:700;border:1px solid #3a5080;white-space:nowrap;"></div>
     <button class="ov-load-btn" onclick="loadBuildingOverview()">🔄 載入</button>
   </div>
 
