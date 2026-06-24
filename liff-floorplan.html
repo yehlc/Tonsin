@@ -143,6 +143,67 @@ textarea.ff{height:72px;resize:none}
 /* Fix photo must-upload hint */
 .must-photo-hint{font-size:12px;color:var(--red);font-weight:700;text-align:center;padding:6px;background:#fdecea;border-radius:6px;margin-top:6px;display:none}
 .must-photo-hint.show{display:block}
+
+
+/* ════════ 全棟概覽熱圖矩陣 ════════ */
+#bldgPage{ background:#10172a; min-height:100%; }
+#bldgPage .export-row{ display:flex; gap:7px; padding:8px 11px; background:#f8f9fa; border-bottom:1px solid #ddd; }
+.bld-topbar{ display:flex; gap:8px; align-items:center; padding:9px 12px; background:#131d35; border-bottom:1px solid #1e3050; flex-wrap:wrap; }
+.bld-topbar select{ flex:1; padding:7px 10px; background:#1a2d50; color:#c8d8f0; border:1px solid #2d4a7a; border-radius:8px; font-size:13px; font-family:inherit; }
+.bld-load-btn{ padding:7px 16px; background:#f39c12; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+
+.bld-stats{ display:grid !important; grid-template-columns:repeat(5,1fr); gap:6px; padding:10px 12px; }
+.bld-sc{ background:#131d35; border-radius:10px; padding:10px 6px; text-align:center; cursor:pointer; border:2px solid transparent; transition:.15s; }
+.bld-sc.active{ border-color:#f39c12; }
+.bld-sc .sc-n{ font-size:22px; font-weight:900; line-height:1; display:block; }
+.bld-sc .sc-l{ font-size:10px; color:#5a7a9a; margin-top:3px; display:block; }
+.bld-sc.s-all .sc-n{ color:#8899bb; }
+.bld-sc.s-td  .sc-n{ color:#e74c3c; }
+.bld-sc.s-rv  .sc-n{ color:#2980b9; }
+.bld-sc.s-dn  .sc-n{ color:#27ae60; }
+.bld-sc.s-rt  .sc-n{ color:#f39c12; }
+
+.bld-prog-wrap{ display:flex !important; align-items:center; gap:8px; padding:4px 12px 8px; }
+.bld-prog-bar{ flex:1; height:5px; background:#1e3050; border-radius:3px; overflow:hidden; }
+.bld-prog-fill{ height:100%; border-radius:3px; background:linear-gradient(90deg,#e74c3c,#f39c12,#27ae60); transition:width .5s; }
+.bld-prog-lbl{ font-size:11px; color:#5a7a9a; white-space:nowrap; }
+
+.bld-tower-hd{ padding:8px 12px 4px; font-size:11px; font-weight:800; color:#5a7a9a; letter-spacing:.8px; }
+.bld-legend{ display:flex; gap:10px; padding:5px 12px 8px; font-size:11px; color:#5a7a9a; flex-wrap:wrap; }
+.bld-legend span{ display:inline-flex; align-items:center; gap:4px; }
+.lg-dot{ width:10px; height:10px; border-radius:3px; display:inline-block; flex-shrink:0; }
+.bld-tbl-wrap{ overflow-x:auto; padding:0 10px 10px; }
+
+table.bld-heat{ border-collapse:separate; border-spacing:2px; width:100%; font-size:12px; white-space:nowrap; }
+table.bld-heat thead th{ background:#0d1525; color:#5a7a9a; font-size:11px; padding:6px 8px; text-align:center; font-weight:600; position:sticky; top:0; z-index:2; }
+table.bld-heat thead th.th-fl{ text-align:left; padding-left:10px; min-width:56px; }
+
+td.bld-fl-td{ background:#131d35; border-radius:6px; cursor:pointer; padding:0; }
+td.bld-fl-td:hover{ background:#1a2d50; }
+.fl-inner{ display:flex !important; align-items:center; justify-content:space-between; gap:4px; padding:6px 9px; }
+.fl-name{ color:#a0b8d8; font-weight:700; font-size:13px; }
+.fl-badge{ font-size:10px; padding:1px 5px; border-radius:8px; font-weight:700; white-space:nowrap; flex-shrink:0; }
+.fl-badge-todo{ background:rgba(231,76,60,.3); color:#e74c3c; }
+.fl-badge-done{ background:rgba(39,174,96,.25); color:#27ae60; }
+
+td.bld-heat-cell{ text-align:center; padding:5px 6px; border-radius:6px; cursor:pointer; min-width:44px; }
+td.bld-heat-cell:active{ filter:brightness(.7); }
+.heat-empty{ background:#0e1828; color:#2a3d55; }
+.heat-todo{ background:#3a1010; }
+.heat-review{ background:#0e1e38; }
+.heat-done{ background:#0d2218; }
+.heat-num{ display:block; font-size:13px; font-weight:800; line-height:1.3; }
+.heat-todo  .heat-num{ color:#e74c3c; }
+.heat-review .heat-num{ color:#2980b9; }
+.heat-done  .heat-num{ color:#27ae60; font-size:14px; }
+.heat-sub{ display:block; font-size:9px; opacity:.8; margin-top:1px; color:#2980b9; }
+
+td.bld-prog-td{ background:#0e1828; border-radius:6px; padding:6px 8px; min-width:88px; }
+.prog-row{ display:flex !important; align-items:center; gap:5px; }
+.prog-bar-bg{ flex:1; height:6px; background:#1e3050; border-radius:3px; overflow:hidden; }
+.prog-bar-fg{ height:100%; border-radius:3px; }
+.prog-pct{ font-size:10px; font-weight:700; width:28px; text-align:right; }
+.bld-empty{ padding:40px; text-align:center; color:#3a5a7a; font-size:13px; }
 </style>
 </head>
 <body>
@@ -206,11 +267,11 @@ textarea.ff{height:72px;resize:none}
     <button class="bld-load-btn" onclick="loadBuildingOverview()">🔄 載入</button>
   </div>
   <div class="bld-stats" id="bldStats" style="display:none;">
-    <div class="bld-sc s-all active" onclick="bldFilter('all')"><div class="n" id="bldN-all">-</div><div class="l">全部</div></div>
-    <div class="bld-sc s-td"  onclick="bldFilter('todo')"><div class="n" id="bldN-todo">-</div><div class="l">待改善</div></div>
-    <div class="bld-sc s-rv"  onclick="bldFilter('review')"><div class="n" id="bldN-review">-</div><div class="l">待驗收</div></div>
-    <div class="bld-sc s-dn"  onclick="bldFilter('done')"><div class="n" id="bldN-done">-</div><div class="l">已改善</div></div>
-    <div class="bld-sc s-rt"><div class="n" id="bldN-rate">-</div><div class="l">完成率</div></div>
+    <div class="bld-sc s-all active" onclick="bldFilter('all')"><div class="sc-n" id="bldN-all">-</div><div class="sc-l">全部</div></div>
+    <div class="bld-sc s-td"  onclick="bldFilter('todo')"><div class="sc-n" id="bldN-todo">-</div><div class="sc-l">待改善</div></div>
+    <div class="bld-sc s-rv"  onclick="bldFilter('review')"><div class="sc-n" id="bldN-review">-</div><div class="sc-l">待驗收</div></div>
+    <div class="bld-sc s-dn"  onclick="bldFilter('done')"><div class="sc-n" id="bldN-done">-</div><div class="sc-l">已改善</div></div>
+    <div class="bld-sc s-rt"><div class="sc-n" id="bldN-rate">-</div><div class="sc-l">完成率</div></div>
   </div>
   <div class="bld-prog" id="bldProgWrap" style="display:none;">
     <span class="bld-prog-lbl" id="bldProgLbl">完成率 0%</span>
@@ -1245,10 +1306,16 @@ function renderBuildingGrid() {
 
             h += `<tr${rowOpa}>`;
             // 樓層格
-            const flCls = flTodo>0 ? 'bld-fl-cell fl-has-todo' : flTotal>0 ? 'bld-fl-cell fl-has-done' : 'bld-fl-cell fl-empty';
-            h += `<td class="${flCls}" onclick="jumpToFloor('${fl}')"><span class="fl-label">${dispFl}</span>`;
-            if (flTotal > 0) h += `<span class="fl-total-badge">${flTodo+flReview > 0 ? (flTodo+flReview) + ' 待' : '✓'}</span>`;
-            h += '</td>';
+            const badgeHtml = flTotal > 0
+                ? (flTodo+flReview > 0
+                    ? `<span class="fl-badge fl-badge-todo">${flTodo+flReview} 待</span>`
+                    : `<span class="fl-badge fl-badge-done">✓</span>`)
+                : '';
+            h += `<td class="bld-fl-td" onclick="jumpToFloor('${fl}')">
+                <div class="fl-inner">
+                  <span class="fl-name">${dispFl}</span>${badgeHtml}
+                </div>
+              </td>`;
 
             // 工種格（熱圖色）
             cells.forEach((c, ci) => {
@@ -1258,24 +1325,26 @@ function renderBuildingGrid() {
                     return;
                 }
                 if (c.todo > 0) {
-                    h += `<td class="bld-heat-cell heat-todo" onclick="jumpToFloorDept('${fl}','${dept}')" title="${dispFl} ${dept}: 待改善${c.todo}筆${c.review>0?' 待驗收'+c.review+'筆':''}">
-                        <span class="heat-num">${c.todo}</span>
-                        ${c.review>0?`<span class="heat-sub">${c.review}驗</span>`:''}
+                    const reviewSub = c.review > 0 ? `<span class="heat-sub">${c.review}驗</span>` : '';
+                    h += `<td class="bld-heat-cell heat-todo" onclick="jumpToFloorDept('${fl}','${dept}')" title="${dispFl} ${dept}: 待改善${c.todo}筆">
+                        <span class="heat-num">${c.todo}</span>${reviewSub}
                     </td>`;
                 } else if (c.review > 0) {
                     h += `<td class="bld-heat-cell heat-review" onclick="jumpToFloor('${fl}')" title="${dispFl} ${dept}: 待驗收${c.review}筆">
                         <span class="heat-num">${c.review}</span>
                     </td>`;
                 } else {
-                    h += `<td class="bld-heat-cell heat-done" title="${dispFl} ${dept}: 已改善${c.done}筆">✓</td>`;
+                    h += `<td class="bld-heat-cell heat-done" title="${dispFl} ${dept}: 已改善${c.done}筆">
+                        <span class="heat-num">✓</span>
+                    </td>`;
                 }
             });
 
             // 進度格
-            h += `<td class="bld-bar-cell">
-                <div class="bld-prog-row">
-                  <div class="bld-bar-bg"><div class="bld-bar-fg" style="width:${pct}%;background:${barColor};"></div></div>
-                  <span class="bld-pct" style="color:${barColor};">${flTotal>0 ? pct+'%' : '—'}</span>
+            h += `<td class="bld-prog-td">
+                <div class="prog-row">
+                  <div class="prog-bar-bg"><div class="prog-bar-fg" style="width:${pct}%;background:${barColor};"></div></div>
+                  <span class="prog-pct" style="color:${barColor};">${flTotal>0 ? pct+'%' : '—'}</span>
                 </div>
             </td>`;
             h += '</tr>';
