@@ -75,7 +75,25 @@
         .onsite-btn{flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;}
         .onsite-clear{background:#f0f2f5;color:#636e72;}
         .onsite-submit{background:#00b894;color:#fff;flex:2;}
-        .onsite-submit:disabled{background:#b2bec3;}
+        .onsite-submit:disabled{background:#b2bec3;cursor:not-allowed;}
+        /* ── 同意確認框 ── */
+        #onsiteConsentBox{background:#f0faf6;border:2px solid #b2dfdb;border-radius:12px;
+                          padding:14px 16px;margin-bottom:14px;}
+        .consent-title{font-size:13px;font-weight:800;color:#00816a;margin-bottom:8px;
+                       display:flex;align-items:center;gap:6px;}
+        .consent-items{font-size:12px;color:#2d3436;line-height:1.9;margin-bottom:12px;
+                       padding-left:8px;}
+        .consent-check-row{display:flex;align-items:flex-start;gap:10px;
+                           background:#fff;border:1.5px solid #b2dfdb;border-radius:8px;
+                           padding:10px 12px;cursor:pointer;}
+        .consent-check-row input[type="checkbox"]{
+            width:20px;height:20px;cursor:pointer;accent-color:#00b894;
+            flex-shrink:0;margin-top:1px;}
+        .consent-check-label{font-size:13px;font-weight:700;color:#1A2F4B;
+                              line-height:1.5;cursor:pointer;user-select:none;}
+        .consent-check-label span{color:#e74c3c;}
+        #onsiteConsentBox.checked{border-color:#00b894;background:#e8f8f3;}
+        #onsiteConsentBox.checked .consent-check-row{border-color:#00b894;}
 
         /* ══ 全棟進度總覽（重設計）══ */
         #page-overview{display:none;background:#16213e;min-height:100%;padding-bottom:24px;}
@@ -1667,21 +1685,49 @@ async function downloadFile(url, filename) {
             onsiteCtx=canvas.getContext('2d');
             onsiteCtx.strokeStyle='#1A2F4B'; onsiteCtx.lineWidth=2.8; onsiteCtx.lineCap='round'; onsiteCtx.lineJoin='round';
             onsiteHasSigned=false; onsiteDrawing=false;
+            // ★ 重設同意框：每次開啟都要重新勾選
+            const cb = document.getElementById('onsiteConsentCb');
+            if (cb) { cb.checked = false; }
+            document.getElementById('onsiteConsentBox')?.classList.remove('checked');
             document.getElementById('btnOnsiteSubmit').disabled=true;
             document.getElementById('onsiteCanvasHint').style.opacity='1';
             function getPos(e){const r=canvas.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};}
             function sd(e){e.preventDefault();onsiteDrawing=true;const p=getPos(e);onsiteCtx.beginPath();onsiteCtx.moveTo(p.x,p.y);document.getElementById('onsiteCanvasHint').style.opacity='0';}
-            function dd(e){if(!onsiteDrawing)return;e.preventDefault();const p=getPos(e);onsiteCtx.lineTo(p.x,p.y);onsiteCtx.stroke();onsiteHasSigned=true;document.getElementById('btnOnsiteSubmit').disabled=false;}
+            function dd(e){if(!onsiteDrawing)return;e.preventDefault();const p=getPos(e);onsiteCtx.lineTo(p.x,p.y);onsiteCtx.stroke();onsiteHasSigned=true;checkOnsiteReady();}
             function ed(){onsiteDrawing=false;}
             canvas.ontouchstart=sd;canvas.ontouchmove=dd;canvas.ontouchend=ed;
             canvas.onmousedown=sd;canvas.onmousemove=dd;canvas.onmouseup=ed;
             document.getElementById('onsiteSignOverlay').style.display='flex';
         }
-        function clearOnsiteSign(){if(!onsiteCtx)return;const c=document.getElementById('onsiteSignCanvas');onsiteCtx.clearRect(0,0,c.width,c.height);onsiteHasSigned=false;document.getElementById('btnOnsiteSubmit').disabled=true;document.getElementById('onsiteCanvasHint').style.opacity='1';}
+        function clearOnsiteSign(){
+            if(!onsiteCtx)return;
+            const c=document.getElementById('onsiteSignCanvas');
+            onsiteCtx.clearRect(0,0,c.width,c.height);
+            onsiteHasSigned=false;
+            document.getElementById('onsiteCanvasHint').style.opacity='1';
+            checkOnsiteReady();
+        }
         function closeOnsiteSign(){document.getElementById('onsiteSignOverlay').style.display='none';}
+
+        // ★ 同時檢查：已簽名 + 已勾選同意框 → 才啟用送出按鈕
+        function checkOnsiteReady() {
+            const consentOk = document.getElementById('onsiteConsentCb')?.checked || false;
+            const submitBtn = document.getElementById('btnOnsiteSubmit');
+            submitBtn.disabled = !(onsiteHasSigned && consentOk);
+            // 同意框勾選後改變樣式
+            const box = document.getElementById('onsiteConsentBox');
+            if (box) box.classList.toggle('checked', consentOk);
+        }
+        function toggleOnsiteConsent() {
+            const cb = document.getElementById('onsiteConsentCb');
+            if (cb) { cb.checked = !cb.checked; checkOnsiteReady(); }
+        }
         function handleOnsiteOverlayClick(e){if(e.target===document.getElementById('onsiteSignOverlay'))closeOnsiteSign();}
         async function submitOnsiteSign(){
             if(!onsiteHasSigned){showToast('⚠️ 請先完成簽名');return;}
+            if(!document.getElementById('onsiteConsentCb')?.checked){
+                showToast('⚠️ 請先勾選「我已閱讀並了解」同意框');return;
+            }
             const round=document.getElementById('inspRound')?.value||currentRound;
             const sigB64=document.getElementById('onsiteSignCanvas').toDataURL('image/png');
             const btn=document.getElementById('btnOnsiteSubmit');
@@ -2189,7 +2235,26 @@ function clearRoomSearch() {
     </div>
     <div id="onsiteSignBody">
       <div id="onsiteRoundInfo">📍 <span id="onsiteInfoText">載入中...</span></div>
-      <div style="font-size:12px;color:#636e72;margin-bottom:10px;">請業主/客戶於下方框內親筆簽名確認</div>
+
+      <!-- ★ 告知同意框 -->
+      <div id="onsiteConsentBox">
+        <div class="consent-title">📋 簽名前請閱讀並確認以下事項</div>
+        <ol class="consent-items">
+          <li>本次驗屋缺失記錄之內容正確無誤，本人已親自確認</li>
+          <li>後續改善進度將依本次缺失記錄辦理，業主/客戶知悉並同意</li>
+          <li>依中華民國《電子簽章法》第 4 條，本電子簽名與親筆簽名具有相同之法律效力</li>
+        </ol>
+        <label class="consent-check-row" onclick="toggleOnsiteConsent()">
+          <input type="checkbox" id="onsiteConsentCb" onclick="event.stopPropagation();"
+                 onchange="checkOnsiteReady()">
+          <span class="consent-check-label">
+            我已閱讀並了解上述事項，同意以電子簽名方式確認本次驗屋記錄
+            <span>（必須勾選）</span>
+          </span>
+        </label>
+      </div>
+
+      <div style="font-size:12px;color:#636e72;margin-bottom:10px;">✏️ 請業主/客戶於下方框內親筆簽名</div>
       <div id="onsiteCanvasWrap">
         <canvas id="onsiteSignCanvas"></canvas>
         <div id="onsiteCanvasHint">👆 請在此處簽名</div>
