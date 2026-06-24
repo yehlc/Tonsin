@@ -240,31 +240,17 @@
                 </div>
 
                 <div class="form-container" id="formContainer">
+                    <!-- ★ 標題列 -->
                     <div class="form-header">
                         <h3 id="formTitle">✍️ 填寫缺失資訊</h3>
                         <button class="btn-close-form" onclick="cancelInspection()">✖</button>
                     </div>
                     <input type="hidden" id="editDefectId" value="">
 
-                    <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6;">
-                        <label>📊 驗屋狀態 (狀態判定)</label>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
-                            <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
-                        </div>
-                        <input type="hidden" id="statusInput" value="🔴 待改善">
-                    </div>
-
-                    <div style="display:flex; gap:10px; margin-bottom:20px;">
-                        <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存並送出</button>
-                        <button id="deleteBtn" onclick="deleteInspection()" style="flex:1; background:#d63031; color:white; font-size:16px; font-weight:bold; border:none; border-radius:8px; display:none;">🗑️ 刪除</button>
-                    </div>
-
-                    <div style="display:flex; gap:10px; margin-bottom:15px;">
-                        <div class="form-group" style="flex:1;">
-                            <label style="display:flex; justify-content:space-between; align-items:center;">
-                                <span>📍 所在空間</span>
-                            </label>
+                    <!-- ① 所在空間 + 缺失工種 -->
+                    <div style="display:flex; gap:10px; margin-bottom:14px;">
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                            <label>📍 所在空間</label>
                             <select id="locationSelect">
                                 <option value="客餐廳">客餐廳</option>
                                 <option value="臥室(一)">臥室(一)</option>
@@ -279,9 +265,9 @@
                                 <option value="其他">其他</option>
                             </select>
                         </div>
-                        <div class="form-group" style="flex:1;">
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
                             <label style="display:flex; justify-content:space-between; align-items:center;">
-                                <span>👷‍♂️ 缺失工種</span>
+                                <span>👷 缺失工種</span>
                                 <span style="font-size:12px; font-weight:normal; color:#555;">
                                     <input type="checkbox" id="stickyLocation" checked> 保留
                                 </span>
@@ -297,8 +283,9 @@
                             </select>
                         </div>
                     </div>
-                    
-                    <div class="form-group">
+
+                    <!-- ② 照片拍攝 + 標記工具（先拍照標記，再寫說明）-->
+                    <div class="form-group" style="margin-bottom:14px;">
                         <div class="camera-btn">
                             📸 點擊拍攝缺失照片
                             <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="loadPhotoToCanvas(this)">
@@ -311,8 +298,9 @@
                         </div>
                         <canvas id="drawCanvas"></canvas>
                     </div>
-                    
-                    <div class="form-group">
+
+                    <!-- ③ 缺失說明 + 送出按鈕緊接在說明欄下方 -->
+                    <div class="form-group" style="margin-bottom:14px;">
                         <label>📝 缺失說明</label>
                         <div class="quick-tags">
                             <span class="q-tag" onclick="appendDesc('牆面髒污未清潔')">牆面髒污</span>
@@ -322,7 +310,27 @@
                             <span class="q-tag" onclick="appendDesc('排水孔阻塞/不通')">排水阻塞</span>
                             <span class="q-tag" onclick="appendDesc('門窗開關不順/刮傷')">門窗異常</span>
                         </div>
-                        <textarea id="descriptionInput" placeholder="可點擊上方快速標籤，或手動輸入說明..."></textarea>
+                        <textarea id="descriptionInput" placeholder="點擊上方快速標籤，或手動輸入說明..."></textarea>
+                    </div>
+
+                    <!-- ④ 狀態（僅編輯模式顯示）-->
+                    <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6; margin-bottom:10px;">
+                        <label>📊 驗屋狀態</label>
+                        <div style="display:flex; gap:10px;">
+                            <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
+                            <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
+                        </div>
+                        <input type="hidden" id="statusInput" value="🔴 待改善">
+                    </div>
+
+                    <!-- ⑤ ★ 底部固定送出列 -->
+                    <div class="form-submit-bar">
+                        <button class="btn-submit" id="submitBtn" onclick="submitInspection()">
+                            📤 儲存並送出
+                        </button>
+                        <button class="btn-delete" id="deleteBtn" onclick="deleteInspection()">
+                            🗑️ 刪除
+                        </button>
                     </div>
                 </div>
             </div>
