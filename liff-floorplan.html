@@ -162,10 +162,7 @@ textarea.ff{height:72px;resize:none}
   <select id="selFloor" onchange="onFloorChange()" disabled><option value="">— 樓層 —</option></select>
   <button class="refresh-btn" onclick="loadDefects()">🔄</button>
 </div>
-<div class="export-row" id="exportRow" style="display:none">
-  <button class="exp-btn exp-all" onclick="exportExcel('all')">📊 匯出總缺失單</button>
-  <button class="exp-btn exp-trade" onclick="exportExcel('trade')">📋 匯出派工單</button>
-</div>
+
 
 <!-- MAP TAB -->
 <div id="mapPage">
@@ -195,6 +192,11 @@ textarea.ff{height:72px;resize:none}
 
 <!-- 全棟概覽頁面 -->
 <div id="bldgPage">
+  <!-- ★ 匯出按鈕：只在全棟概覽顯示 -->
+  <div class="export-row" id="exportRow">
+    <button class="exp-btn exp-all"   onclick="exportExcel('all')">📊 匯出總缺失單</button>
+    <button class="exp-btn exp-trade" onclick="exportExcel('trade')">📋 匯出派工單</button>
+  </div>
   <div class="bld-topbar">
     <select id="bldTower" onchange="loadBuildingOverview()">
       <option value="">全部樓層</option>
@@ -533,7 +535,7 @@ function onSiteChange(){
 function onFloorChange(){
   currentFloor=document.getElementById('selFloor').value;
   document.getElementById('headerSub').textContent=currentSite+(currentFloor?' / '+currentFloor:'');
-  const er=document.getElementById('exportRow');er.style.display=(currentSite&&currentFloor)?'flex':'none';
+
   if(currentSite&&currentFloor){loadFloorPlan();loadDefects();}
 }
 
@@ -1073,15 +1075,17 @@ async function saveDesc(){
 // ★ 全棟概覽（Floor-level defect summary）
 // ════════════════════════════════════════════════
 // 多棟工地設定
-const TOWER_SITES_BLD = ["98工地","99工地"];
+const TOWER_SITES_BLD = ["98工地"];  // ★ 只有這些工地有 A棟/B棟 之分
 let _bldAllDefects = [];
 let _bldFilterMode = 'all';
 
 async function loadBuildingOverview() {
     if (!currentSite) return;
     // 只有多棟工地才顯示棟別選擇器
-    document.getElementById('bldTower').style.display =
-        TOWER_SITES_BLD.includes(currentSite) ? '' : 'none';
+    // 只有多棟工地才顯示棟別篩選
+    const _isTw = TOWER_SITES_BLD.includes(currentSite);
+    document.getElementById('bldTower').style.display = _isTw ? '' : 'none';
+    if (!_isTw) document.getElementById('bldTower').value = ''; // 非多棟重置
     const wrap = document.getElementById('bldTableWrap');
     document.getElementById('bldStats').style.display = 'none';
     document.getElementById('bldProgWrap').style.display = 'none';
@@ -1165,31 +1169,38 @@ function renderBuildingGrid() {
     function buildTable(fls, towerLabel) {
         if (!fls.length) return '';
         let h = '';
-        if (towerLabel) h += `<div class="bld-tower-hd">🏢 ${towerLabel}</div>`;
+        if (towerLabel) {
+            const icon = towerLabel.includes('A') ? '🅰️' : towerLabel.includes('B') ? '🅱️' : '🏗️';
+            h += `<div class="bld-tower-hd">${icon} ${towerLabel}</div>`;
+        }
         h += '<div class="bld-tbl-wrap"><table class="bld-tbl"><thead><tr>';
-        h += '<th>樓層</th><th style="color:#e74c3c;">待改善</th><th style="color:#2980b9;">待驗收</th><th style="color:#27ae60;">已改善</th><th>進度</th>';
+        h += '<th style="text-align:left;padding-left:10px;">樓層</th>';
+        h += '<th>🔴 待改善</th><th>🔵 待驗收</th><th>🟢 已改善</th><th style="min-width:100px;">改善進度</th>';
         h += '</tr></thead><tbody>';
         fls.forEach(fl => {
             const d = floorMap[fl];
-            const pct = d.total > 0 ? Math.round(d.done/d.total*100) : 0;
+            const pct  = d.total > 0 ? Math.round(d.done/d.total*100) : 0;
             const barColor = pct===100 ? '#27ae60' : pct>50 ? '#f39c12' : '#e74c3c';
-            const dispFl = fl.replace(/_[AB]$/, '');  // 顯示 3F 而非 3F_A
-            // 篩選過濾
+            const dispFl = fl.replace(/_[AB]$/, '');
             const show = _bldFilterMode==='all' ||
                 (_bldFilterMode==='todo'   && d.todo>0) ||
                 (_bldFilterMode==='review' && d.review>0) ||
                 (_bldFilterMode==='done'   && d.done>0 && d.todo===0 && d.review===0);
             const rowStyle = show ? '' : 'style="opacity:.15;pointer-events:none;"';
+            // 狀態徽章
+            const todoBadge   = d.todo   > 0 ? `<span style="display:inline-block;min-width:22px;padding:2px 7px;border-radius:10px;background:#3d1515;color:#e74c3c;font-weight:800;">${d.todo}</span>`   : `<span style="color:#4a5a7a;">—</span>`;
+            const reviewBadge = d.review > 0 ? `<span style="display:inline-block;min-width:22px;padding:2px 7px;border-radius:10px;background:#0e2040;color:#2980b9;font-weight:800;">${d.review}</span>` : `<span style="color:#4a5a7a;">—</span>`;
+            const doneBadge   = d.done   > 0 ? `<span style="display:inline-block;min-width:22px;padding:2px 7px;border-radius:10px;background:#0d2e1a;color:#27ae60;font-weight:800;">${d.done}</span>`   : `<span style="color:#4a5a7a;">—</span>`;
             h += `<tr ${rowStyle}>
-                <td class="bld-fl-cell" onclick="jumpToFloor('${fl}')">${dispFl}</td>
-                <td class="bld-num" style="color:${d.todo>0?'#e74c3c':'#4a5a7a'};font-weight:${d.todo>0?'800':'400'}">${d.todo||'-'}</td>
-                <td class="bld-num" style="color:${d.review>0?'#2980b9':'#4a5a7a'};font-weight:${d.review>0?'800':'400'}">${d.review||'-'}</td>
-                <td class="bld-num" style="color:${d.done>0?'#27ae60':'#4a5a7a'};font-weight:${d.done>0?'800':'400'}">${d.done||'-'}</td>
+                <td class="bld-fl-cell" onclick="jumpToFloor('${fl}')">📐 ${dispFl}</td>
+                <td class="bld-num">${todoBadge}</td>
+                <td class="bld-num">${reviewBadge}</td>
+                <td class="bld-num">${doneBadge}</td>
                 <td class="bld-bar-cell">
-                    <div style="display:flex;align-items:center;gap:4px;">
-                        <div class="bld-bar-bg"><div class="bld-bar-fg" style="width:${pct}%;background:${barColor};"></div></div>
-                        <span style="font-size:9px;color:#6a8a9a;width:26px;">${pct}%</span>
-                    </div>
+                  <div style="display:flex;align-items:center;gap:5px;">
+                    <div class="bld-bar-bg" style="flex:1;"><div class="bld-bar-fg" style="width:${pct}%;background:${barColor};"></div></div>
+                    <span style="font-size:10px;color:${barColor};font-weight:700;width:30px;text-align:right;">${pct}%</span>
+                  </div>
                 </td>
             </tr>`;
         });
@@ -1217,9 +1228,11 @@ function jumpToFloor(floor) {
 }
 
 function exportExcel(type){
-  if(!currentSite||!currentFloor){showToast('⚠️ 請先選擇案場與樓層');return;}
+  if(!currentSite){showToast('⚠️ 請先選擇案場');return;}
+  // ★ 全棟概覽：不限樓層（匯出全案場）；其他 Tab：用目前選定的樓層
+  const floorParam = currentTabMode === 'building' ? '' : currentFloor;
   const ep=type==='all'?'/export-defects-excel':'/export-dispatch-excel';
-  window.open(`${apiBase}${ep}?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}`,'_blank');
+  window.open(`${apiBase}${ep}?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(floorParam)}`,'_blank');
 }
 
 /* ─── Offline Queue ─── */
