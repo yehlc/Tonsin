@@ -179,17 +179,18 @@
         /* ★ 清單總覽：頂部期數選擇 bar */
         .list-round-bar{
             display:flex; align-items:center; gap:10px;
-            padding:10px 14px; background:#fff;
-            border-bottom:1px solid #dee2e6; flex-wrap:wrap;
+            padding:10px 14px; background:#1a1f2e;
+            border-bottom:1px solid #2d3a50; flex-wrap:wrap;
         }
         .list-round-bar select{
             flex:1; min-width:140px; padding:9px 12px;
-            background:#fdfaf6; color:#8e44ad;
+            background:#2c3a5e; color:#d0d8ff;
             border:1.5px solid #8e44ad; border-radius:8px;
             font-size:14px; font-weight:700; font-family:inherit;
         }
         .list-defect-badge{
-            font-size:13px; font-weight:600; color:#636e72;
+            padding:5px 12px; background:#2c3a5e; color:#a89bff;
+            border-radius:20px; font-size:12px; font-weight:700;
             white-space:nowrap;
         }
         .list-content{ padding:15px; }
@@ -362,7 +363,7 @@
                         <option value="客戶複驗">4️⃣ 客戶複驗</option>
                         <option value="客戶三驗">5️⃣ 客戶三驗</option>
                     </select>
-                    <span class="list-defect-badge" id="listDefectBadge"></span>
+                    <span class="list-defect-badge" id="listDefectBadge">📋 載入中...</span>
                 </div>
                 <!-- ★ 主要內容 -->
                 <div class="list-content">
@@ -453,18 +454,18 @@
             "廣宇江南": {
                 email:  "izzy@grande-arcade.com",
                 label:  "廣宇建設業主窗口",
-                rounds: [],  // ★ 空陣列 = 全部期數皆顯示（業主初/複驗 + 客戶初/複/三驗）
+                rounds: ["業主初驗", "業主複驗"],  // 只有這些期數才顯示按鈕
             },
             // ↓ 新增其他案場業主信箱範例（取消 // 即可啟用）：
             // "98工地": {
-            //     email:  "owner@delin-project.com",
-            //     label:  "德鄰建設業主窗口",
-            //     rounds: [],  // 空陣列 = 全部期數
+            //     email:  "owner@tonsin-project.com",
+            //     label:  "同興98業主窗口",
+            //     rounds: ["業主初驗", "業主複驗"],
             // },
             // "鼎隆大苑": {
             //     email:  "pm@dinglong.com.tw",
             //     label:  "鼎隆建設業主窗口",
-            //     rounds: ["業主初驗", "業主複驗"],  // 只需要業主期數則填這樣
+            //     rounds: ["業主初驗", "業主複驗"],
             // },
         };
 
@@ -953,15 +954,11 @@
                 document.getElementById('sharedMapSection').style.display = 'none';
                 document.getElementById('listSection').style.display = 'block';
                 cancelInspection();
+                // ★ 進入清單總覽時，同步 listRound 和 inspRound
                 const _ir = document.getElementById('inspRound');
                 const _lr = document.getElementById('listRound');
                 if (_ir && _lr) _lr.value = _ir.value;
-                // ★ 已有資料直接渲染（保留已載入的圖片），無資料才重新撈 API
-                if (globalRoomDefects && globalRoomDefects.length > 0) {
-                    renderDefectList();
-                } else {
-                    loadRoomDefects();
-                }
+                loadRoomDefects();
                 updateOwnerReportBtn();
             }
             else if (tab === 'overview') {
@@ -985,34 +982,6 @@
         };
 
         // ★ 確保清單總覽也套用狀態防呆機制
-
-        // ════════════════════════════════════════════
-        // ★ 清單總覽期數下拉：三個缺失的函式定義
-        // ════════════════════════════════════════════
-
-        // 清單總覽的期數下拉改變 → 同步到 inspRound 並重新渲染
-        function syncListRound(round) {
-            const ir = document.getElementById('inspRound');
-            if (ir && ir.value !== round) ir.value = round;
-            renderDefectList();       // 用現有資料渲染，不重新打 API
-            updateOwnerReportBtn();
-        }
-
-        // 新增缺失的 inspRound 改變 → 同步回 listRound
-        function syncInspRoundToList(round) {
-            const lr = document.getElementById('listRound');
-            if (lr && lr.value !== round) lr.value = round;
-        }
-
-        // 更新清單總覽頂部的缺失計數文字
-        function updateListDefectBadge(count, round) {
-            const badge = document.getElementById('listDefectBadge');
-            if (!badge) return;
-            badge.textContent = count > 0
-                ? `共 ${count} 筆`
-                : '目前無缺失';
-        }
-
         function renderDefectList() {
             let container = document.getElementById('defectList');
             let selectedRound = document.getElementById('inspRound').value; 
@@ -1275,10 +1244,8 @@
             const onSuccess = () => {
                 floorCanvas.width = floorImg.width; floorCanvas.height = floorImg.height;
                 renderCanvas();
-                if(navigator.onLine) {
-                    if(window.requestIdleCallback) requestIdleCallback(()=>precacheNearbyDrawings(), {timeout:3000});
-                    else setTimeout(precacheNearbyDrawings, 1500);
-                }
+                // ★ 圖片載入完成後立刻開始預載其他圖面（300ms 後啟動，讓渲染先完成）
+                setTimeout(() => precacheNearbyDrawings().catch(()=>{}), 300);
             };
             // ★ 備援路徑：3F_A 找不到 → 嘗試 3F（PDF 工具可能未加棟別後綴）
             const onFailure = () => {
@@ -2282,73 +2249,74 @@ function clearRoomSearch() {
          *  - Cache API：跨 session、離線可用
          *  - 預載相鄰戶別：在 idle 時段把鄰近戶別的同類圖紙先載好
          *  =================================================================== */
-        const INSP_CACHE_NAME = 'tonsin-inspection-v1';
-        const inspMemCache = new Map();           // url -> blob URL（記憶體層）
-        const inspLoadingPromises = new Map();    // 防止同一張被同時下載
-        const inspPrecached = new Set();          // 已預載過的 URL（避免重做）
+        const INSP_CACHE_NAME = 'tonsin-inspection-v2';
+        const inspMemCache      = new Map();   // url → blob URL（記憶體層，最快）
+        const inspLoadingPromises = new Map(); // 防止同一張被同時下載
+        const inspPrecached     = new Set();   // 已預載或預載中的 URL
 
-        /**
-         * 載入驗屋圖紙：Cache-First 策略
-         * 已快取 → 立即返回（毫秒級）
-         * 沒快取 → 從網路下載並寫入快取
-         */
+        // ── 載入驗屋圖紙：MemCache → Cache API → Network ──────────
         async function loadInspectionImage(url) {
-            if(!('caches' in window)) {
-                const r = await fetch(url, { mode: 'cors' });
-                if(!r.ok) throw new Error('fetch failed');
-                const blob = await r.blob();
-                return URL.createObjectURL(blob);
-            }
+            // 記憶體快取直接命中（< 1ms）
+            if(inspMemCache.has(url)) return inspMemCache.get(url);
+
+            // 防止同一 URL 重複下載
             if(inspLoadingPromises.has(url)) return inspLoadingPromises.get(url);
 
             const p = (async () => {
-                const cache = await caches.open(INSP_CACHE_NAME);
-                const cached = await cache.match(url);
-                if(cached) {
-                    const blob = await cached.blob();
-                    return URL.createObjectURL(blob);
+                // Cache API（幾乎不需網路）
+                if('caches' in window) {
+                    const cache = await caches.open(INSP_CACHE_NAME);
+                    const cached = await cache.match(url);
+                    if(cached) {
+                        const blob = await cached.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        inspMemCache.set(url, blobUrl);   // ★ 寫入記憶體層，下次 < 1ms
+                        return blobUrl;
+                    }
                 }
+                // 網路（第一次）
                 const resp = await fetch(url, { mode: 'cors' });
                 if(!resp.ok) throw new Error('image not found');
-                cache.put(url, resp.clone()).catch(()=>{});
                 const blob = await resp.blob();
-                return URL.createObjectURL(blob);
+                const blobUrl = URL.createObjectURL(blob);
+                inspMemCache.set(url, blobUrl);            // ★ 記憶體層
+                if('caches' in window) {
+                    const cache = await caches.open(INSP_CACHE_NAME);
+                    cache.put(url, new Response(blob.slice(), { headers: { 'Content-Type': blob.type } })).catch(()=>{});
+                }
+                return blobUrl;
             })().finally(() => inspLoadingPromises.delete(url));
 
             inspLoadingPromises.set(url, p);
             return p;
         }
 
-        /**
-         * 純快取寫入（不返回 blob URL，給預快取用）
-         */
-        async function precacheInspectionImage(url) {
+        // ── 預載並寫入記憶體快取（後台靜默，讓切換變瞬間）────────
+        async function precacheToMem(url) {
             if(inspPrecached.has(url)) return;
             inspPrecached.add(url);
-            if(!('caches' in window)) return;
-            try {
-                const cache = await caches.open(INSP_CACHE_NAME);
-                const cached = await cache.match(url);
-                if(!cached) {
-                    const resp = await fetch(url, { mode: 'cors' });
-                    if(resp.ok) await cache.put(url, resp.clone());
-                }
-            } catch(e) {}
+            try { await loadInspectionImage(url); } catch(e) {}
         }
 
-        /**
-         * 預載相鄰戶別的同類圖紙
-         * 使用者通常會依序檢視戶別（◀/▶ 按鈕），所以先把前後幾戶的圖紙抓下來
-         * 限制併發數 = 2，避免影響當前圖載入
-         */
-        const INSP_PREFETCH_RANGE = 3; // 前後各預載 3 戶
+        // ── ★ 主要優化：預載「當前戶所有圖面」+ 「相鄰戶當前圖面」
+        const INSP_PREFETCH_RANGE = 2; // 前後各預載 2 戶（減少初始壓力）
         async function precacheNearbyDrawings() {
             if(!flatRoomList || flatRoomList.length === 0) return;
-            const baseImgUrl = "https://yehlc.github.io/Tonsin/驗屋圖資";
-            const currentDrawing = document.getElementById('drawingType').value;
-            
-            // 蒐集要預載的 URL
+            const baseImgUrl     = "https://yehlc.github.io/Tonsin/驗屋圖資";
+            const imgSite        = imgSiteName(currentSite);
+            const allDrawings    = getDrawingTypes(currentSite);   // 所有圖面種類
+            const currentDrawing = document.getElementById('drawingType')?.value || '';
+
             const targets = [];
+
+            // ★★ 優先級 1：當前戶的「其他圖面」（切換圖面時瞬間顯示）
+            allDrawings.forEach(dt => {
+                if(dt === currentDrawing) return;   // 當前圖已載入
+                const url = `${baseImgUrl}/${encodeURIComponent(imgSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(dt)}.png`;
+                if(!inspPrecached.has(url)) targets.unshift(url);  // 放最前面優先處理
+            });
+
+            // ★ 優先級 2：相鄰戶的當前圖面（切換戶時快速顯示）
             for(let offset = 1; offset <= INSP_PREFETCH_RANGE; offset++) {
                 for(const dir of [1, -1]) {
                     let idx = currentFlatIndex + offset * dir;
@@ -2357,17 +2325,27 @@ function clearRoomSearch() {
                     if(idx === currentFlatIndex) continue;
                     const room = flatRoomList[idx];
                     if(!room) continue;
-                    const url = `${baseImgUrl}/${encodeURIComponent(imgSiteName(currentSite))}/${encodeURIComponent(room.floor)}/${encodeURIComponent(room.room)}_${encodeURIComponent(currentDrawing)}.png`;
-                    if(!inspPrecached.has(url)) targets.push(url);
+                    // 相鄰戶所有圖面都預載
+                    allDrawings.forEach(dt => {
+                        const url = `${baseImgUrl}/${encodeURIComponent(imgSite)}/${encodeURIComponent(room.floor)}/${encodeURIComponent(room.room)}_${encodeURIComponent(dt)}.png`;
+                        if(!inspPrecached.has(url)) targets.push(url);
+                    });
                 }
             }
 
-            // 限制併發 = 2
-            const CONCURRENCY = 2;
-            for(let i = 0; i < targets.length; i += CONCURRENCY) {
-                const batch = targets.slice(i, i + CONCURRENCY);
-                await Promise.all(batch.map(u => precacheInspectionImage(u).catch(()=>{})));
-                await new Promise(r => setTimeout(r, 200));
+            // 控制併發：優先級 1 先跑（3 並發），再跑優先級 2（2 並發）
+            const priority1 = targets.slice(0, allDrawings.length - 1);
+            const priority2 = targets.slice(allDrawings.length - 1);
+
+            // 優先：當前戶其他圖面，3 並發立即開始（最重要，影響使用者切換感受）
+            if(priority1.length > 0) {
+                await Promise.all(priority1.map(u => precacheToMem(u).catch(()=>{})));
+            }
+            // 背景：相鄰戶，2 並發 + 間隔 150ms，避免搶頻寬
+            for(let i = 0; i < priority2.length; i += 2) {
+                const batch = priority2.slice(i, i + 2);
+                await Promise.all(batch.map(u => precacheToMem(u).catch(()=>{})));
+                if(i + 2 < priority2.length) await new Promise(r => setTimeout(r, 150));
             }
         }
     </script>
