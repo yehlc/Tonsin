@@ -75,7 +75,25 @@
         .onsite-btn{flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;}
         .onsite-clear{background:#f0f2f5;color:#636e72;}
         .onsite-submit{background:#00b894;color:#fff;flex:2;}
-        .onsite-submit:disabled{background:#b2bec3;}
+        .onsite-submit:disabled{background:#b2bec3;cursor:not-allowed;}
+        /* ── 同意確認框 ── */
+        #onsiteConsentBox{background:#f0faf6;border:2px solid #b2dfdb;border-radius:12px;
+                          padding:14px 16px;margin-bottom:14px;}
+        .consent-title{font-size:13px;font-weight:800;color:#00816a;margin-bottom:8px;
+                       display:flex;align-items:center;gap:6px;}
+        .consent-items{font-size:12px;color:#2d3436;line-height:1.9;margin-bottom:12px;
+                       padding-left:8px;}
+        .consent-check-row{display:flex;align-items:flex-start;gap:10px;
+                           background:#fff;border:1.5px solid #b2dfdb;border-radius:8px;
+                           padding:10px 12px;cursor:pointer;}
+        .consent-check-row input[type="checkbox"]{
+            width:20px;height:20px;cursor:pointer;accent-color:#00b894;
+            flex-shrink:0;margin-top:1px;}
+        .consent-check-label{font-size:13px;font-weight:700;color:#1A2F4B;
+                              line-height:1.5;cursor:pointer;user-select:none;}
+        .consent-check-label span{color:#e74c3c;}
+        #onsiteConsentBox.checked{border-color:#00b894;background:#e8f8f3;}
+        #onsiteConsentBox.checked .consent-check-row{border-color:#00b894;}
 
         /* ══ 全棟進度總覽（重設計）══ */
         #page-overview{display:none;background:#16213e;min-height:100%;padding-bottom:24px;}
@@ -222,31 +240,17 @@
                 </div>
 
                 <div class="form-container" id="formContainer">
+                    <!-- ★ 標題列 -->
                     <div class="form-header">
                         <h3 id="formTitle">✍️ 填寫缺失資訊</h3>
                         <button class="btn-close-form" onclick="cancelInspection()">✖</button>
                     </div>
                     <input type="hidden" id="editDefectId" value="">
 
-                    <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6;">
-                        <label>📊 驗屋狀態 (狀態判定)</label>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
-                            <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
-                        </div>
-                        <input type="hidden" id="statusInput" value="🔴 待改善">
-                    </div>
-
-                    <div style="display:flex; gap:10px; margin-bottom:20px;">
-                        <button class="btn-submit" id="submitBtn" onclick="submitInspection()" style="flex:2; margin-bottom:0;">📤 儲存並送出</button>
-                        <button id="deleteBtn" onclick="deleteInspection()" style="flex:1; background:#d63031; color:white; font-size:16px; font-weight:bold; border:none; border-radius:8px; display:none;">🗑️ 刪除</button>
-                    </div>
-
-                    <div style="display:flex; gap:10px; margin-bottom:15px;">
-                        <div class="form-group" style="flex:1;">
-                            <label style="display:flex; justify-content:space-between; align-items:center;">
-                                <span>📍 所在空間</span>
-                            </label>
+                    <!-- ① 所在空間 + 缺失工種 -->
+                    <div style="display:flex; gap:10px; margin-bottom:14px;">
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                            <label>📍 所在空間</label>
                             <select id="locationSelect">
                                 <option value="客餐廳">客餐廳</option>
                                 <option value="臥室(一)">臥室(一)</option>
@@ -261,9 +265,9 @@
                                 <option value="其他">其他</option>
                             </select>
                         </div>
-                        <div class="form-group" style="flex:1;">
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
                             <label style="display:flex; justify-content:space-between; align-items:center;">
-                                <span>👷‍♂️ 缺失工種</span>
+                                <span>👷 缺失工種</span>
                                 <span style="font-size:12px; font-weight:normal; color:#555;">
                                     <input type="checkbox" id="stickyLocation" checked> 保留
                                 </span>
@@ -279,8 +283,9 @@
                             </select>
                         </div>
                     </div>
-                    
-                    <div class="form-group">
+
+                    <!-- ② 照片拍攝 + 標記工具（先拍照標記，再寫說明）-->
+                    <div class="form-group" style="margin-bottom:14px;">
                         <div class="camera-btn">
                             📸 點擊拍攝缺失照片
                             <input type="file" id="photoInput" accept="image/*" capture="environment" class="camera-input" onchange="loadPhotoToCanvas(this)">
@@ -293,8 +298,9 @@
                         </div>
                         <canvas id="drawCanvas"></canvas>
                     </div>
-                    
-                    <div class="form-group">
+
+                    <!-- ③ 缺失說明 + 送出按鈕緊接在說明欄下方 -->
+                    <div class="form-group" style="margin-bottom:14px;">
                         <label>📝 缺失說明</label>
                         <div class="quick-tags">
                             <span class="q-tag" onclick="appendDesc('牆面髒污未清潔')">牆面髒污</span>
@@ -304,7 +310,27 @@
                             <span class="q-tag" onclick="appendDesc('排水孔阻塞/不通')">排水阻塞</span>
                             <span class="q-tag" onclick="appendDesc('門窗開關不順/刮傷')">門窗異常</span>
                         </div>
-                        <textarea id="descriptionInput" placeholder="可點擊上方快速標籤，或手動輸入說明..."></textarea>
+                        <textarea id="descriptionInput" placeholder="點擊上方快速標籤，或手動輸入說明..."></textarea>
+                    </div>
+
+                    <!-- ④ 狀態（僅編輯模式顯示）-->
+                    <div class="form-group" id="statusGroup" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #dee2e6; margin-bottom:10px;">
+                        <label>📊 驗屋狀態</label>
+                        <div style="display:flex; gap:10px;">
+                            <button id="btnStatusWait" type="button" onclick="setDefectStatus('🔴 待改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #dc3545; background:white; color:#dc3545; font-weight:bold; cursor:pointer;">🔴 未改善(退回)</button>
+                            <button id="btnStatusDone" type="button" onclick="setDefectStatus('🟢 已改善')" style="flex:1; padding:10px; border-radius:6px; border:2px solid #1DB446; background:white; color:#1DB446; font-weight:bold; cursor:pointer;">🟢 已改善(通過)</button>
+                        </div>
+                        <input type="hidden" id="statusInput" value="🔴 待改善">
+                    </div>
+
+                    <!-- ⑤ ★ 底部固定送出列 -->
+                    <div class="form-submit-bar">
+                        <button class="btn-submit" id="submitBtn" onclick="submitInspection()">
+                            📤 儲存並送出
+                        </button>
+                        <button class="btn-delete" id="deleteBtn" onclick="deleteInspection()">
+                            🗑️ 刪除
+                        </button>
                     </div>
                 </div>
             </div>
@@ -318,6 +344,11 @@
                 <button class="btn-export btn-onsite" onclick="openOnsiteSign()">✍️ 業主/客戶現場電子簽名</button>
                 <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
                 <button class="btn-export" style="background:#e17055;" onclick="emailPdfToCustomer()">📋 寄送 PDF 至客戶信箱</button>
+                <button class="btn-export" id="btnOwnerReport"
+                        style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);display:none;"
+                        onclick="emailOwnerReport()">
+                    📧 寄送業主審查報告
+                </button>
             </div>
         </div>
     </div>
@@ -340,7 +371,26 @@
             <span style="color:#888; font-size:14px; padding-left:10px;">尚無紀錄</span>
         </div>
 
-        <h4 style="background: #f0f0f0; padding: 8px; border-left: 4px solid #8e44ad; margin-bottom: 5px;">✍️ 業主 / 客戶確認簽名區</h4>
+        <h4 style="background: #f0f0f0; padding: 8px; border-left: 4px solid #8e44ad; margin-bottom: 12px;">✍️ 業主 / 客戶確認簽名區</h4>
+
+        <!-- ★ 告知同意框 -->
+        <div id="lineConsentBox">
+          <div class="line-consent-title">📋 簽名前請閱讀並確認以下事項</div>
+          <ol class="line-consent-items">
+            <li>本次驗屋缺失記錄之內容正確無誤，本人已確認上方所有項目</li>
+            <li>後續改善進度將依本次缺失記錄辦理，本人知悉並同意</li>
+            <li>依中華民國《電子簽章法》第 4 條，本電子簽名與親筆簽名<br>具有相同之法律效力</li>
+          </ol>
+          <label class="line-consent-check-row" onclick="toggleLineConsent()">
+            <input type="checkbox" id="lineConsentCb"
+                   onclick="event.stopPropagation();" onchange="checkLineSignReady()">
+            <span class="line-consent-check-label">
+              我已閱讀並了解上述事項，同意以電子簽名方式<br>確認本次驗屋缺失修繕記錄
+              <em>（必須勾選才能送出）</em>
+            </span>
+          </label>
+        </div>
+
         <div style="border: 2px dashed #8e44ad; border-radius: 8px; background: #fafafa; margin-bottom: 15px; position: relative;">
             <canvas id="sigCanvas" style="width: 100%; height: 200px; touch-action: none; cursor: crosshair; display: block; border-radius: 8px;"></canvas>
             <div id="sigHint" style="position: absolute; top: 10px; left: 10px; color: #ccc; font-weight: bold; pointer-events: none;">請在此處簽名...</div>
@@ -348,7 +398,10 @@
 
         <div style="display: flex; gap: 10px; margin-bottom: 30px;">
             <button onclick="clearSigCanvas()" style="flex: 1; padding: 15px; border: 1px solid #ccc; background: white; border-radius: 8px; font-weight: bold; font-size: 16px;">清除重簽</button>
-            <button onclick="submitSignature()" id="btnSubmitSig" style="flex: 2; padding: 15px; border: none; background: #1DB446; color: white; border-radius: 8px; font-weight: bold; font-size: 16px;">✅ 確認送出</button>
+            <button onclick="submitSignature()" id="btnSubmitSig" disabled
+                    style="flex: 2; padding: 15px; border: none; background: #b2bec3; color: white; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: not-allowed;">
+                ✅ 確認送出
+            </button>
         </div>
     </div>
 
@@ -361,6 +414,30 @@
         let currentFloor = "";
         let currentRoom = "";
         let currentUser = "";
+        // ════════════════════════════════════════════════════
+        // ★ 業主信箱設定 — 各案場的開發商/建商業主報告信箱
+        //   適用：業主初驗、業主複驗 完成後自動寄送整戶 PDF 缺失報告
+        //   新增案場：在 SITE_OWNER_EMAILS 加一行即可
+        // ════════════════════════════════════════════════════
+        const SITE_OWNER_EMAILS = {
+            "廣宇江南": {
+                email:  "izzy@grande-arcade.com",
+                label:  "廣宇建設業主窗口",
+                rounds: ["業主初驗", "業主複驗"],  // 只有這些期數才顯示按鈕
+            },
+            // ↓ 新增其他案場業主信箱範例（取消 // 即可啟用）：
+            // "98工地": {
+            //     email:  "owner@tonsin-project.com",
+            //     label:  "同興98業主窗口",
+            //     rounds: ["業主初驗", "業主複驗"],
+            // },
+            // "鼎隆大苑": {
+            //     email:  "pm@dinglong.com.tw",
+            //     label:  "鼎隆建設業主窗口",
+            //     rounds: ["業主初驗", "業主複驗"],
+            // },
+        };
+
         // ════════════════════════════════════════════════════
         // ★ 案場顯示名稱 — 圖面路徑和客戶文件用案名，非工地代號
         // ════════════════════════════════════════════════════
@@ -659,15 +736,30 @@
                 sigCtx.beginPath(); 
                 sigCtx.moveTo(pos.x, pos.y); 
             };
-            let draw = (e) => { e.preventDefault(); if(!isSigning) return; let pos = getPos(e); sigCtx.lineTo(pos.x, pos.y); sigCtx.stroke(); };
+            let draw = (e) => { e.preventDefault(); if(!isSigning) return; let pos = getPos(e); sigCtx.lineTo(pos.x, pos.y); sigCtx.stroke(); checkLineSignReady(); };
             let end = (e) => { e.preventDefault(); isSigning = false; };
 
             sigCanvas.ontouchstart = start; sigCanvas.ontouchmove = draw; sigCanvas.ontouchend = end;
             sigCanvas.onmousedown = start; sigCanvas.onmousemove = draw; sigCanvas.onmouseup = end;
         }
+        function checkLineSignReady() {
+            const consentOk = document.getElementById('lineConsentCb')?.checked || false;
+            const btn = document.getElementById('btnSubmitSig');
+            if (!btn) return;
+            const ready = hasSigned && consentOk;
+            btn.disabled = !ready;
+            btn.style.background  = ready ? '#1DB446' : '#b2bec3';
+            btn.style.cursor      = ready ? 'pointer' : 'not-allowed';
+            // 同意框勾選後改色
+            document.getElementById('lineConsentBox')?.classList.toggle('checked', consentOk);
+        }
+        function toggleLineConsent() {
+            const cb = document.getElementById('lineConsentCb');
+            if (cb) { cb.checked = !cb.checked; checkLineSignReady(); }
+        }
+
         function clearSigCanvas() {
             if(sigCtx && sigCanvas) {
-                // 加個防呆，以免不小心把一家人的歷史簽名都清掉
                 if(confirm("確定要清除畫布嗎？這將會把之前所有的簽名紀錄一併清除。\n(若不小心清除，可重新整理網頁復原舊簽名)")) {
                     sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
                     hasSigned = false;
@@ -677,12 +769,18 @@
                         hintEl.style.color = "#ccc";
                         hintEl.style.display = "block";
                     }
+                    checkLineSignReady(); // ★ 清除後重新判斷按鈕狀態
                 }
             }
         }
 
         function submitSignature() {
             if (!hasSigned) return alert("⚠️ 請先在框內完成簽名！");
+            if (!document.getElementById('lineConsentCb')?.checked) {
+                alert("⚠️ 請先勾選「我已閱讀並了解」同意確認框後再送出。");
+                document.getElementById('lineConsentBox')?.scrollIntoView({behavior:'smooth'});
+                return;
+            }
             if (!confirm("確認送出簽名嗎？送出後會自動將檔案回傳給公司人員。")) return;
 
             let btn = document.getElementById('btnSubmitSig');
@@ -1269,6 +1367,7 @@
         }
 
         function updateUI() {
+            updateOwnerReportBtn(); // 每次切換戶別都更新
             document.getElementById('siteFloorTitle').innerText = `${currentSite} - ${currentFloor}`;
             document.getElementById('roomNavSelect').value = `${currentFloor}|${currentRoom}`;
             updateDrawingImage();
@@ -1637,6 +1736,60 @@ async function downloadFile(url, filename) {
             sel.innerHTML = getDrawingTypes(s).map(t => `<option value="${t}">${t.replace('.','​. ')}</option>`).join('');
         }
 
+
+        // ════════════════════════════════════════════════
+        // ★ 業主審查報告按鈕 — 寄給建商/開發商業主窗口
+        // ════════════════════════════════════════════════
+        function updateOwnerReportBtn() {
+            const btn = document.getElementById('btnOwnerReport');
+            if (!btn) return;
+            const conf  = SITE_OWNER_EMAILS[currentSite];
+            const round = document.getElementById('inspRound')?.value || '';
+            if (conf && (!conf.rounds || !conf.rounds.length || conf.rounds.includes(round))) {
+                btn.style.display = '';
+                btn.innerHTML =
+                    `📧 寄業主審查報告&ensp;<small style="font-size:11px;opacity:.85;">${conf.label}</small>`;
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        async function emailOwnerReport() {
+            const conf = SITE_OWNER_EMAILS[currentSite];
+            if (!conf) { showToast('⚠️ 此案場未設定業主信箱'); return; }
+            const round = document.getElementById('inspRound')?.value || currentRound;
+            if (!confirm(
+                `確定要將【${round}】PDF 報告
+寄送給業主窗口嗎？
+
+` +
+                `📧 收件人：${conf.label}
+   ${conf.email}
+
+⏳ 約 15~30 秒，請耐心等候。`
+            )) return;
+
+            const btn  = document.getElementById('btnOwnerReport');
+            const orig = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = '⏳ PDF 轉換中...';
+
+            safeJsonFetch(`${apiBaseUrl}/email-inspection-pdf`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                body: JSON.stringify({
+                    site: currentSite, floor: currentFloor, room: currentRoom,
+                    round, toEmail: conf.email, emailLabel: conf.label
+                })
+            }).then(res => {
+                if (res.success) showToast(`✅ 已寄至 ${conf.email}`);
+                else alert('❌ 寄送失敗：' + res.error);
+            }).catch(e => {
+                alert('❌ 連線異常：' + e.message);
+            }).finally(() => {
+                btn.disabled = false; btn.innerHTML = orig;
+            });
+        }
+
         // ════════════════════════════════════════════════
         // ★ 寄送 PDF 至客戶信箱
         // ════════════════════════════════════════════════
@@ -1667,21 +1820,49 @@ async function downloadFile(url, filename) {
             onsiteCtx=canvas.getContext('2d');
             onsiteCtx.strokeStyle='#1A2F4B'; onsiteCtx.lineWidth=2.8; onsiteCtx.lineCap='round'; onsiteCtx.lineJoin='round';
             onsiteHasSigned=false; onsiteDrawing=false;
+            // ★ 重設同意框：每次開啟都要重新勾選
+            const cb = document.getElementById('onsiteConsentCb');
+            if (cb) { cb.checked = false; }
+            document.getElementById('onsiteConsentBox')?.classList.remove('checked');
             document.getElementById('btnOnsiteSubmit').disabled=true;
             document.getElementById('onsiteCanvasHint').style.opacity='1';
             function getPos(e){const r=canvas.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};}
             function sd(e){e.preventDefault();onsiteDrawing=true;const p=getPos(e);onsiteCtx.beginPath();onsiteCtx.moveTo(p.x,p.y);document.getElementById('onsiteCanvasHint').style.opacity='0';}
-            function dd(e){if(!onsiteDrawing)return;e.preventDefault();const p=getPos(e);onsiteCtx.lineTo(p.x,p.y);onsiteCtx.stroke();onsiteHasSigned=true;document.getElementById('btnOnsiteSubmit').disabled=false;}
+            function dd(e){if(!onsiteDrawing)return;e.preventDefault();const p=getPos(e);onsiteCtx.lineTo(p.x,p.y);onsiteCtx.stroke();onsiteHasSigned=true;checkOnsiteReady();}
             function ed(){onsiteDrawing=false;}
             canvas.ontouchstart=sd;canvas.ontouchmove=dd;canvas.ontouchend=ed;
             canvas.onmousedown=sd;canvas.onmousemove=dd;canvas.onmouseup=ed;
             document.getElementById('onsiteSignOverlay').style.display='flex';
         }
-        function clearOnsiteSign(){if(!onsiteCtx)return;const c=document.getElementById('onsiteSignCanvas');onsiteCtx.clearRect(0,0,c.width,c.height);onsiteHasSigned=false;document.getElementById('btnOnsiteSubmit').disabled=true;document.getElementById('onsiteCanvasHint').style.opacity='1';}
+        function clearOnsiteSign(){
+            if(!onsiteCtx)return;
+            const c=document.getElementById('onsiteSignCanvas');
+            onsiteCtx.clearRect(0,0,c.width,c.height);
+            onsiteHasSigned=false;
+            document.getElementById('onsiteCanvasHint').style.opacity='1';
+            checkOnsiteReady();
+        }
         function closeOnsiteSign(){document.getElementById('onsiteSignOverlay').style.display='none';}
+
+        // ★ 同時檢查：已簽名 + 已勾選同意框 → 才啟用送出按鈕
+        function checkOnsiteReady() {
+            const consentOk = document.getElementById('onsiteConsentCb')?.checked || false;
+            const submitBtn = document.getElementById('btnOnsiteSubmit');
+            submitBtn.disabled = !(onsiteHasSigned && consentOk);
+            // 同意框勾選後改變樣式
+            const box = document.getElementById('onsiteConsentBox');
+            if (box) box.classList.toggle('checked', consentOk);
+        }
+        function toggleOnsiteConsent() {
+            const cb = document.getElementById('onsiteConsentCb');
+            if (cb) { cb.checked = !cb.checked; checkOnsiteReady(); }
+        }
         function handleOnsiteOverlayClick(e){if(e.target===document.getElementById('onsiteSignOverlay'))closeOnsiteSign();}
         async function submitOnsiteSign(){
             if(!onsiteHasSigned){showToast('⚠️ 請先完成簽名');return;}
+            if(!document.getElementById('onsiteConsentCb')?.checked){
+                showToast('⚠️ 請先勾選「我已閱讀並了解」同意框');return;
+            }
             const round=document.getElementById('inspRound')?.value||currentRound;
             const sigB64=document.getElementById('onsiteSignCanvas').toDataURL('image/png');
             const btn=document.getElementById('btnOnsiteSubmit');
@@ -2189,7 +2370,26 @@ function clearRoomSearch() {
     </div>
     <div id="onsiteSignBody">
       <div id="onsiteRoundInfo">📍 <span id="onsiteInfoText">載入中...</span></div>
-      <div style="font-size:12px;color:#636e72;margin-bottom:10px;">請業主/客戶於下方框內親筆簽名確認</div>
+
+      <!-- ★ 告知同意框 -->
+      <div id="onsiteConsentBox">
+        <div class="consent-title">📋 簽名前請閱讀並確認以下事項</div>
+        <ol class="consent-items">
+          <li>本次驗屋缺失記錄之內容正確無誤，本人已親自確認</li>
+          <li>後續改善進度將依本次缺失記錄辦理，業主/客戶知悉並同意</li>
+          <li>依中華民國《電子簽章法》第 4 條，本電子簽名與親筆簽名具有相同之法律效力</li>
+        </ol>
+        <label class="consent-check-row" onclick="toggleOnsiteConsent()">
+          <input type="checkbox" id="onsiteConsentCb" onclick="event.stopPropagation();"
+                 onchange="checkOnsiteReady()">
+          <span class="consent-check-label">
+            我已閱讀並了解上述事項，同意以電子簽名方式確認本次驗屋記錄
+            <span>（必須勾選）</span>
+          </span>
+        </label>
+      </div>
+
+      <div style="font-size:12px;color:#636e72;margin-bottom:10px;">✏️ 請業主/客戶於下方框內親筆簽名</div>
       <div id="onsiteCanvasWrap">
         <canvas id="onsiteSignCanvas"></canvas>
         <div id="onsiteCanvasHint">👆 請在此處簽名</div>
