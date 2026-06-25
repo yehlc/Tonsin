@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head> 
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>驗屋系統</title> 
@@ -1747,8 +1747,10 @@ async function downloadFile(url, filename) {
             const round = document.getElementById('inspRound')?.value || '';
             if (conf && (!conf.rounds || !conf.rounds.length || conf.rounds.includes(round))) {
                 btn.style.display = '';
+                const isOwnerRd = ['業主初驗','業主複驗'].includes(round);
+                const logoHint = isOwnerRd ? '（附同興 Logo）' : '（附開發商 Logo）';
                 btn.innerHTML =
-                    `📧 寄業主審查報告&ensp;<small style="font-size:11px;opacity:.85;">${conf.label}</small>`;
+                    `📧 寄業主審查報告 ${logoHint}&ensp;<small style="font-size:11px;opacity:.85;">${conf.label}</small>`;
             } else {
                 btn.style.display = 'none';
             }
@@ -1758,6 +1760,8 @@ async function downloadFile(url, filename) {
             const conf = SITE_OWNER_EMAILS[currentSite];
             if (!conf) { showToast('⚠️ 此案場未設定業主信箱'); return; }
             const round = document.getElementById('inspRound')?.value || currentRound;
+            const isOwnerRd2 = ['業主初驗','業主複驗'].includes(round);
+            const logoNote = isOwnerRd2 ? '（左上角：同興營造工程 Logo）' : '（左上角：開發商 Logo）';
             if (!confirm(
                 `確定要將【${round}】PDF 報告
 寄送給業主窗口嗎？
@@ -1765,6 +1769,8 @@ async function downloadFile(url, filename) {
 ` +
                 `📧 收件人：${conf.label}
    ${conf.email}
+` +
+                `📄 報告封面：${logoNote}
 
 ⏳ 約 15~30 秒，請耐心等候。`
             )) return;
