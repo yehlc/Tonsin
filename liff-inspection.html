@@ -175,7 +175,25 @@
         .ov-tower-sw:hover{background:#3a5080;color:#fff;}
         .ov-tower-sw:active{filter:brightness(.85);}
         
-        #listSection { display: none; padding: 15px; }
+        #listSection { display: none; padding: 0; }
+        /* ★ 清單總覽：頂部期數選擇 bar */
+        .list-round-bar{
+            display:flex; align-items:center; gap:10px;
+            padding:10px 14px; background:#1a1f2e;
+            border-bottom:1px solid #2d3a50; flex-wrap:wrap;
+        }
+        .list-round-bar select{
+            flex:1; min-width:140px; padding:9px 12px;
+            background:#2c3a5e; color:#d0d8ff;
+            border:1.5px solid #8e44ad; border-radius:8px;
+            font-size:14px; font-weight:700; font-family:inherit;
+        }
+        .list-defect-badge{
+            padding:5px 12px; background:#2c3a5e; color:#a89bff;
+            border-radius:20px; font-size:12px; font-weight:700;
+            white-space:nowrap;
+        }
+        .list-content{ padding:15px; }
         .defect-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; cursor: pointer; border-left: 4px solid #8e44ad; transition: background 0.2s; }
         .defect-card:active { background: #f8f9fa; }
         .defect-card img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; background: #eee; }
@@ -216,7 +234,7 @@
         <div class="swipe-area" id="swipeArea">
             <div id="sharedMapSection">
                 <div class="toolbar" style="display: flex; gap: 10px;">
-                    <select id="inspRound" onchange="applyPhaseFilter()" style="flex: 1; border-color: #8e44ad; color: #8e44ad; background: #fdfaf6;">
+                    <select id="inspRound" onchange="applyPhaseFilter(); syncInspRoundToList(this.value);" style="flex: 1; border-color: #8e44ad; color: #8e44ad; background: #fdfaf6;">
                         <option value="業主初驗">1️⃣ 業主初驗</option>
                         <option value="業主複驗">2️⃣ 業主複驗</option>
                         <option value="客戶初驗">3️⃣ 客戶初驗</option>
@@ -336,19 +354,32 @@
             </div>
 
             <div id="listSection">
-                <h3 style="color:#2d3436; margin-top:0;">📋 本戶缺失清單</h3>
-                <div id="defectList">載入中...</div>
-                <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
-                <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋單 (客戶用 Excel)</button>
-                <button class="btn-export btn-trade" onclick="exportTradeReport()">🛠️ 匯出派工單 (工班用 Excel)</button>
-                <button class="btn-export btn-onsite" onclick="openOnsiteSign()">✍️ 業主/客戶現場電子簽名</button>
-                <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
-                <button class="btn-export" style="background:#e17055;" onclick="emailPdfToCustomer()">📋 寄送 PDF 至客戶信箱</button>
-                <button class="btn-export" id="btnOwnerReport"
-                        style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);display:none;"
-                        onclick="emailOwnerReport()">
-                    📧 寄送業主審查報告
-                </button>
+                <!-- ★ 頂部：期數選擇（與新增缺失同步） -->
+                <div class="list-round-bar">
+                    <select id="listRound" onchange="syncListRound(this.value)">
+                        <option value="業主初驗">1️⃣ 業主初驗</option>
+                        <option value="業主複驗">2️⃣ 業主複驗</option>
+                        <option value="客戶初驗">3️⃣ 客戶初驗</option>
+                        <option value="客戶複驗">4️⃣ 客戶複驗</option>
+                        <option value="客戶三驗">5️⃣ 客戶三驗</option>
+                    </select>
+                    <span class="list-defect-badge" id="listDefectBadge">📋 載入中...</span>
+                </div>
+                <!-- ★ 主要內容 -->
+                <div class="list-content">
+                    <div id="defectList">載入中...</div>
+                    <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+                    <button class="btn-export" onclick="exportExcel()">📥 匯出驗屋單 (客戶用 Excel)</button>
+                    <button class="btn-export btn-trade" onclick="exportTradeReport()">🛠️ 匯出派工單 (工班用 Excel)</button>
+                    <button class="btn-export btn-onsite" onclick="openOnsiteSign()">✍️ 業主/客戶現場電子簽名</button>
+                    <button class="btn-export btn-sign" onclick="sendSignatureRequest()">✍️ 傳送 LINE 電子簽名單給客戶</button>
+                    <button class="btn-export" style="background:#e17055;" onclick="emailPdfToCustomer()">📋 寄送 PDF 至客戶信箱</button>
+                    <button class="btn-export" id="btnOwnerReport"
+                            style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);display:none;"
+                            onclick="emailOwnerReport()">
+                        📧 寄業主審查報告
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -421,7 +452,7 @@
         // ════════════════════════════════════════════════════
         const SITE_OWNER_EMAILS = {
             "廣宇江南": {
-                email:  "skywing4890@gmail.com",
+                email:  "izzy@grande-arcade.com",
                 label:  "廣宇建設業主窗口",
                 rounds: ["業主初驗", "業主複驗"],  // 只有這些期數才顯示按鈕
             },
@@ -923,6 +954,12 @@
                 document.getElementById('sharedMapSection').style.display = 'none';
                 document.getElementById('listSection').style.display = 'block';
                 cancelInspection();
+                // ★ 進入清單總覽時，同步 listRound 和 inspRound
+                const _ir = document.getElementById('inspRound');
+                const _lr = document.getElementById('listRound');
+                if (_ir && _lr) _lr.value = _ir.value;
+                loadRoomDefects();
+                updateOwnerReportBtn();
             }
             else if (tab === 'overview') {
                 document.getElementById('tabOv').classList.add('active');
@@ -1002,6 +1039,7 @@
                     </div>`;
                 });
                 container.innerHTML = html;
+                updateListDefectBadge(filteredDefects.length, selectedRound); // ★ 更新期數徽章
 
                 filteredDefects.forEach(d => {
                     if (d.HasImage && d.ImageUrl) {
@@ -1010,6 +1048,7 @@
                 });
             } else {
                 container.innerHTML = "<div style='text-align:center; padding:20px; color:#888;'>✅ 目前畫面無缺失</div>";
+                updateListDefectBadge(0, selectedRound);
             }
         }
 
@@ -1747,10 +1786,8 @@ async function downloadFile(url, filename) {
             const round = document.getElementById('inspRound')?.value || '';
             if (conf && (!conf.rounds || !conf.rounds.length || conf.rounds.includes(round))) {
                 btn.style.display = '';
-                const isOwnerRd = ['業主初驗','業主複驗'].includes(round);
-                const logoHint = isOwnerRd ? '（附同興 Logo）' : '（附開發商 Logo）';
                 btn.innerHTML =
-                    `📧 寄業主審查報告 ${logoHint}&ensp;<small style="font-size:11px;opacity:.85;">${conf.label}</small>`;
+                    `📧 寄業主審查報告&ensp;<small style="font-size:11px;opacity:.85;">${conf.label}</small>`;
             } else {
                 btn.style.display = 'none';
             }
@@ -1760,8 +1797,6 @@ async function downloadFile(url, filename) {
             const conf = SITE_OWNER_EMAILS[currentSite];
             if (!conf) { showToast('⚠️ 此案場未設定業主信箱'); return; }
             const round = document.getElementById('inspRound')?.value || currentRound;
-            const isOwnerRd2 = ['業主初驗','業主複驗'].includes(round);
-            const logoNote = isOwnerRd2 ? '（左上角：同興營造工程 Logo）' : '（左上角：開發商 Logo）';
             if (!confirm(
                 `確定要將【${round}】PDF 報告
 寄送給業主窗口嗎？
@@ -1769,8 +1804,6 @@ async function downloadFile(url, filename) {
 ` +
                 `📧 收件人：${conf.label}
    ${conf.email}
-` +
-                `📄 報告封面：${logoNote}
 
 ⏳ 約 15~30 秒，請耐心等候。`
             )) return;
