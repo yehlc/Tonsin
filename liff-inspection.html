@@ -179,18 +179,17 @@
         /* ★ 清單總覽：頂部期數選擇 bar */
         .list-round-bar{
             display:flex; align-items:center; gap:10px;
-            padding:10px 14px; background:#1a1f2e;
-            border-bottom:1px solid #2d3a50; flex-wrap:wrap;
+            padding:10px 14px; background:#fff;
+            border-bottom:1px solid #dee2e6; flex-wrap:wrap;
         }
         .list-round-bar select{
             flex:1; min-width:140px; padding:9px 12px;
-            background:#2c3a5e; color:#d0d8ff;
+            background:#fdfaf6; color:#8e44ad;
             border:1.5px solid #8e44ad; border-radius:8px;
             font-size:14px; font-weight:700; font-family:inherit;
         }
         .list-defect-badge{
-            padding:5px 12px; background:#2c3a5e; color:#a89bff;
-            border-radius:20px; font-size:12px; font-weight:700;
+            font-size:13px; font-weight:600; color:#636e72;
             white-space:nowrap;
         }
         .list-content{ padding:15px; }
@@ -363,7 +362,7 @@
                         <option value="客戶複驗">4️⃣ 客戶複驗</option>
                         <option value="客戶三驗">5️⃣ 客戶三驗</option>
                     </select>
-                    <span class="list-defect-badge" id="listDefectBadge">📋 載入中...</span>
+                    <span class="list-defect-badge" id="listDefectBadge"></span>
                 </div>
                 <!-- ★ 主要內容 -->
                 <div class="list-content">
@@ -954,11 +953,15 @@
                 document.getElementById('sharedMapSection').style.display = 'none';
                 document.getElementById('listSection').style.display = 'block';
                 cancelInspection();
-                // ★ 進入清單總覽時，同步 listRound 和 inspRound
                 const _ir = document.getElementById('inspRound');
                 const _lr = document.getElementById('listRound');
                 if (_ir && _lr) _lr.value = _ir.value;
-                loadRoomDefects();
+                // ★ 已有資料直接渲染（保留已載入的圖片），無資料才重新撈 API
+                if (globalRoomDefects && globalRoomDefects.length > 0) {
+                    renderDefectList();
+                } else {
+                    loadRoomDefects();
+                }
                 updateOwnerReportBtn();
             }
             else if (tab === 'overview') {
@@ -982,6 +985,34 @@
         };
 
         // ★ 確保清單總覽也套用狀態防呆機制
+
+        // ════════════════════════════════════════════
+        // ★ 清單總覽期數下拉：三個缺失的函式定義
+        // ════════════════════════════════════════════
+
+        // 清單總覽的期數下拉改變 → 同步到 inspRound 並重新渲染
+        function syncListRound(round) {
+            const ir = document.getElementById('inspRound');
+            if (ir && ir.value !== round) ir.value = round;
+            renderDefectList();       // 用現有資料渲染，不重新打 API
+            updateOwnerReportBtn();
+        }
+
+        // 新增缺失的 inspRound 改變 → 同步回 listRound
+        function syncInspRoundToList(round) {
+            const lr = document.getElementById('listRound');
+            if (lr && lr.value !== round) lr.value = round;
+        }
+
+        // 更新清單總覽頂部的缺失計數文字
+        function updateListDefectBadge(count, round) {
+            const badge = document.getElementById('listDefectBadge');
+            if (!badge) return;
+            badge.textContent = count > 0
+                ? `共 ${count} 筆`
+                : '目前無缺失';
+        }
+
         function renderDefectList() {
             let container = document.getElementById('defectList');
             let selectedRound = document.getElementById('inspRound').value; 
