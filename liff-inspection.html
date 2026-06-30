@@ -712,6 +712,11 @@
                         }
                     });
                 }
+            }).catch(e => {
+                // ★ Fix: 加入 catch 避免 Failed to fetch 時靜默失敗
+                console.error('[loadCustomerSignData]', e);
+                document.getElementById('signDefectList').innerHTML =
+                    `<div style="color:#e74c3c;padding:16px;text-align:center;">❌ 連線失敗：${e.message}</div>`;
             });
         }
 
@@ -1090,7 +1095,16 @@
                     globalRoomDefects = res.data;
                     renderCanvas(); 
                     renderDefectList();
+                } else {
+                    container.innerHTML = `<div style="color:#e74c3c;padding:16px;text-align:center;">⚠️ 載入失敗：${res.error||'伺服器錯誤'}</div>`;
                 }
+            }).catch(e => {
+                // ★ Fix: 加入 catch 防止 Failed to fetch 時整頁靜默失敗
+                console.error('[loadRoomDefects]', e);
+                container.innerHTML = `<div style="color:#e74c3c;padding:16px;text-align:center;">
+                    ❌ 連線失敗：${e.message}<br>
+                    <small>請確認伺服器是否運行，或重新整理頁面</small>
+                </div>`;
             });
         }
 
