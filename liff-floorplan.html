@@ -995,7 +995,21 @@ async function loadDefects(){
     } else if(initTab==='list'){
       switchTab('list');
     }
-  }catch(e){console.warn(e);}
+  }catch(e){
+    console.warn('[loadDefects]', e);
+    allDefects = [];
+    renderCanvas(); updateStats(); renderList();
+    showToast('❌ 伺服器連線失敗：'+e.message+' ─ 請確認網路或重新載入頁面');
+    document.getElementById('defectListEl') &&
+      (document.getElementById('defectListEl').innerHTML =
+        `<div style="text-align:center;padding:30px;color:#e74c3c;">
+          ❌ 無法連線到伺服器<br><small>${e.message}</small><br>
+          <button onclick="loadDefects()" style="margin-top:12px;padding:8px 20px;
+            background:#00b894;color:#fff;border:none;border-radius:8px;cursor:pointer;">
+            🔄 重試
+          </button>
+        </div>`);
+  }
 }
 
 /* ─── Stats ─── */
@@ -1167,7 +1181,7 @@ async function loadBuildingOverview() {
     document.getElementById('bldProgWrap').style.display = 'none';
     wrap.innerHTML = '<div class="bld-empty">⏳ 載入中...</div>';
     try {
-        const r = await apiFetch(`/query?site=${encodeURIComponent(currentSite)}&floor=&status=`);
+        const r = await apiFetch(`/query?site=${encodeURIComponent(currentSite)}&floor=&status=&limit=999`);
         _bldAllDefects = await r.json();
         if (!Array.isArray(_bldAllDefects)) _bldAllDefects = [];
         _bldFilterMode = 'all';
