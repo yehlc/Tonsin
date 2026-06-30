@@ -388,25 +388,19 @@ td.bld-prog-td{ background:#0e1828; border-radius:6px; padding:6px 8px; min-widt
 
 <script>
 /* ─── Config ─── */
-// ★ Fix: 改用 let，讓 bootstrap() 在 liff.init() 完成後（URL 已還原）覆寫正確值
-// 問題：LIFF auth redirect 後，URL 會變成 ?liff.state=...，在此時讀到的 api/site/floor 皆為 null
-// 解法：先用預設值，bootstrap() 裡 liff.init() 完成後再重新讀取 URL 參數
-const _initUrlP=new URLSearchParams(window.location.search);
-// ★ 若 URL 仍含 liff.state，代表 LIFF 尚未 restore 原始 params，先用預設值
-const _liffStateMode = _initUrlP.has('liff.state');
-let apiBase    = _liffStateMode ? 'https://unpregnant-tonically-caitlyn.ngrok-free.dev'
-                               : (_initUrlP.get('api')||'https://unpregnant-tonically-caitlyn.ngrok-free.dev');
-let initSite   = _liffStateMode ? '' : decodeURIComponent(_initUrlP.get('site')||'');
-let initFloor  = _liffStateMode ? '' : decodeURIComponent(_initUrlP.get('floor')||'');
-let initHighlight = _liffStateMode ? 0 : parseInt(_initUrlP.get('highlight')||'0');
-let initTab    = _liffStateMode ? 'map' : (_initUrlP.get('tab')||'map');
+const urlP=new URLSearchParams(window.location.search);
+const apiBase=urlP.get('api')||'https://unpregnant-tonically-caitlyn.ngrok-free.dev';
+const initSite=decodeURIComponent(urlP.get('site')||'');
+const initFloor=decodeURIComponent(urlP.get('floor')||'');
+const initHighlight = parseInt(urlP.get('highlight') || '0');
+const initTab = urlP.get('tab') || 'map';
 let _highlightOpened = false; // ★ 防止 loadDefects 重複觸發時開啟兩次
-let myUser     = _liffStateMode ? '' : decodeURIComponent(_initUrlP.get('user')||'');
-let myUserId   = _liffStateMode ? '' : (_initUrlP.get('userId')||'');
-let myLevel    = _liffStateMode ? 2  : parseFloat(_initUrlP.get('level')||'2');
-let myRole     = _liffStateMode ? '' : decodeURIComponent(_initUrlP.get('role')||'');
-const LIFF_ID  = "2009287087-4LSCRAq4";
-const GH_PAGES = "https://yehlc.github.io/Tonsin";
+let myUser  = decodeURIComponent(urlP.get('user')  || '');
+const myUserId=urlP.get('userId')||'';
+let myLevel = parseFloat(urlP.get('level') || '2');
+let myRole  = decodeURIComponent(urlP.get('role')  || '');
+const LIFF_ID="2009287087-4LSCRAq4";
+const GH_PAGES="https://yehlc.github.io/Tonsin";
 
 /* ─── Floor image map ─── */
 const FLOOR_IMG={
@@ -459,22 +453,6 @@ async function bootstrap() {
   try { await openDB(); } catch(e) {}
   try {
     await liff.init({liffId: LIFF_ID});
-
-    // ★ Fix: liff.init() 完成後，LIFF 已將 URL 從 ?liff.state=... 還原為原始 params
-    // 重新讀取一次，確保 apiBase / initSite / initFloor 都是正確值
-    const _urlPRestored = new URLSearchParams(window.location.search);
-    if (_urlPRestored.get('api'))      apiBase    = _urlPRestored.get('api');
-    if (_urlPRestored.get('site'))     initSite   = decodeURIComponent(_urlPRestored.get('site'));
-    if (_urlPRestored.get('floor'))    initFloor  = decodeURIComponent(_urlPRestored.get('floor'));
-    if (_urlPRestored.get('highlight'))initHighlight = parseInt(_urlPRestored.get('highlight')||'0');
-    if (_urlPRestored.get('tab'))      initTab    = _urlPRestored.get('tab');
-    if (_urlPRestored.get('user'))     myUser     = decodeURIComponent(_urlPRestored.get('user'));
-    if (_urlPRestored.get('userId'))   myUserId   = _urlPRestored.get('userId');
-    if (_urlPRestored.get('level'))    myLevel    = parseFloat(_urlPRestored.get('level'));
-    if (_urlPRestored.get('role'))     myRole     = decodeURIComponent(_urlPRestored.get('role'));
-    // currentSite / currentFloor 也要同步更新（因為它們在 let 宣告時用了 initSite/initFloor 的初始值）
-    if (initSite  && !currentSite)  currentSite  = initSite;
-    if (initFloor && !currentFloor) currentFloor = initFloor;
     if (!liff.isLoggedIn()) {
       if (liff.isInClient()) {
         // ① LINE App 內（同仁手機）→ 正常登入
@@ -1551,14 +1529,7 @@ async function precacheFloorPlan(site) {
 }
 
 /* ─── Utils ─── */
-// ★ Fix: GET 請求不加 Content-Type（避免觸發不必要的 CORS preflight）
-function apiFetch(p,o={}){
-  const method=(o.method||'GET').toUpperCase();
-  const isGet=(method==='GET'||method==='HEAD');
-  const baseHeaders={'ngrok-skip-browser-warning':'true',...(o.headers||{})};
-  if(!isGet) baseHeaders['Content-Type']='application/json';
-  return fetch(apiBase+p,{...o,headers:baseHeaders});
-}
+function apiFetch(p,o={}){return fetch(apiBase+p,{...o,headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true',...(o.headers||{})}});}
 function showToast(msg){const el=document.getElementById('toastMsg');el.textContent=msg;el.className='toast show';setTimeout(()=>el.className='toast',3200);}
 </script>
 </body>
