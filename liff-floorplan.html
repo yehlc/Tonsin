@@ -146,13 +146,13 @@ textarea.ff{height:72px;resize:none}
 
 
 /* ════════ 全棟概覽熱圖矩陣 ════════ */
-#bldgPage{ background:#10172a; min-height:100%; }
+#bldgPage{ background:#10172a; min-height:100%; display:none; }
 #bldgPage .export-row{ display:flex; gap:7px; padding:8px 11px; background:#f8f9fa; border-bottom:1px solid #ddd; }
 .bld-topbar{ display:flex; gap:8px; align-items:center; padding:9px 12px; background:#131d35; border-bottom:1px solid #1e3050; flex-wrap:wrap; }
 .bld-topbar select{ flex:1; padding:7px 10px; background:#1a2d50; color:#c8d8f0; border:1px solid #2d4a7a; border-radius:8px; font-size:13px; font-family:inherit; }
 .bld-load-btn{ padding:7px 16px; background:#f39c12; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
 
-.bld-stats{ display:grid !important; grid-template-columns:repeat(5,1fr); gap:6px; padding:10px 12px; }
+.bld-stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; padding:10px 12px; }
 .bld-sc{ background:#131d35; border-radius:10px; padding:10px 6px; text-align:center; cursor:pointer; border:2px solid transparent; transition:.15s; }
 .bld-sc.active{ border-color:#f39c12; }
 .bld-sc .sc-n{ font-size:22px; font-weight:900; line-height:1; display:block; }
