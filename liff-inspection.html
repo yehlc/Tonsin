@@ -2825,28 +2825,32 @@ function clearRoomSearch() {
             }
         }
 
-        // ── 設定單一勾選項目（點"無"→整區連動）────────────────────────
+        // ── 設定單一勾選項目（點"無"→整區+跨建築/機電 全部連動）─────────
         function setCheckItem(key, result) {
             // 解析 key 格式: "建築|客餐廳|1"
-            const parts    = key.split('|');
+            const parts     = key.split('|');
             const checkType = parts[0];
             const areaName  = parts[1];
 
-            // ★ 點"無"：自動將該空間所有項目一起設為"無"
+            // ★ 點"無"：建築+機電 同名空間的所有項目一起設為"無"
             if (result === '無') {
-                const srcData = checkType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
-                const areaObj = srcData.find(a => a.area === areaName);
-                if (areaObj) {
+                ['建築', '機電'].forEach(ct => {
+                    const srcData = ct === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
+                    const areaObj = srcData.find(a => a.area === areaName);
+                    if (!areaObj) return;
                     areaObj.items.forEach(item => {
-                        const k = `${checkType}|${areaName}|${item.no}`;
+                        const k = `${ct}|${areaName}|${item.no}`;
                         if (!clState[k]) clState[k] = {};
                         clState[k].result = '無';
-                        const sid = k.replace(/\|/g,'_').replace(/[()]/g,'_');
-                        const ct  = document.getElementById('clt_' + sid);
-                        if (ct) ct.querySelectorAll('.cl-btn').forEach(btn =>
-                            btn.classList.toggle('sel', btn.getAttribute('data-r') === '無'));
+                        // 目前顯示中的 tab 才需要更新 DOM 按鈕
+                        if (ct === clCurrentType) {
+                            const sid = k.replace(/\|/g,'_').replace(/[()]/g,'_');
+                            const el  = document.getElementById('clt_' + sid);
+                            if (el) el.querySelectorAll('.cl-btn').forEach(btn =>
+                                btn.classList.toggle('sel', btn.getAttribute('data-r') === '無'));
+                        }
                     });
-                }
+                });
                 return;
             }
 
@@ -2896,26 +2900,28 @@ function clearRoomSearch() {
             const btn = document.getElementById('clSaveBtn');
             btn.disabled = true; btn.textContent = '⏳ 儲存中...';
 
-            const data  = checkType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
-            const items = [];
-            data.forEach(areaObj => {
-                areaObj.items.forEach(item => {
-                    const key = checkType + '|' + areaObj.area + '|' + item.no;
-                    const st  = clState[key] || {result:'合格'};
-                    // 其他區跳過空白且未填入的列
-                    if (areaObj.area === '其他' && !item.content && !st.text && st.result === '合格') return;
-                    items.push({
-                        checkType,
-                        areaName:     areaObj.area,
-                        itemNo:       item.no,
-                        itemCategory: item.cat   || '',
-                        itemContent:  item.content || st.text || '',
-                        result:       st.result,
-                        photoB64:     null,
-                        remarks:      st.text || ''
+            // ★ 同時儲存「建築」+「機電」所有項目（確保「無」的跨類型同步正確存入 DB）
+            const allItems = [];
+            for (const ct of ['建築', '機電']) {
+                const data = ct === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
+                data.forEach(areaObj => {
+                    areaObj.items.forEach(item => {
+                        const key = ct + '|' + areaObj.area + '|' + item.no;
+                        const st  = clState[key] || {result:'合格'};
+                        if (areaObj.area === '其他' && !item.content && !st.text && st.result === '合格') return;
+                        allItems.push({
+                            checkType:    ct,
+                            areaName:     areaObj.area,
+                            itemNo:       item.no,
+                            itemCategory: item.cat    || '',
+                            itemContent:  item.content || st.text || '',
+                            result:       st.result,
+                            photoB64:     null,
+                            remarks:      st.text || ''
+                        });
                     });
                 });
-            });
+            }
 
             try {
                 const r = await fetch(`${apiBaseUrl}/inspection-checklist`, {
@@ -2923,7 +2929,7 @@ function clearRoomSearch() {
                     headers: {'Content-Type':'application/json','ngrok-skip-browser-warning':'true'},
                     body: JSON.stringify({
                         site: currentSite, floor: currentFloor, room: currentRoom,
-                        phase, overallResult: clOverallResult, savedBy: currentUser, items
+                        phase, overallResult: clOverallResult, savedBy: currentUser, items: allItems
                     })
                 });
                 const res = await r.json();
