@@ -235,12 +235,9 @@
         .cl-p.sel{background:#1DB446;color:#fff;}
         .cl-f{border-color:#e74c3c;color:#e74c3c;background:#fff;}
         .cl-f.sel{background:#e74c3c;color:#fff;}
-        .cl-fail-row{display:none;flex-direction:column;gap:8px;background:#fff5f5;border-left:3px solid #e74c3c;padding:10px 12px;}
-        .cl-fail-row.show{display:flex;}
-        .cl-fail-note{width:100%;padding:8px;border:1px solid #ffaaaa;border-radius:6px;font-size:13px;font-family:inherit;background:#fff;resize:none;min-height:44px;box-sizing:border-box;}
-        .cl-photo-btn{display:block;padding:10px;border:2px dashed #e74c3c;border-radius:8px;color:#e74c3c;font-size:13px;font-weight:700;text-align:center;cursor:pointer;position:relative;background:#fff;}
-        .cl-photo-btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
-        .cl-photo-preview{width:100%;max-height:160px;object-fit:contain;border-radius:6px;border:1px solid #ddd;display:none;margin-top:6px;}
+        .cl-n{border-color:#636e72;color:#636e72;background:#fff;}
+        .cl-n.sel{background:#636e72;color:#fff;}
+        .cl-round-sel{flex:1;min-width:130px;padding:7px 10px;border:1.5px solid #8e44ad;border-radius:8px;font-size:13px;font-weight:700;color:#8e44ad;font-family:inherit;background:#fdfaf6;}
         .cl-save-bar{position:sticky;bottom:0;background:#fff;border-top:2px solid #8e44ad;padding:11px 14px;display:flex;gap:8px;z-index:50;}
         .cl-save-btn{flex:1;padding:13px;background:#8e44ad;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
         .cl-save-btn:disabled{background:#b2bec3;cursor:not-allowed;}
@@ -425,9 +422,16 @@
 
             <!-- ══ 驗收勾選 Section ══════════════════════════════════════ -->
             <div id="checklistSection">
-                <!-- 頂部：建築/機電切換 -->
+                <!-- 頂部：期數 + 建築/機電切換 -->
                 <div class="cl-topbar">
-                    <span style="font-size:13px;font-weight:700;color:#2d3436;">📋 驗收勾選表</span>
+                    <span style="font-size:13px;font-weight:700;color:#2d3436;flex-shrink:0;">📋 驗收勾選表</span>
+                    <select id="clRound" class="cl-round-sel" onchange="syncCLRound(this.value)">
+                        <option value="業主初驗">1️⃣ 業主初驗</option>
+                        <option value="業主複驗">2️⃣ 業主複驗</option>
+                        <option value="客戶初驗">3️⃣ 客戶初驗</option>
+                        <option value="客戶複驗">4️⃣ 客戶複驗</option>
+                        <option value="客戶三驗">5️⃣ 客戶三驗</option>
+                    </select>
                     <div class="cl-type-toggle">
                         <button class="cl-type-btn active" id="clBtnArch" onclick="switchCLType('建築')">🏠 建築</button>
                         <button class="cl-type-btn" id="clBtnMep"  onclick="switchCLType('機電')">⚡ 機電</button>
@@ -1049,6 +1053,10 @@
                 cancelInspection();
                 const _clEl = document.getElementById('checklistSection');
                 if (_clEl) _clEl.style.display = 'block';
+                // ★ 同步驗收期數
+                const _ir = document.getElementById('inspRound');
+                const _cr = document.getElementById('clRound');
+                if (_ir && _cr && _cr.value !== _ir.value) { _cr.value = _ir.value; }
                 renderChecklist();
             }
             const _ov = document.getElementById('page-overview');
@@ -2567,37 +2575,62 @@ function clearRoomSearch() {
                 {no:6,cat:'設備',  content:'櫃體功能（門板、抽屜）是否正常'},
             ]},
             { area:'臥室(一)', items:[
-                {no:1,cat:'門窗',  content:'開關及上鎖功能是否正常'},
-                {no:2,cat:'門窗',  content:'是否有損傷'},
-                {no:3,cat:'牆壁',  content:'是否有結構性裂紋產生'},
-                {no:4,cat:'牆壁',  content:'油漆有無脫落'},
-                {no:5,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
-                {no:6,cat:'頂板',  content:'平頂是否有汙損'},
+                {no:1,cat:'門窗',content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',content:'是否有損傷'},
+                {no:3,cat:'牆壁',content:'是否有結構性裂紋產生'},
+                {no:4,cat:'牆壁',content:'油漆有無脫落'},
+                {no:5,cat:'地坪',content:'地磚鋪貼是否平整、無破損'},
+                {no:6,cat:'頂板',content:'平頂是否有汙損'},
             ]},
             { area:'臥室(二)', items:[
-                {no:1,cat:'門窗',  content:'開關及上鎖功能是否正常'},
-                {no:2,cat:'門窗',  content:'是否有損傷'},
-                {no:3,cat:'牆壁',  content:'是否有結構性裂紋產生'},
-                {no:4,cat:'牆壁',  content:'油漆有無脫落'},
-                {no:5,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
-                {no:6,cat:'頂板',  content:'平頂是否有汙損'},
+                {no:1,cat:'門窗',content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',content:'是否有損傷'},
+                {no:3,cat:'牆壁',content:'是否有結構性裂紋產生'},
+                {no:4,cat:'牆壁',content:'油漆有無脫落'},
+                {no:5,cat:'地坪',content:'地磚鋪貼是否平整、無破損'},
+                {no:6,cat:'頂板',content:'平頂是否有汙損'},
             ]},
-            { area:'浴廁', items:[
-                {no:1,cat:'門窗',  content:'開關及上鎖功能是否正常'},
-                {no:2,cat:'門窗',  content:'是否有損傷'},
-                {no:3,cat:'牆壁',  content:'壁磚有無汙損'},
-                {no:4,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
-                {no:5,cat:'頂板',  content:'天花是否有汙損'},
-                {no:6,cat:'設備',  content:'暖風機設備運轉是否正常（遙控器/主機）'},
-                {no:7,cat:'設備',  content:'衛浴設備功能是否正常（馬桶/面盆/龍頭/淋浴/毛巾架/面紙架/明鏡）'},
+            { area:'臥室(三)', items:[
+                {no:1,cat:'門窗',content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',content:'是否有損傷'},
+                {no:3,cat:'牆壁',content:'是否有結構性裂紋產生'},
+                {no:4,cat:'牆壁',content:'油漆有無脫落'},
+                {no:5,cat:'地坪',content:'地磚鋪貼是否平整、無破損'},
+                {no:6,cat:'頂板',content:'平頂是否有汙損'},
             ]},
-            { area:'工作陽台', items:[
-                {no:1,cat:'門窗',  content:'開關及上鎖功能是否正常'},
-                {no:2,cat:'門窗',  content:'是否有損傷'},
-                {no:3,cat:'牆壁',  content:'壁面有無汙損'},
-                {no:4,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
-                {no:5,cat:'頂板',  content:'天花是否有汙損'},
-                {no:6,cat:'設備',  content:'曬衣架功能是否正常'},
+            { area:'主衛浴', items:[
+                {no:1,cat:'門窗',content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',content:'是否有損傷'},
+                {no:3,cat:'牆壁',content:'壁磚有無汙損'},
+                {no:4,cat:'地坪',content:'地磚鋪貼是否平整、無破損'},
+                {no:5,cat:'頂板',content:'天花是否有汙損'},
+                {no:6,cat:'設備',content:'暖風機設備運轉是否正常（遙控器/主機）'},
+                {no:7,cat:'設備',content:'衛浴設備功能是否正常（馬桶/面盆/龍頭/淋浴/毛巾架/面紙架/明鏡）'},
+            ]},
+            { area:'客衛浴', items:[
+                {no:1,cat:'門窗',content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',content:'是否有損傷'},
+                {no:3,cat:'牆壁',content:'壁磚有無汙損'},
+                {no:4,cat:'地坪',content:'地磚鋪貼是否平整、無破損'},
+                {no:5,cat:'頂板',content:'天花是否有汙損'},
+                {no:6,cat:'設備',content:'暖風機設備運轉是否正常（遙控器/主機）'},
+                {no:7,cat:'設備',content:'衛浴設備功能是否正常（馬桶/面盆/龍頭/淋浴/毛巾架/面紙架/明鏡）'},
+            ]},
+            { area:'前工作陽台', items:[
+                {no:1,cat:'門窗',content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',content:'是否有損傷'},
+                {no:3,cat:'牆壁',content:'壁面有無汙損'},
+                {no:4,cat:'地坪',content:'地磚鋪貼是否平整、無破損'},
+                {no:5,cat:'頂板',content:'天花是否有汙損'},
+                {no:6,cat:'設備',content:'曬衣架功能是否正常'},
+            ]},
+            { area:'後工作陽台', items:[
+                {no:1,cat:'門窗',content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',content:'是否有損傷'},
+                {no:3,cat:'牆壁',content:'壁面有無汙損'},
+                {no:4,cat:'地坪',content:'地磚鋪貼是否平整、無破損'},
+                {no:5,cat:'頂板',content:'天花是否有汙損'},
+                {no:6,cat:'設備',content:'曬衣架功能是否正常'},
             ]},
             { area:'其他', items:[
                 {no:1,cat:'',content:''},{no:2,cat:'',content:''},{no:3,cat:'',content:''},
@@ -2628,14 +2661,30 @@ function clearRoomSearch() {
                 {no:2,cat:'機電',  content:'電話、電視、網路功能是否正常'},
                 {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
             ]},
-            { area:'浴廁', items:[
-                {no:1,cat:'給排水',content:'排水（面盆、馬桶、淋浴間/浴缸、地板）是否順暢'},
+            { area:'臥室(三)', items:[
+                {no:1,cat:'給排水',content:'冷氣排水是否正常'},
+                {no:2,cat:'機電',  content:'電話、電視、網路功能是否正常'},
+                {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
+            ]},
+            { area:'主衛浴', items:[
+                {no:1,cat:'給排水',content:'排水（面盆/馬桶/淋浴間/浴缸/地板）是否順暢'},
                 {no:2,cat:'給排水',content:'給水（面盆、淋浴間/浴缸）是否正常'},
                 {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
                 {no:4,cat:'機電',  content:'暖風機運作是否正常'},
             ]},
-            { area:'工作陽台', items:[
-                {no:1,cat:'給排水',content:'排水（地板、洗衣機、洗槽、冷氣）是否順暢'},
+            { area:'客衛浴', items:[
+                {no:1,cat:'給排水',content:'排水（面盆/馬桶/淋浴間/地板）是否順暢'},
+                {no:2,cat:'給排水',content:'給水（面盆、淋浴間）是否正常'},
+                {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
+                {no:4,cat:'機電',  content:'暖風機運作是否正常'},
+            ]},
+            { area:'前工作陽台', items:[
+                {no:1,cat:'給排水',content:'排水（地板/洗衣機/洗槽/冷氣）是否順暢'},
+                {no:2,cat:'給排水',content:'給水（洗衣機、洗槽）是否正常'},
+                {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
+            ]},
+            { area:'後工作陽台', items:[
+                {no:1,cat:'給排水',content:'排水（地板/洗衣機/洗槽/冷氣）是否順暢'},
                 {no:2,cat:'給排水',content:'給水（洗衣機、洗槽）是否正常'},
                 {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
             ]},
@@ -2672,42 +2721,34 @@ function clearRoomSearch() {
 
         // ── 渲染勾選清單 ───────────────────────────────────────────────
         async function renderChecklist() {
-            const phase  = document.getElementById('inspRound').value || '業主初驗';
-            const data   = clCurrentType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
-            const body   = document.getElementById('clBody');
+            const crEl  = document.getElementById('clRound');
+            const phase = crEl ? crEl.value : (document.getElementById('inspRound').value || '業主初驗');
+            const data  = clCurrentType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
+            const body  = document.getElementById('clBody');
             body.innerHTML = '<div style="text-align:center;padding:24px;color:#888;">⏳ 載入中...</div>';
 
-            // 若尚未從伺服器載入此期資料 → 先查詢
-            const loaded = await loadChecklistFromServer(phase);
+            await loadChecklistFromServer(phase);
 
             let html = '';
             data.forEach(areaObj => {
                 if (areaObj.area === '其他') {
-                    // 其他區：空白可輸入文字框
                     html += `<div class="cl-area">
                         <div class="cl-area-hd">其他</div>`;
                     for (let i = 1; i <= 5; i++) {
-                        const key = clCurrentType + '|其他|' + i;
-                        const st  = clState[key] || {result:'合格',photoB64:null,remarks:''};
+                        const key   = clCurrentType + '|其他|' + i;
+                        const st    = clState[key] || {result:'合格'};
+                        const safeId = key.replace(/\|/g,'_').replace(/[()]/g,'_');
                         html += `<div class="cl-item" style="flex-direction:column;align-items:stretch;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span class="cl-no">${i}</span>
-                                <input type="text" placeholder="自填項目..." value="${st.remarks || ''}"
+                                <input type="text" placeholder="自填項目..." value=""
                                     style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;"
-                                    oninput="clStateSet('${key}','remarks',this.value)">
-                                <div class="cl-toggle">
-                                    <button class="cl-btn cl-p${st.result==='合格'?' sel':''}" onclick="setCheckItem('${key}','合格')">合格</button>
-                                    <button class="cl-btn cl-f${st.result==='不合格'?' sel':''}" onclick="setCheckItem('${key}','不合格')">不合格</button>
+                                    oninput="clStateSetText('${key}',this.value)">
+                                <div class="cl-toggle" id="clt_${safeId}">
+                                    <button class="cl-btn cl-p${st.result==='合格'?' sel':''}" data-r="合格" onclick="setCheckItem('${key}','合格')">合格</button>
+                                    <button class="cl-btn cl-f${st.result==='不合格'?' sel':''}" data-r="不合格" onclick="setCheckItem('${key}','不合格')">不合格</button>
+                                    <button class="cl-btn cl-n${st.result==='無'?' sel':''}" data-r="無" onclick="setCheckItem('${key}','無')">無</button>
                                 </div>
-                            </div>
-                            <div class="cl-fail-row${st.result==='不合格'?' show':''}" id="fr_${key.replace(/[|()/]/g,'_')}">
-                                <label class="cl-photo-btn" title="拍攝不合格照片（必填）">
-                                    📸 ${st.photoB64 ? '已拍照 ✅ 點擊重拍' : '拍攝不合格照片（建議）'}
-                                    <input type="file" accept="image/*" capture="environment"
-                                        onchange="clPhotoChange(this,'${key}')">
-                                </label>
-                                <img class="cl-photo-preview${st.photoB64?' show':''}" id="cp_${key.replace(/[|()/]/g,'_')}"
-                                    src="${st.photoB64 || ''}" style="${st.photoB64?'display:block':''}" alt="預覽">
                             </div>
                         </div>`;
                     }
@@ -2715,37 +2756,19 @@ function clearRoomSearch() {
                     return;
                 }
 
-                html += `<div class="cl-area">
-                    <div class="cl-area-hd">${areaObj.area}</div>`;
-
+                html += `<div class="cl-area"><div class="cl-area-hd">${areaObj.area}</div>`;
                 areaObj.items.forEach(item => {
-                    const key = clCurrentType + '|' + areaObj.area + '|' + item.no;
-                    const st  = clState[key] || {result:'合格',photoB64:null,remarks:''};
-                    const fid = 'fr_' + key.replace(/[|()/]/g,'_').replace(/\s/g,'_');
-                    const pid = 'cp_' + key.replace(/[|()/]/g,'_').replace(/\s/g,'_');
-                    html += `<div class="cl-item" style="flex-wrap:wrap;">
-                        <div style="display:flex;align-items:flex-start;gap:8px;width:100%;">
-                            <span class="cl-no">${item.no}</span>
-                            ${item.cat ? `<span class="cl-cat">${item.cat}</span>` : ''}
-                            <span class="cl-content">${item.content}</span>
-                            <div class="cl-toggle">
-                                <button class="cl-btn cl-p${st.result==='合格'?' sel':''}"
-                                    onclick="setCheckItem('${key}','合格')">合格</button>
-                                <button class="cl-btn cl-f${st.result==='不合格'?' sel':''}"
-                                    onclick="setCheckItem('${key}','不合格')">不合格</button>
-                            </div>
-                        </div>
-                        <div class="cl-fail-row${st.result==='不合格'?' show':''}" id="${fid}">
-                            <label class="cl-photo-btn">
-                                📸 ${st.photoB64 ? '已拍照 ✅ 點擊重拍' : '拍攝不合格照片（建議）'}
-                                <input type="file" accept="image/*" capture="environment"
-                                    onchange="clPhotoChange(this,'${key}')">
-                            </label>
-                            <img class="cl-photo-preview" id="${pid}"
-                                src="${st.photoB64 || ''}" style="${st.photoB64?'display:block':''}" alt="">
-                            <textarea class="cl-fail-note" placeholder="備註說明..."
-                                oninput="clStateSet('${key}','remarks',this.value)"
-                                >${st.remarks || ''}</textarea>
+                    const key    = clCurrentType + '|' + areaObj.area + '|' + item.no;
+                    const st     = clState[key] || {result:'合格'};
+                    const safeId = key.replace(/\|/g,'_').replace(/[()]/g,'_');
+                    html += `<div class="cl-item">
+                        <span class="cl-no">${item.no}</span>
+                        ${item.cat ? `<span class="cl-cat">${item.cat}</span>` : ''}
+                        <span class="cl-content">${item.content}</span>
+                        <div class="cl-toggle" id="clt_${safeId}">
+                            <button class="cl-btn cl-p${st.result==='合格'?' sel':''}" data-r="合格" onclick="setCheckItem('${key}','合格')">合格</button>
+                            <button class="cl-btn cl-f${st.result==='不合格'?' sel':''}" data-r="不合格" onclick="setCheckItem('${key}','不合格')">不合格</button>
+                            <button class="cl-btn cl-n${st.result==='無'?' sel':''}" data-r="無" onclick="setCheckItem('${key}','無')">無</button>
                         </div>
                     </div>`;
                 });
@@ -2753,17 +2776,8 @@ function clearRoomSearch() {
             });
 
             body.innerHTML = html;
-
-            // 還原整體結果按鈕狀態
             if (clOverallResult) setCLOverall(clOverallResult);
-
-            // 更新儲存時間標籤
-            const phase2 = document.getElementById('inspRound').value;
-            if (clSavedPhase === phase2) {
-                document.getElementById('clSavedAt').textContent = '（本期已儲存）';
-            } else {
-                document.getElementById('clSavedAt').textContent = '';
-            }
+            document.getElementById('clSavedAt').textContent = (clSavedPhase === phase) ? '（本期已儲存 ✅）' : '';
         }
 
         // ── 從伺服器載入勾選結果 ─────────────────────────────────────
@@ -2796,74 +2810,70 @@ function clearRoomSearch() {
             }
         }
 
-        // ── 設定單一勾選項目 ──────────────────────────────────────────
+        // ── 設定單一勾選項目 ─────────────────────────────────────────
         function setCheckItem(key, result) {
-            if (!clState[key]) clState[key] = {result:'合格',photoB64:null,remarks:''};
+            if (!clState[key]) clState[key] = {result:'合格'};
             clState[key].result = result;
-            const fid = 'fr_' + key.replace(/[|()/]/g,'_').replace(/\s/g,'_');
-            const frEl = document.getElementById(fid);
-            if (frEl) frEl.classList.toggle('show', result === '不合格');
-            // 更新按鈕樣式
-            const item = document.getElementById(fid)?.previousElementSibling;
-            if (item) {
-                item.querySelectorAll('.cl-btn').forEach(b => {
-                    if (b.textContent === '合格')    b.classList.toggle('sel', result === '合格');
-                    if (b.textContent === '不合格')  b.classList.toggle('sel', result === '不合格');
+            const safeId = key.replace(/\|/g,'_').replace(/[()]/g,'_');
+            const container = document.getElementById('clt_' + safeId);
+            if (container) {
+                container.querySelectorAll('.cl-btn').forEach(btn => {
+                    btn.classList.toggle('sel', btn.getAttribute('data-r') === result);
                 });
             }
         }
 
-        // ── 設定 clState 某欄位 ───────────────────────────────────────
-        function clStateSet(key, field, val) {
-            if (!clState[key]) clState[key] = {result:'合格',photoB64:null,remarks:''};
-            clState[key][field] = val;
+        // ── 其他區自填文字 ────────────────────────────────────────────
+        function clStateSetText(key, val) {
+            if (!clState[key]) clState[key] = {result:'合格'};
+            clState[key].text = val;
         }
 
-        // ── 照片選取 ──────────────────────────────────────────────────
-        async function clPhotoChange(input, key) {
-            const file = input.files && input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = e => {
-                if (!clState[key]) clState[key] = {result:'不合格',photoB64:null,remarks:''};
-                clState[key].photoB64 = e.target.result;
-                const pid = 'cp_' + key.replace(/[|()/]/g,'_').replace(/\s/g,'_');
-                const imgEl = document.getElementById(pid);
-                if (imgEl) { imgEl.src = e.target.result; imgEl.style.display = 'block'; }
-                const btn = input.closest('.cl-photo-btn');
-                if (btn) btn.childNodes[0].textContent = '📸 已拍照 ✅ 點擊重拍\n';
-            };
-            reader.readAsDataURL(file);
+        // ── 同步勾選期數下拉（與其他 tab 聯動）─────────────────────────
+        function syncCLRound(round) {
+            const ir = document.getElementById('inspRound');
+            if (ir && ir.value !== round) ir.value = round;
+            const lr = document.getElementById('listRound');
+            if (lr && lr.value !== round) lr.value = round;
+            // 清空舊狀態
+            clState = {};
+            clOverallResult = '';
+            clSavedPhase   = '';
+            document.getElementById('clBtnPass').textContent = '□ 驗收合格';
+            document.getElementById('clBtnFail').textContent = '□ 部分缺失修繕';
+            document.getElementById('clBtnPass').classList.remove('sel');
+            document.getElementById('clBtnFail').classList.remove('sel');
+            renderChecklist();
         }
 
-        // ── 儲存勾選結果到伺服器 ─────────────────────────────────────
         async function saveChecklist() {
-            const phase   = document.getElementById('inspRound').value;
+            const crEl    = document.getElementById('clRound');
+            const phase   = crEl ? crEl.value : (document.getElementById('inspRound').value || '業主初驗');
             const checkType = clCurrentType;
             if (!clOverallResult) {
                 showToast('⚠️ 請先選擇「查驗結果」（驗收合格 或 部分缺失修繕）');
                 return;
             }
-            const btn   = document.getElementById('clSaveBtn');
+            const btn = document.getElementById('clSaveBtn');
             btn.disabled = true; btn.textContent = '⏳ 儲存中...';
 
-            // 整理 items
-            const data = checkType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
+            const data  = checkType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
             const items = [];
             data.forEach(areaObj => {
                 areaObj.items.forEach(item => {
                     const key = checkType + '|' + areaObj.area + '|' + item.no;
-                    const st  = clState[key] || {result:'合格',photoB64:null,remarks:''};
-                    if (areaObj.area === '其他' && !item.content && !st.remarks) return; // 跳過空白其他
+                    const st  = clState[key] || {result:'合格'};
+                    // 其他區跳過空白且未填入的列
+                    if (areaObj.area === '其他' && !item.content && !st.text && st.result === '合格') return;
                     items.push({
                         checkType,
-                        areaName:    areaObj.area,
-                        itemNo:      item.no,
-                        itemCategory:item.cat || '',
-                        itemContent: item.content || st.remarks || '',
-                        result:      st.result,
-                        photoB64:    st.photoB64 || null,
-                        remarks:     st.remarks  || ''
+                        areaName:     areaObj.area,
+                        itemNo:       item.no,
+                        itemCategory: item.cat   || '',
+                        itemContent:  item.content || st.text || '',
+                        result:       st.result,
+                        photoB64:     null,
+                        remarks:      st.text || ''
                     });
                 });
             });
@@ -2871,7 +2881,7 @@ function clearRoomSearch() {
             try {
                 const r = await fetch(`${apiBaseUrl}/inspection-checklist`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                    headers: {'Content-Type':'application/json','ngrok-skip-browser-warning':'true'},
                     body: JSON.stringify({
                         site: currentSite, floor: currentFloor, room: currentRoom,
                         phase, overallResult: clOverallResult, savedBy: currentUser, items
