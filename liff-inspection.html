@@ -262,9 +262,9 @@
         <div class="tabs">
             <div class="tab active" id="tabAdd" onclick="switchTab('add')">✍️ 新增缺失</div>
             <div class="tab" id="tabMap" onclick="switchTab('map')">🗺️ 總覽(圖面)</div>
+            <div class="tab" id="tabCL" onclick="switchTab('checklist')">📝 驗收勾選</div>
             <div class="tab" id="tabList" onclick="switchTab('list')">📋 清單總覽</div>
             <div class="tab" id="tabOv" onclick="switchTab('overview')">🏢 全棟</div>
-            <div class="tab" id="tabCL" onclick="switchTab('checklist')">📝 驗收勾選</div>
         </div>
 
         <div class="swipe-area" id="swipeArea">
@@ -1045,6 +1045,9 @@
                 cancelInspection();
                 const rs = document.getElementById('inspRound'), or_ = document.getElementById('ovRound');
                 if (rs && or_ && rs.value) or_.value = rs.value;
+                // 同步 clRound 也確保一致
+                const _crOv = document.getElementById('clRound');
+                if (rs && _crOv && rs.value) _crOv.value = rs.value;
             }
             else if (tab === 'checklist') {
                 document.getElementById('tabCL').classList.add('active');
@@ -2872,6 +2875,18 @@ function clearRoomSearch() {
             clState[key].text = val;
         }
 
+        // ── 全棟 tab 期數下拉改變 → 同步所有其他 tab ────────────────────
+        function syncOvRound(round) {
+            const ir = document.getElementById('inspRound');
+            if (ir && ir.value !== round) ir.value = round;
+            const lr = document.getElementById('listRound');
+            if (lr && lr.value !== round) lr.value = round;
+            const cr = document.getElementById('clRound');
+            if (cr && cr.value !== round) cr.value = round;
+            // 同步套用到圖面和清單（applyPhaseFilter 會重繪 canvas + 缺失清單）
+            if (typeof applyPhaseFilter === 'function') applyPhaseFilter();
+        }
+
         // ── 同步勾選期數下拉（與其他 tab 聯動）─────────────────────────
         function syncCLRound(round) {
             const ir = document.getElementById('inspRound');
@@ -3003,7 +3018,7 @@ function clearRoomSearch() {
 <div id="page-overview">
   <!-- 期數選擇 + 載入 -->
   <div class="ov-topbar">
-    <select id="ovRound">
+    <select id="ovRound" onchange="syncOvRound(this.value)">
       <option value="業主初驗">業主初驗</option>
       <option value="業主複驗">業主複驗</option>
       <option value="客戶初驗">客戶初驗</option>
