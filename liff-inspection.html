@@ -1738,8 +1738,9 @@
             for (let i = 0; i < offlineQueue.length; i++) {
                 let item = offlineQueue[i];
                 try {
-                    // 使用 item.apiBase（儲存時紀錄）或當前 apiBaseUrl
-                    let baseUrl = item.apiBase || apiBaseUrl;
+                    // ★ 強制使用當前 apiBaseUrl（Cloudflare Tunnel 重開後 URL 不變），
+                    //   忽略舊存的 item.apiBase（可能是過期的 ngrok URL）
+                    let baseUrl = apiBaseUrl;
                     let targetUrl = item.isEdit
                         ? `${baseUrl}/update-inspection-defect`
                         : `${baseUrl}/submit-inspection`;
@@ -1771,7 +1772,7 @@
             } else if (failedQueue.length > 0) {
                 // 顯示第一筆失敗原因，幫助診斷
                 const errMsg = failedQueue[0].lastError || '未知原因';
-                alert(`⚠️ 同步失敗（共 ${failedQueue.length} 筆）\n\n失敗原因：${errMsg}\n\n請確認：\n1. Node.js API 伺服器是否運行中\n2. ngrok 隧道是否正常`);
+                alert(`⚠️ 同步失敗（共 ${failedQueue.length} 筆）\n\n失敗原因：${errMsg}\n\n請確認：\n1. Windows Server 上 Node.js 是否運行中（node index.js）\n2. Cloudflare Tunnel 是否正常（cloudflared tunnel run tonsin-api）\n3. index.js 第 99 行的 API_BASE_URL 是否與 Cloudflare Tunnel 網址一致`);
             }
             banner.onclick = syncOfflineData;
             checkOfflineData();
@@ -2048,52 +2049,65 @@ async function downloadFile(url, filename) {
             if (!conf) { showToast('⚠️ 此案場未設定業主信箱'); return; }
             const round = document.getElementById('inspRound')?.value || currentRound;
             if (!confirm(
-                `確定要將【${round}】PDF 報告
+                `確定要將【${round}】PDF 報告（含驗收勾選表）
 寄送給業主窗口嗎？
 
-` +
-                `📧 收件人：${conf.label}
+📧 收件人：${conf.label}
    ${conf.email}
 
-⏳ 約 15~30 秒，請耐心等候。`
+⏳ 截圖+PDF 轉換約 30~60 秒，請耐心等候。`
             )) return;
 
             const btn  = document.getElementById('btnOwnerReport');
             const orig = btn.innerHTML;
-            btn.disabled = true; btn.innerHTML = '⏳ PDF 轉換中...';
+            btn.disabled = true; btn.innerHTML = '⏳ 截取圖面中...';
 
-            safeJsonFetch(`${apiBaseUrl}/email-inspection-pdf`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-                body: JSON.stringify({
-                    site: currentSite, floor: currentFloor, room: currentRoom,
-                    round, toEmail: conf.email, emailLabel: conf.label
-                })
-            }).then(res => {
+            try {
+                // ★ 先截圖，再呼叫 V2 PDF Email
+                let floorplanImages = [];
+                try {
+                    floorplanImages = await captureAllFloorplans(round);
+                } catch(e) { console.warn('圖面截圖略過：', e); }
+
+                btn.innerHTML = '⏳ PDF 轉換寄送中...';
+                const res = await safeJsonFetch(`${apiBaseUrl}/email-inspection-pdf-v2`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                    body: JSON.stringify({
+                        site: currentSite, floor: currentFloor, room: currentRoom,
+                        round, toEmail: conf.email, emailLabel: conf.label, floorplanImages
+                    })
+                });
                 if (res.success) showToast(`✅ 已寄至 ${conf.email}`);
                 else alert('❌ 寄送失敗：' + res.error);
-            }).catch(e => {
+            } catch(e) {
                 alert('❌ 連線異常：' + e.message);
-            }).finally(() => {
+            } finally {
                 btn.disabled = false; btn.innerHTML = orig;
-            });
+            }
         }
 
         // ════════════════════════════════════════════════
         // ★ 寄送 PDF 至客戶信箱
         // ════════════════════════════════════════════════
-        function emailPdfToCustomer() {
+        async function emailPdfToCustomer() {
             let selectedRound = document.getElementById('inspRound')?.value || currentRound;
             if (!selectedRound) { showToast('⚠️ 請先選擇驗收期數'); return; }
-            if (!confirm(`確定要將【${selectedRound}】PDF 寄送至該戶客戶信箱嗎？\n⏳ PDF 轉換需約 15~30 秒，請耐心等候。`)) return;
+            if (!confirm(`確定要將【${selectedRound}】PDF（含驗收勾選表）寄送至客戶信箱嗎？\n⏳ 截圖+PDF 轉換約 30~60 秒，請耐心等候。`)) return;
             const btn = event.target; const orig = btn.innerText;
-            btn.disabled = true; btn.innerText = '⏳ PDF 轉換中...';
-            fetch(`${apiBaseUrl}/email-inspection-pdf`, {
-                method:'POST', headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true'},
-                body: JSON.stringify({site:currentSite,floor:currentFloor,room:currentRoom,round:selectedRound})
-            }).then(r=>r.json()).then(res=>{
+            btn.disabled = true; btn.innerText = '⏳ 截取圖面中...';
+            try {
+                let floorplanImages = [];
+                try { floorplanImages = await captureAllFloorplans(selectedRound); } catch(e) {}
+                btn.innerText = '⏳ PDF 轉換中...';
+                const r = await fetch(`${apiBaseUrl}/email-inspection-pdf-v2`, {
+                    method:'POST', headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true'},
+                    body: JSON.stringify({site:currentSite,floor:currentFloor,room:currentRoom,round:selectedRound,floorplanImages})
+                });
+                const res = await r.json();
                 res.success ? showToast('✅ PDF 已成功寄送至客戶信箱！') : alert('❌ 寄送失敗：'+res.error);
-            }).catch(()=>alert('❌ 連線異常')).finally(()=>{btn.disabled=false;btn.innerText=orig;});
+            } catch(e) { alert('❌ 連線異常：'+e.message); }
+            finally { btn.disabled=false; btn.innerText=orig; }
         }
 
         // ════════════════════════════════════════════════
@@ -2743,7 +2757,8 @@ function clearRoomSearch() {
                                 <span class="cl-no">${i}</span>
                                 <input type="text" placeholder="自填項目..." value=""
                                     style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;"
-                                    oninput="clStateSetText('${key}',this.value)">
+                                    oninput="clStateSetText('${key}',this.value)"
+                                    value="${(clState[key]&&clState[key].text)||''}">
                                 <div class="cl-toggle" id="clt_${safeId}">
                                     <button class="cl-btn cl-p${st.result==='合格'?' sel':''}" data-r="合格" onclick="setCheckItem('${key}','合格')">合格</button>
                                     <button class="cl-btn cl-f${st.result==='不合格'?' sel':''}" data-r="不合格" onclick="setCheckItem('${key}','不合格')">不合格</button>
@@ -2810,8 +2825,32 @@ function clearRoomSearch() {
             }
         }
 
-        // ── 設定單一勾選項目 ─────────────────────────────────────────
+        // ── 設定單一勾選項目（點"無"→整區連動）────────────────────────
         function setCheckItem(key, result) {
+            // 解析 key 格式: "建築|客餐廳|1"
+            const parts    = key.split('|');
+            const checkType = parts[0];
+            const areaName  = parts[1];
+
+            // ★ 點"無"：自動將該空間所有項目一起設為"無"
+            if (result === '無') {
+                const srcData = checkType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
+                const areaObj = srcData.find(a => a.area === areaName);
+                if (areaObj) {
+                    areaObj.items.forEach(item => {
+                        const k = `${checkType}|${areaName}|${item.no}`;
+                        if (!clState[k]) clState[k] = {};
+                        clState[k].result = '無';
+                        const sid = k.replace(/\|/g,'_').replace(/[()]/g,'_');
+                        const ct  = document.getElementById('clt_' + sid);
+                        if (ct) ct.querySelectorAll('.cl-btn').forEach(btn =>
+                            btn.classList.toggle('sel', btn.getAttribute('data-r') === '無'));
+                    });
+                }
+                return;
+            }
+
+            // 非"無"：僅更新單一項目
             if (!clState[key]) clState[key] = {result:'合格'};
             clState[key].result = result;
             const safeId = key.replace(/\|/g,'_').replace(/[()]/g,'_');
