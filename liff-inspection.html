@@ -206,6 +206,45 @@
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
         
         #offlineBanner { display: none; background: #e17055; color: white; padding: 12px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 1001; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+
+        /* ══ 驗收勾選 Tab ══════════════════════════════════════════════ */
+        #checklistSection{display:none;background:#f8f9fa;min-height:100%;padding-bottom:80px;}
+        .cl-topbar{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border-bottom:1px solid #dee2e6;flex-wrap:wrap;}
+        .cl-type-toggle{display:flex;border-radius:8px;overflow:hidden;border:1.5px solid #8e44ad;}
+        .cl-type-btn{flex:1;padding:8px 20px;border:none;background:#fff;color:#8e44ad;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;}
+        .cl-type-btn.active{background:#8e44ad;color:#fff;}
+        .cl-overall{padding:10px 14px;background:#fff;border-bottom:1px solid #dee2e6;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+        .cl-overall label{font-size:13px;font-weight:700;color:#2d3436;flex-shrink:0;}
+        .cl-result-row{display:flex;gap:8px;}
+        .cl-result-btn{padding:7px 16px;border-radius:20px;border:2px solid;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;}
+        .cl-result-pass{border-color:#1DB446;color:#1DB446;background:#fff;}
+        .cl-result-pass.sel{background:#1DB446;color:#fff;}
+        .cl-result-fail{border-color:#e17055;color:#e17055;background:#fff;}
+        .cl-result-fail.sel{background:#e17055;color:#fff;}
+        .cl-body{padding:10px 12px;display:flex;flex-direction:column;gap:10px;}
+        .cl-area{border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+        .cl-area-hd{background:#8e44ad;color:#fff;padding:9px 14px;font-size:13px;font-weight:700;}
+        .cl-item{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid #f0f0f0;}
+        .cl-item:last-child{border-bottom:none;}
+        .cl-no{width:18px;font-size:11px;color:#aaa;font-weight:700;flex-shrink:0;padding-top:2px;text-align:center;}
+        .cl-cat{min-width:44px;max-width:54px;font-size:10px;color:#8e44ad;background:#f3e5f5;padding:2px 4px;border-radius:4px;text-align:center;font-weight:700;flex-shrink:0;word-break:break-all;line-height:1.4;}
+        .cl-content{flex:1;font-size:13px;color:#2d3436;line-height:1.5;margin:0 6px;}
+        .cl-toggle{display:flex;gap:5px;flex-shrink:0;}
+        .cl-btn{padding:5px 9px;border-radius:14px;font-size:12px;font-weight:700;border:1.5px solid;cursor:pointer;font-family:inherit;white-space:nowrap;}
+        .cl-p{border-color:#1DB446;color:#1DB446;background:#fff;}
+        .cl-p.sel{background:#1DB446;color:#fff;}
+        .cl-f{border-color:#e74c3c;color:#e74c3c;background:#fff;}
+        .cl-f.sel{background:#e74c3c;color:#fff;}
+        .cl-fail-row{display:none;flex-direction:column;gap:8px;background:#fff5f5;border-left:3px solid #e74c3c;padding:10px 12px;}
+        .cl-fail-row.show{display:flex;}
+        .cl-fail-note{width:100%;padding:8px;border:1px solid #ffaaaa;border-radius:6px;font-size:13px;font-family:inherit;background:#fff;resize:none;min-height:44px;box-sizing:border-box;}
+        .cl-photo-btn{display:block;padding:10px;border:2px dashed #e74c3c;border-radius:8px;color:#e74c3c;font-size:13px;font-weight:700;text-align:center;cursor:pointer;position:relative;background:#fff;}
+        .cl-photo-btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+        .cl-photo-preview{width:100%;max-height:160px;object-fit:contain;border-radius:6px;border:1px solid #ddd;display:none;margin-top:6px;}
+        .cl-save-bar{position:sticky;bottom:0;background:#fff;border-top:2px solid #8e44ad;padding:11px 14px;display:flex;gap:8px;z-index:50;}
+        .cl-save-btn{flex:1;padding:13px;background:#8e44ad;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+        .cl-save-btn:disabled{background:#b2bec3;cursor:not-allowed;}
+        .cl-saved-label{font-size:12px;color:#636e72;align-self:center;white-space:nowrap;}
     </style>
 </head>
 <body>
@@ -228,6 +267,7 @@
             <div class="tab" id="tabMap" onclick="switchTab('map')">🗺️ 總覽(圖面)</div>
             <div class="tab" id="tabList" onclick="switchTab('list')">📋 清單總覽</div>
             <div class="tab" id="tabOv" onclick="switchTab('overview')">🏢 全棟</div>
+            <div class="tab" id="tabCL" onclick="switchTab('checklist')">📝 驗收勾選</div>
         </div>
 
         <div class="swipe-area" id="swipeArea">
@@ -382,6 +422,35 @@
             </div>
         </div>
     </div>
+
+            <!-- ══ 驗收勾選 Section ══════════════════════════════════════ -->
+            <div id="checklistSection">
+                <!-- 頂部：建築/機電切換 -->
+                <div class="cl-topbar">
+                    <span style="font-size:13px;font-weight:700;color:#2d3436;">📋 驗收勾選表</span>
+                    <div class="cl-type-toggle">
+                        <button class="cl-type-btn active" id="clBtnArch" onclick="switchCLType('建築')">🏠 建築</button>
+                        <button class="cl-type-btn" id="clBtnMep"  onclick="switchCLType('機電')">⚡ 機電</button>
+                    </div>
+                    <span class="cl-saved-label" id="clSavedAt"></span>
+                </div>
+                <!-- 整體查驗結果 (人工手動勾) -->
+                <div class="cl-overall">
+                    <label>查驗結果：</label>
+                    <div class="cl-result-row">
+                        <button class="cl-result-btn cl-result-pass" id="clBtnPass" onclick="setCLOverall('驗收合格')">□ 驗收合格</button>
+                        <button class="cl-result-btn cl-result-fail" id="clBtnFail" onclick="setCLOverall('部分缺失修繕')">□ 部分缺失修繕</button>
+                    </div>
+                </div>
+                <!-- 勾選清單區 -->
+                <div class="cl-body" id="clBody">
+                    <div style="text-align:center;padding:40px;color:#888;">⏳ 載入中...</div>
+                </div>
+                <!-- 底部儲存列 -->
+                <div class="cl-save-bar">
+                    <button class="cl-save-btn" id="clSaveBtn" onclick="saveChecklist()">💾 儲存勾選結果</button>
+                </div>
+            </div>
 
     <div id="customerSignSection" style="display:none; padding: 20px; background: white; min-height: 100vh;">
         <h2 style="text-align:center; color: #2d3436; border-bottom: 2px solid #8e44ad; padding-bottom: 10px; margin-top: 0;">驗屋修繕確認單</h2>
@@ -973,8 +1042,20 @@
                 const rs = document.getElementById('inspRound'), or_ = document.getElementById('ovRound');
                 if (rs && or_ && rs.value) or_.value = rs.value;
             }
+            else if (tab === 'checklist') {
+                document.getElementById('tabCL').classList.add('active');
+                document.getElementById('sharedMapSection').style.display = 'none';
+                document.getElementById('listSection').style.display = 'none';
+                cancelInspection();
+                const _clEl = document.getElementById('checklistSection');
+                if (_clEl) _clEl.style.display = 'block';
+                renderChecklist();
+            }
             const _ov = document.getElementById('page-overview');
             if (_ov && tab !== 'overview') _ov.style.display = 'none';
+            // ★ 隱藏 checklist section（非 checklist tab 時）
+            const _clEl2 = document.getElementById('checklistSection');
+            if (_clEl2 && tab !== 'checklist') _clEl2.style.display = 'none';
             renderCanvas();
         }
 
@@ -1733,13 +1814,148 @@ async function downloadFile(url, filename) {
     }
 }
 
-        function exportExcel() {
-    let selectedRound = document.getElementById('inspRound').value;
-    if(!selectedRound){ showToast('⚠️ 請先選擇驗收期數'); return; }
-    const url = `${apiBaseUrl}/export-inspection-excel?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&round=${encodeURIComponent(selectedRound)}`;
-    const filename = `驗屋單_${currentSite}_${selectedRound}.xlsx`;
-    downloadFile(url, filename);
-}
+        // ══════════════════════════════════════════════════════════
+        // ★ 匯出驗屋報告 V2（含驗收勾選表 + 圖面截圖）
+        // ══════════════════════════════════════════════════════════
+        async function exportExcel() {
+            let selectedRound = document.getElementById('inspRound').value;
+            if (!selectedRound) { showToast('⚠️ 請先選擇驗收期數'); return; }
+
+            const btn = event ? event.target : null;
+            const origText = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ 準備圖面截圖...'; }
+
+            try {
+                showToast('📷 正在擷取圖面截圖，請稍候...');
+
+                // ★ 截取所有圖面（有缺失標記的 canvas）
+                let floorplanImages = [];
+                try {
+                    floorplanImages = await captureAllFloorplans(selectedRound);
+                } catch(e) {
+                    console.warn('圖面截圖失敗，繼續不含圖面：', e);
+                }
+
+                if (btn) btn.textContent = '⏳ 產生 Excel 中...';
+
+                const payload = {
+                    site: currentSite, floor: currentFloor,
+                    room: currentRoom, round: selectedRound,
+                    floorplanImages
+                };
+
+                const resp = await fetch(`${apiBaseUrl}/export-inspection-excel-v2`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) throw new Error('伺服器錯誤 ' + resp.status);
+                const blob = await resp.blob();
+                const filename = `驗屋報告_${currentSite}_${currentFloor}${currentRoom}_${selectedRound}.xlsx`;
+
+                if (typeof liff !== 'undefined' && liff.isInClient()) {
+                    const blobUrl = URL.createObjectURL(blob);
+                    liff.openWindow({ url: blobUrl, external: true });
+                    showToast('📂 已開啟外部瀏覽器，請點下載');
+                } else {
+                    const blobUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl; a.download = filename;
+                    document.body.appendChild(a); a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 8000);
+                    showToast('✅ 驗屋報告下載成功！');
+                }
+            } catch(e) {
+                alert('❌ 匯出失敗：' + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = origText; }
+            }
+        }
+
+        // ── 截取所有圖面（含缺失紅點）─────────────────────────────
+        async function captureAllFloorplans(round) {
+            const drawingTypes = getDrawingTypes(currentSite);
+            const baseImgUrl   = 'https://yehlc.github.io/Tonsin/驗屋圖資';
+            const imgSite      = imgSiteName(currentSite);
+            const results      = [];
+
+            // 篩出本期應顯示的缺失
+            const phOrd = { '業主初驗':1,'業主複驗':2,'客戶初驗':3,'客戶複驗':4,'客戶三驗':5 };
+            const rOrd  = phOrd[round] || 0;
+            const visibleDefects = (globalRoomDefects || []).filter(d => {
+                const dOrd = phOrd[d.Phase] || 0;
+                if (round === '業主初驗') return d.Phase === '業主初驗';
+                if (round === '業主複驗') return d.Phase === '業主初驗' || d.Phase === '業主複驗';
+                if (round === '客戶初驗') return d.Phase === '客戶初驗';
+                if (round === '客戶複驗') return d.Phase === '客戶初驗' || d.Phase === '客戶複驗';
+                if (round === '客戶三驗') return dOrd >= 3;
+                return true;
+            });
+
+            for (const dt of drawingTypes) {
+                try {
+                    const imgUrl = `${baseImgUrl}/${encodeURIComponent(imgSite)}/${encodeURIComponent(currentFloor)}/${encodeURIComponent(currentRoom)}_${encodeURIComponent(dt)}.png`;
+
+                    // 建立離屏 canvas
+                    const offCanvas = document.createElement('canvas');
+                    const offCtx    = offCanvas.getContext('2d');
+                    const img       = new Image();
+                    img.crossOrigin = 'Anonymous';
+
+                    await new Promise((resolve, reject) => {
+                        img.onload  = () => {
+                            offCanvas.width  = img.naturalWidth  || img.width  || 1200;
+                            offCanvas.height = img.naturalHeight || img.height || 900;
+                            offCtx.drawImage(img, 0, 0, offCanvas.width, offCanvas.height);
+                            // 繪製缺失圖釘
+                            visibleDefects.filter(d => d.DrawingType === dt && d.XY_Coord).forEach(d => {
+                                const m = d.XY_Coord.match(/X:(\d+)%,\s*Y:(\d+)%/);
+                                if (!m) return;
+                                const px = parseInt(m[1]) / 100 * offCanvas.width;
+                                const py = parseInt(m[2]) / 100 * offCanvas.height;
+                                const sz = Math.max(offCanvas.width * 0.008, 8);
+                                const isDone = d.Status && d.Status.includes('已改善')
+                                    && (phOrd[d.FixedPhase]||999) <= rOrd;
+                                const color = isDone ? '#1DB446' : '#e74c3c';
+                                // 圖釘形狀
+                                offCtx.lineWidth = 3; offCtx.strokeStyle = '#fff';
+                                offCtx.beginPath();
+                                offCtx.moveTo(px, py);
+                                offCtx.lineTo(px - sz, py - sz*2);
+                                offCtx.lineTo(px + sz, py - sz*2);
+                                offCtx.closePath();
+                                offCtx.fillStyle = color; offCtx.fill(); offCtx.stroke();
+                                offCtx.beginPath();
+                                offCtx.arc(px, py - sz*2, sz, 0, Math.PI*2);
+                                offCtx.fillStyle = color; offCtx.fill(); offCtx.stroke();
+                                // 編號文字
+                                const prefix = {'業主初驗':'O1','業主複驗':'O2','客戶初驗':'C1','客戶複驗':'C2','客戶三驗':'C3'}[d.Phase] || '';
+                                offCtx.fillStyle = '#111';
+                                offCtx.font = `bold ${Math.round(sz*1.6)}px sans-serif`;
+                                offCtx.fillText(`${prefix}-${d.ID}`, px + sz, py - sz*2.5);
+                            });
+                            resolve();
+                        };
+                        img.onerror = () => resolve(); // 找不到圖面就跳過
+                        // 嘗試從記憶體快取取
+                        if (inspMemCache && inspMemCache.has(imgUrl)) {
+                            img.src = inspMemCache.get(imgUrl);
+                        } else {
+                            img.src = imgUrl;
+                        }
+                    });
+
+                    if (offCanvas.width > 0) {
+                        results.push({ drawingType: dt, imageBase64: offCanvas.toDataURL('image/jpeg', 0.85) });
+                    }
+                } catch(e) {
+                    console.warn('圖面截圖失敗：', dt, e);
+                }
+            }
+            return results;
+        }
 
         // ==========================================
         // ★ 新增：觸發後端寄送 Email 給客戶
@@ -2324,6 +2540,354 @@ function clearRoomSearch() {
             if(inspPrecached.has(url)) return;
             inspPrecached.add(url);
             try { await loadInspectionImage(url); } catch(e) {}
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════
+        // ★ 驗收勾選 Tab — 資料定義 & 函式
+        // ═══════════════════════════════════════════════════════════════
+
+        // ── 建築驗收項目（對應紙本驗收單-建築）─────────────────────────
+        const CHECKLIST_ARCH = [
+            { area:'客餐廳', items:[
+                {no:1,cat:'玄關門',content:'開關門及上鎖功能是否正常'},
+                {no:2,cat:'門',    content:'門框及門板是否有損傷'},
+                {no:3,cat:'窗',    content:'開關窗及上鎖功能是否正常'},
+                {no:4,cat:'牆壁',  content:'是否有結構性裂紋產生'},
+                {no:5,cat:'牆壁',  content:'油漆有無脫落'},
+                {no:6,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
+                {no:7,cat:'頂板',  content:'平頂是否有汙損'},
+            ]},
+            { area:'廚房', items:[
+                {no:1,cat:'牆壁',  content:'是否有結構性裂紋產生'},
+                {no:2,cat:'牆壁',  content:'油漆或壁磚有無汙損'},
+                {no:3,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
+                {no:4,cat:'頂板',  content:'平頂是否有汙損'},
+                {no:5,cat:'設備',  content:'廚具設備功能運轉是否正常（抽油煙機/烘碗機/瓦斯爐）'},
+                {no:6,cat:'設備',  content:'櫃體功能（門板、抽屜）是否正常'},
+            ]},
+            { area:'臥室(一)', items:[
+                {no:1,cat:'門窗',  content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',  content:'是否有損傷'},
+                {no:3,cat:'牆壁',  content:'是否有結構性裂紋產生'},
+                {no:4,cat:'牆壁',  content:'油漆有無脫落'},
+                {no:5,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
+                {no:6,cat:'頂板',  content:'平頂是否有汙損'},
+            ]},
+            { area:'臥室(二)', items:[
+                {no:1,cat:'門窗',  content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',  content:'是否有損傷'},
+                {no:3,cat:'牆壁',  content:'是否有結構性裂紋產生'},
+                {no:4,cat:'牆壁',  content:'油漆有無脫落'},
+                {no:5,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
+                {no:6,cat:'頂板',  content:'平頂是否有汙損'},
+            ]},
+            { area:'浴廁', items:[
+                {no:1,cat:'門窗',  content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',  content:'是否有損傷'},
+                {no:3,cat:'牆壁',  content:'壁磚有無汙損'},
+                {no:4,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
+                {no:5,cat:'頂板',  content:'天花是否有汙損'},
+                {no:6,cat:'設備',  content:'暖風機設備運轉是否正常（遙控器/主機）'},
+                {no:7,cat:'設備',  content:'衛浴設備功能是否正常（馬桶/面盆/龍頭/淋浴/毛巾架/面紙架/明鏡）'},
+            ]},
+            { area:'工作陽台', items:[
+                {no:1,cat:'門窗',  content:'開關及上鎖功能是否正常'},
+                {no:2,cat:'門窗',  content:'是否有損傷'},
+                {no:3,cat:'牆壁',  content:'壁面有無汙損'},
+                {no:4,cat:'地坪',  content:'地磚鋪貼是否平整、無破損'},
+                {no:5,cat:'頂板',  content:'天花是否有汙損'},
+                {no:6,cat:'設備',  content:'曬衣架功能是否正常'},
+            ]},
+            { area:'其他', items:[
+                {no:1,cat:'',content:''},{no:2,cat:'',content:''},{no:3,cat:'',content:''},
+                {no:4,cat:'',content:''},{no:5,cat:'',content:''},
+            ]},
+        ];
+
+        // ── 機電驗收項目（對應紙本驗收單-機電）─────────────────────────
+        const CHECKLIST_MEP = [
+            { area:'客餐廳', items:[
+                {no:1,cat:'給排水',content:'冷氣排水是否正常'},
+                {no:2,cat:'機電',  content:'總開關箱面板線路標示是否正確'},
+                {no:3,cat:'機電',  content:'影視對講機功能是否正常'},
+                {no:4,cat:'機電',  content:'電話、電視、網路功能是否正常'},
+                {no:5,cat:'機電',  content:'開關、插座功能是否正常'},
+            ]},
+            { area:'廚房', items:[
+                {no:1,cat:'給排水',content:'排水是否順暢（地板、水槽）'},
+                {no:2,cat:'機電',  content:'開關、插座功能是否正常'},
+            ]},
+            { area:'臥室(一)', items:[
+                {no:1,cat:'給排水',content:'冷氣排水是否正常'},
+                {no:2,cat:'機電',  content:'電話、電視、網路功能是否正常'},
+                {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
+            ]},
+            { area:'臥室(二)', items:[
+                {no:1,cat:'給排水',content:'冷氣排水是否正常'},
+                {no:2,cat:'機電',  content:'電話、電視、網路功能是否正常'},
+                {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
+            ]},
+            { area:'浴廁', items:[
+                {no:1,cat:'給排水',content:'排水（面盆、馬桶、淋浴間/浴缸、地板）是否順暢'},
+                {no:2,cat:'給排水',content:'給水（面盆、淋浴間/浴缸）是否正常'},
+                {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
+                {no:4,cat:'機電',  content:'暖風機運作是否正常'},
+            ]},
+            { area:'工作陽台', items:[
+                {no:1,cat:'給排水',content:'排水（地板、洗衣機、洗槽、冷氣）是否順暢'},
+                {no:2,cat:'給排水',content:'給水（洗衣機、洗槽）是否正常'},
+                {no:3,cat:'機電',  content:'開關、插座功能是否正常'},
+            ]},
+            { area:'其他', items:[
+                {no:1,cat:'',content:''},{no:2,cat:'',content:''},{no:3,cat:'',content:''},
+                {no:4,cat:'',content:''},{no:5,cat:'',content:''},
+            ]},
+        ];
+
+        // ── 狀態變數 ──────────────────────────────────────────────────
+        let clCurrentType    = '建築'; // 建築/機電
+        let clOverallResult  = '';     // 驗收合格/部分缺失修繕
+        // clState: { '建築|客餐廳|1': {result:'合格', photoB64:null, remarks:''}, ... }
+        let clState          = {};
+        let clSavedPhase     = '';     // 上次儲存的 phase
+
+        // ── 切換建築/機電 ──────────────────────────────────────────────
+        function switchCLType(type) {
+            clCurrentType = type;
+            document.getElementById('clBtnArch').classList.toggle('active', type === '建築');
+            document.getElementById('clBtnMep').classList.toggle('active',  type === '機電');
+            renderChecklist();
+        }
+
+        // ── 設定整體查驗結果 ───────────────────────────────────────────
+        function setCLOverall(val) {
+            clOverallResult = val;
+            document.getElementById('clBtnPass').classList.toggle('sel', val === '驗收合格');
+            document.getElementById('clBtnFail').classList.toggle('sel', val === '部分缺失修繕');
+            // 同步按鈕文字加框
+            document.getElementById('clBtnPass').textContent = val === '驗收合格' ? '☑ 驗收合格' : '□ 驗收合格';
+            document.getElementById('clBtnFail').textContent = val === '部分缺失修繕' ? '☑ 部分缺失修繕' : '□ 部分缺失修繕';
+        }
+
+        // ── 渲染勾選清單 ───────────────────────────────────────────────
+        async function renderChecklist() {
+            const phase  = document.getElementById('inspRound').value || '業主初驗';
+            const data   = clCurrentType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
+            const body   = document.getElementById('clBody');
+            body.innerHTML = '<div style="text-align:center;padding:24px;color:#888;">⏳ 載入中...</div>';
+
+            // 若尚未從伺服器載入此期資料 → 先查詢
+            const loaded = await loadChecklistFromServer(phase);
+
+            let html = '';
+            data.forEach(areaObj => {
+                if (areaObj.area === '其他') {
+                    // 其他區：空白可輸入文字框
+                    html += `<div class="cl-area">
+                        <div class="cl-area-hd">其他</div>`;
+                    for (let i = 1; i <= 5; i++) {
+                        const key = clCurrentType + '|其他|' + i;
+                        const st  = clState[key] || {result:'合格',photoB64:null,remarks:''};
+                        html += `<div class="cl-item" style="flex-direction:column;align-items:stretch;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span class="cl-no">${i}</span>
+                                <input type="text" placeholder="自填項目..." value="${st.remarks || ''}"
+                                    style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;"
+                                    oninput="clStateSet('${key}','remarks',this.value)">
+                                <div class="cl-toggle">
+                                    <button class="cl-btn cl-p${st.result==='合格'?' sel':''}" onclick="setCheckItem('${key}','合格')">合格</button>
+                                    <button class="cl-btn cl-f${st.result==='不合格'?' sel':''}" onclick="setCheckItem('${key}','不合格')">不合格</button>
+                                </div>
+                            </div>
+                            <div class="cl-fail-row${st.result==='不合格'?' show':''}" id="fr_${key.replace(/[|()/]/g,'_')}">
+                                <label class="cl-photo-btn" title="拍攝不合格照片（必填）">
+                                    📸 ${st.photoB64 ? '已拍照 ✅ 點擊重拍' : '拍攝不合格照片（建議）'}
+                                    <input type="file" accept="image/*" capture="environment"
+                                        onchange="clPhotoChange(this,'${key}')">
+                                </label>
+                                <img class="cl-photo-preview${st.photoB64?' show':''}" id="cp_${key.replace(/[|()/]/g,'_')}"
+                                    src="${st.photoB64 || ''}" style="${st.photoB64?'display:block':''}" alt="預覽">
+                            </div>
+                        </div>`;
+                    }
+                    html += '</div>';
+                    return;
+                }
+
+                html += `<div class="cl-area">
+                    <div class="cl-area-hd">${areaObj.area}</div>`;
+
+                areaObj.items.forEach(item => {
+                    const key = clCurrentType + '|' + areaObj.area + '|' + item.no;
+                    const st  = clState[key] || {result:'合格',photoB64:null,remarks:''};
+                    const fid = 'fr_' + key.replace(/[|()/]/g,'_').replace(/\s/g,'_');
+                    const pid = 'cp_' + key.replace(/[|()/]/g,'_').replace(/\s/g,'_');
+                    html += `<div class="cl-item" style="flex-wrap:wrap;">
+                        <div style="display:flex;align-items:flex-start;gap:8px;width:100%;">
+                            <span class="cl-no">${item.no}</span>
+                            ${item.cat ? `<span class="cl-cat">${item.cat}</span>` : ''}
+                            <span class="cl-content">${item.content}</span>
+                            <div class="cl-toggle">
+                                <button class="cl-btn cl-p${st.result==='合格'?' sel':''}"
+                                    onclick="setCheckItem('${key}','合格')">合格</button>
+                                <button class="cl-btn cl-f${st.result==='不合格'?' sel':''}"
+                                    onclick="setCheckItem('${key}','不合格')">不合格</button>
+                            </div>
+                        </div>
+                        <div class="cl-fail-row${st.result==='不合格'?' show':''}" id="${fid}">
+                            <label class="cl-photo-btn">
+                                📸 ${st.photoB64 ? '已拍照 ✅ 點擊重拍' : '拍攝不合格照片（建議）'}
+                                <input type="file" accept="image/*" capture="environment"
+                                    onchange="clPhotoChange(this,'${key}')">
+                            </label>
+                            <img class="cl-photo-preview" id="${pid}"
+                                src="${st.photoB64 || ''}" style="${st.photoB64?'display:block':''}" alt="">
+                            <textarea class="cl-fail-note" placeholder="備註說明..."
+                                oninput="clStateSet('${key}','remarks',this.value)"
+                                >${st.remarks || ''}</textarea>
+                        </div>
+                    </div>`;
+                });
+                html += '</div>';
+            });
+
+            body.innerHTML = html;
+
+            // 還原整體結果按鈕狀態
+            if (clOverallResult) setCLOverall(clOverallResult);
+
+            // 更新儲存時間標籤
+            const phase2 = document.getElementById('inspRound').value;
+            if (clSavedPhase === phase2) {
+                document.getElementById('clSavedAt').textContent = '（本期已儲存）';
+            } else {
+                document.getElementById('clSavedAt').textContent = '';
+            }
+        }
+
+        // ── 從伺服器載入勾選結果 ─────────────────────────────────────
+        async function loadChecklistFromServer(phase) {
+            try {
+                const r = await fetch(
+                    `${apiBaseUrl}/inspection-checklist?site=${encodeURIComponent(currentSite)}&floor=${encodeURIComponent(currentFloor)}&room=${encodeURIComponent(currentRoom)}&phase=${encodeURIComponent(phase)}`,
+                    { headers: { 'ngrok-skip-browser-warning': 'true' } }
+                );
+                if (!r.ok) return false;
+                const res = await r.json();
+                if (!res.success || !res.items || !res.items.length) return false;
+                // 重設 clState 為此期資料
+                clState = {};
+                res.items.forEach(it => {
+                    const key = it.CheckType + '|' + it.AreaName + '|' + it.ItemNo;
+                    clState[key] = {
+                        result:  it.Result   || '合格',
+                        photoB64: it.PhotoB64 || null,
+                        remarks:  it.Remarks  || ''
+                    };
+                });
+                if (res.overallResult) {
+                    clOverallResult = res.overallResult;
+                }
+                clSavedPhase = phase;
+                return true;
+            } catch(e) {
+                return false;
+            }
+        }
+
+        // ── 設定單一勾選項目 ──────────────────────────────────────────
+        function setCheckItem(key, result) {
+            if (!clState[key]) clState[key] = {result:'合格',photoB64:null,remarks:''};
+            clState[key].result = result;
+            const fid = 'fr_' + key.replace(/[|()/]/g,'_').replace(/\s/g,'_');
+            const frEl = document.getElementById(fid);
+            if (frEl) frEl.classList.toggle('show', result === '不合格');
+            // 更新按鈕樣式
+            const item = document.getElementById(fid)?.previousElementSibling;
+            if (item) {
+                item.querySelectorAll('.cl-btn').forEach(b => {
+                    if (b.textContent === '合格')    b.classList.toggle('sel', result === '合格');
+                    if (b.textContent === '不合格')  b.classList.toggle('sel', result === '不合格');
+                });
+            }
+        }
+
+        // ── 設定 clState 某欄位 ───────────────────────────────────────
+        function clStateSet(key, field, val) {
+            if (!clState[key]) clState[key] = {result:'合格',photoB64:null,remarks:''};
+            clState[key][field] = val;
+        }
+
+        // ── 照片選取 ──────────────────────────────────────────────────
+        async function clPhotoChange(input, key) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                if (!clState[key]) clState[key] = {result:'不合格',photoB64:null,remarks:''};
+                clState[key].photoB64 = e.target.result;
+                const pid = 'cp_' + key.replace(/[|()/]/g,'_').replace(/\s/g,'_');
+                const imgEl = document.getElementById(pid);
+                if (imgEl) { imgEl.src = e.target.result; imgEl.style.display = 'block'; }
+                const btn = input.closest('.cl-photo-btn');
+                if (btn) btn.childNodes[0].textContent = '📸 已拍照 ✅ 點擊重拍\n';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ── 儲存勾選結果到伺服器 ─────────────────────────────────────
+        async function saveChecklist() {
+            const phase   = document.getElementById('inspRound').value;
+            const checkType = clCurrentType;
+            if (!clOverallResult) {
+                showToast('⚠️ 請先選擇「查驗結果」（驗收合格 或 部分缺失修繕）');
+                return;
+            }
+            const btn   = document.getElementById('clSaveBtn');
+            btn.disabled = true; btn.textContent = '⏳ 儲存中...';
+
+            // 整理 items
+            const data = checkType === '建築' ? CHECKLIST_ARCH : CHECKLIST_MEP;
+            const items = [];
+            data.forEach(areaObj => {
+                areaObj.items.forEach(item => {
+                    const key = checkType + '|' + areaObj.area + '|' + item.no;
+                    const st  = clState[key] || {result:'合格',photoB64:null,remarks:''};
+                    if (areaObj.area === '其他' && !item.content && !st.remarks) return; // 跳過空白其他
+                    items.push({
+                        checkType,
+                        areaName:    areaObj.area,
+                        itemNo:      item.no,
+                        itemCategory:item.cat || '',
+                        itemContent: item.content || st.remarks || '',
+                        result:      st.result,
+                        photoB64:    st.photoB64 || null,
+                        remarks:     st.remarks  || ''
+                    });
+                });
+            });
+
+            try {
+                const r = await fetch(`${apiBaseUrl}/inspection-checklist`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                    body: JSON.stringify({
+                        site: currentSite, floor: currentFloor, room: currentRoom,
+                        phase, overallResult: clOverallResult, savedBy: currentUser, items
+                    })
+                });
+                const res = await r.json();
+                if (res.success) {
+                    clSavedPhase = phase;
+                    document.getElementById('clSavedAt').textContent = '（已儲存 ✅）';
+                    showToast('✅ 驗收勾選結果已儲存！');
+                } else throw new Error(res.error);
+            } catch(e) {
+                alert('❌ 儲存失敗：' + e.message);
+            } finally {
+                btn.disabled = false; btn.textContent = '💾 儲存勾選結果';
+            }
         }
 
         // ── ★ 主要優化：預載「當前戶所有圖面」+ 「相鄰戶當前圖面」
