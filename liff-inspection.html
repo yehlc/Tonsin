@@ -2463,10 +2463,32 @@ async function downloadFile(url, filename) {
             }
         }
 
+        // ★ 壓縮圖片（解決 iOS/iPad 大圖 Load failed 問題）
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
-                const reader = new FileReader(); reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error);
+                const MAX_W = 1920, MAX_H = 1920, QUALITY = 0.75;
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = e => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let w = img.width, h = img.height;
+                        // 等比縮放，超過 1920px 才縮
+                        if (w > MAX_W || h > MAX_H) {
+                            const ratio = Math.min(MAX_W / w, MAX_H / h);
+                            w = Math.round(w * ratio);
+                            h = Math.round(h * ratio);
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', QUALITY));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
             });
         }
         
